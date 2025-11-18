@@ -19,7 +19,7 @@ MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assist
 
 1. **User Agents** - O usuário tem acesso direto as ações do agente. (Ex: Agente de busca)
 
-   Para os User Agents um agente supervisor consegue interagir com esses agentes e quando o usuário pede algo, o supervisor decide qual agente é o melhor para determinada tarefa, o supervisor também pode decidir que a tarefa solicitada seja feita por mais de um agente. 
+   Para os User Agents um agente supervisor consegue interagir com esses agentes e quando o usuário pede algo, o supervisor decide qual agente é o melhor para determinada tarefa, o supervisor também pode decidir que a tarefa solicitada seja feita por mais de um agente.
 2. **Events Agents** - São usados exclusivamente pelos eventos. (Ex: Agente de execução dos agendamentos)
 
    Para os Events Agents não há supervisor, extensões que usam IA para o tratamento de dados devem obrigatoriamente especificar um ou mais Events Agents para a execução.
@@ -34,7 +34,7 @@ Ao contrário de chatbots onde o usuário obrigatoriamente tem que falar um coma
 
 ### Eventos que já vem por padrão
 
-1.  Scheduler interno que permite a MomAI executar uma tarefa em determinado horário (Ex: Todo dia as 07:00 pode falar as principais notícias de tecnologia, e um relatório dos últimos e-mails. Outro exemplo seria lembrar de tomar agua a cada 30 minutos ou a cada 12h verificar o preço de um produto)
+1. Scheduler interno que permite a MomAI executar uma tarefa em determinado horário (Ex: Todo dia as 07:00 pode falar as principais notícias de tecnologia, e um relatório dos últimos e-mails. Outro exemplo seria lembrar de tomar agua a cada 30 minutos ou a cada 12h verificar o preço de um produto)
 2. Quando o computador inicia, MomAI inicia junto e fala uma mensagem de inicialização ao usuário.
 
 ### Alguns eventos que vem ao ativar extensões
@@ -45,30 +45,79 @@ Ao contrário de chatbots onde o usuário obrigatoriamente tem que falar um coma
 
 ## Possibilidades de usar MomAI + Extensões
 
-- Pedir para realizar tarefas no geral como:
-	- Faça um relatório baseado em informações da internet, Youtube, Gmail, Google agendas, Notion, Obsidian.
-	- Qual a previsão do tempo para hoje?
-	- Estou entediado consegue me fornecer uma lista com principais canais do Youtube que citaram Python em seus últimos vídeos? 
-	- Abra o sistema da faculdade e me diga as atividades que ainda tenho que fazer.
-	- Consegue avisar no grupo que não vou poder ir hoje?
-	- Quero que me diga tudo o que você sabe sobre Eduardo Mendes e salve em um PDF para eu ver depois.
- - Tarefas relacionadas ao computador como:
-	 - Hibernar, desligar ou reiniciar.
-	 - Aumentar/ diminuir volume, play/pause.
-	 - Realizar um comando pelo terminal.
-	 - Abrir aplicativos e pastas predefinidos pelo usuário em configurações.
-	 - Criar, editar e deletar arquivos apenas na pasta MomAI workspace
-- Tarefas que exigem memória como:
-	- Você consegue fazer uma lista de vídeos de Python que vi semana passada?
-	- Você se lembra o que eu comi terça passada? Não me lembro se falei para você
-- Tarefas de agendamentos:
-	- Toda terça e quarta fazer um livro caixa em uma planilha do Excel baseado em PDFS da pasta financeiro, fazer um relatório e enviar para um determinado e-mail.
-	- Me lembre daqui 3 minutos de jogar o lixo fora.
-	- Todo dia 01 de abril, quando detectar alguém faça trotes.
-- Tarefas relacionados a automatização residencial como:
-	- Ligue o ar condicionado.
-	- Mude a luz da sala para uma cor mais quente
-	- Sempre que você me detectar no reconhecimento facial pisque as luzes.
+1. Pedir para realizar tarefas no geral como:
+   - Faça um relatório baseado em informações da internet, Youtube, Gmail, Google agendas, Notion, Obsidian.
+   - Qual a previsão do tempo para hoje?
+   - Estou entediado consegue me fornecer uma lista com principais canais do Youtube que citaram Python em seus últimos vídeos?
+   - Abra o sistema da faculdade e me diga as atividades que ainda tenho que fazer.
+   - Consegue avisar no grupo que não vou poder ir hoje?
+   - Quero que me diga tudo o que você sabe sobre Eduardo Mendes e salve em um PDF para eu ver depois.
+2. Tarefas relacionadas ao computador como:
+   - Hibernar, desligar ou reiniciar.
+   - Aumentar/ diminuir volume, play/pause.
+   - Realizar um comando pelo terminal.
+   - Abrir aplicativos e pastas predefinidos pelo usuário em configurações.
+   - Criar, editar e deletar arquivos apenas na pasta MomAI workspace
+3. Tarefas que exigem memória como:
+   - Você consegue fazer uma lista de vídeos de Python que vi semana passada?
+   - Você se lembra o que eu comi terça passada? Não me lembro se falei para você
+4. Tarefas de agendamentos:
+   - Toda terça e quarta fazer um livro caixa em uma planilha do Excel baseado em PDFS da pasta financeiro, fazer um relatório e enviar para um determinado e-mail.
+   - Me lembre daqui 3 minutos de jogar o lixo fora.
+   - Todo dia 01 de abril, quando detectar alguém faça trotes.
+5. Tarefas relacionados a automatização residencial como:
+   - Ligue o ar condicionado.
+   - Mude a luz da sala para uma cor mais quente
+   - Sempre que você me detectar no reconhecimento facial pisque as luzes.
+
+## Python
+
+Por mas que exista uma alta gama de bibliotecas no NodeJS, as linguagens JavaScript e TypeScript não são focadas em automatização, tratamento de dados e inteligência artificial, pensando em escalabilidade e simplicidade nas automações, MomAI usa Python no seu núcleo para:
+
+1. Orquestração de agentes usando Langraph/Langchain
+2. TTS usando Whisper
+3. STT usando Kokoro, 
+4. Ferramentas por defeito
+5. Extensões
+
+## Extensões
+
+O diferencial da MomAI é o poder escolher os poderes que você quer que sua Assistente possua, por padrão MomAI já fornece muitas funcionalidades no entanto você pode optar por adicionar extensões, aqui estão alguns exemplos de extensões:
+
+1. WhatsApp: Uma poderosa extensão ao qual quando um contato manda uma mensagem o assistente alerta o usuário com uma mensagem personalizada como por exemplo "Wesley, você já almoçou? Sua mãe está te perguntando no Whats, posso responder?"
+2. Reconhecimento facial: Adiciona o poder de efetuar certas ações caso uma pessoa seja reconhecida, como uma mensagem de boas vindas, um relatório do ocorrido, ou até eventos que passaram enquanto o usuário estava fora do computador.
+3. Abrir aplicativos: O usuário pode adicionar uma lista de aplicativos para que MomAI tenha acesso quando solicitado (Ex: Abra a calculadora e o Chrome)
+4. Navegador: O usuário pode solicitar qualquer coisa que possa ser feito no navegador, MomAI ira tentar finalizar a tarefa, gravara um vídeo passo a passo, e retornara um relatório do ocorrido(Ex: Acesse o GitHub e crie um novo repositório, escolha o nome e a descrição).
+5. Excel
+
+### Extensões da comunidade
+
+Você pode fazer um clone do modelo de exemplo disponibilizado no GitHub para fazer a sua própria extensão. Para publicar na lista da comunidade, basta fazer um fork do arquivo community-plugins.json, adicionar no final da lista as informações do seu plugin e fazer um PR.
+
+![Diagrama Pn](/images/diagrama.png)
+
+<Note>
+  Se você quiser contribuir com uma extensão as interfaces podem ser construídas facilmente com HTML, CSS e JavaScript.
+</Note>
+
+## Contexto histórico
+
+<Steps>
+  <Step title="Junho de 2025" iconType="solid">
+     Emi, um bot pessoal low code usando n8n para diversas automatizações.
+  </Step>
+  <Step title="Agosto de 2025">
+    Criação de 8 projetos fechados até o desenvolvimento do oficial, cada um testando algo diferente
+  </Step>
+  <Step title="15 de novembro de 2025">
+    Criação da documentação do projeto (A documentação veio primeiro do que o próprio código) inicialmente desenvolvido em Obsidian
+  </Step>
+  <Step title="18 de novembro de 2025">
+    O projeto passou a ser documentado no mintlify
+  </Step>
+</Steps>
+
+## Referências e inspirações de outros projetos
 
 ### Step 1: Set up your local environment
 
