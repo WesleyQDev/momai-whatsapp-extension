@@ -1,15 +1,17 @@
 ---
 title: "Porque usar MomAI?"
-description: "Você deve ter uma leve ideia do que é MomAI , mas o qual é o seu diferencial que faça com que seja realmente útil?"
+description: "Você deve ter uma leve ideia do que é MomAI, mas qual é o diferencial para fazer os usuários baixarem?"
 ---
 
 ## Inspiração
 
-MomAI é inspirado em J.A.R.V.I.s do filme homem de ferro, ela consegue lembrar, realizar e agendar tarefas, interagir com dispositivos, falar, escutar e até enxergar, sendo que os dados podem ser processados localmente ou não, MomAI não está conectada a servidor es de forma direta ou seja é de responsabilidade do usuário escolher os seus provedores.
+MomAI é inspirado em J.A.R.V.I.s uma IA com acesso a praticamente tudo que é tecnologia criado por Tony Stark no filme homem de ferro.
+
+MomAI consegue lembrar, realizar e agendar tarefas, interagir com dispositivos, falar, escutar e até enxergar, sendo que os dados podem ser processados localmente, MomAI não se mantem conectada a um servidor de forma direta ou seja é de responsabilidade do usuário escolher os provedores que irão tratar os seus dados.
 
 ### Arquitetura
 
-MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assistente, isso também favorece a personalização de prompts, cada agente possuí ferramentas próprias , por padrão existem 5 agentes no entanto as extensões adicionam seus próprios agentes, suas próprias ferramentas e seu próprio prompt.
+MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assistente, isso também favorece a personalização de prompts, cada agente possuí ferramentas próprias, por padrão existem 5 agentes no entanto as extensões adicionam seus próprios agentes, suas próprias ferramentas e seu próprio prompt.
 
 <Info>
   Ferramenta nada mas é do que fornecer uma função Python para um LLM e descrever as entradas que essa função precisa para realizar a tarefa.
@@ -24,18 +26,18 @@ MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assist
 
    Para os Events Agents não há supervisor, extensões que usam IA para o tratamento de dados devem obrigatoriamente especificar um ou mais Events Agents para a execução.
 
-   ### Orquestração dos agentes
+### Orquestração dos agentes
 
-   MomAI usa Langraph para a orquestração dos LLMs, em configurações é possível personalizar cada agente disponível e definir um provedor incluindo das extensões, para sua segurança recomendamos usar provedores locais em agentes que executam tarefas críticas ou confidenciais, como em um agente de navegador que pode fazer login e deixar exposto a senha da sua conta de algum site, o projeto ainda é experimental mas é voltada para o uso real, sugestões para o aprimoramento da segurança são sempre bem vindas!
+MomAI usa Langraph para a orquestração dos LLMs, em configurações é possível personalizar cada agente disponível e definir um provedor incluindo das extensões. Para a segurança dos seus dados recomendamos usar provedores locais em agentes que executam tarefas críticas ou confidenciais, pois um agente de navegador por exemplo pode ao fazer login deixar exposto senhas ou informações privadas que logo são analisadas pelo seu provedor de LLM, o projeto ainda é experimental e voltada para o uso real, sugestões para o aprimoramento da segurança são sempre bem vindas!
 
 ## Eventos
 
-Ao contrário de chatbots onde o usuário obrigatoriamente tem que falar um comando para que o assistente trabalhe, MomAI é amplamente movido a eventos. Sendo que pode realizar tarefas de forma autônoma desde que algum evento previamente autorizado seja acionado.
+Ao contrário de chatbots onde o usuário obrigatoriamente tem que falar um comando para que um LLm responda, MomAI é amplamente movido a eventos. Sendo que pode realizar tarefas de forma autônoma desde que algum evento previamente autorizado seja acionado.
 
 ### Eventos que já vem por padrão
 
-1. Scheduler interno que permite a MomAI executar uma tarefa em determinado horário (Ex: Todo dia as 07:00 pode falar as principais notícias de tecnologia, e um relatório dos últimos e-mails. Outro exemplo seria lembrar de tomar agua a cada 30 minutos ou a cada 12h verificar o preço de um produto)
-2. Quando o computador inicia, MomAI inicia junto e fala uma mensagem de inicialização ao usuário.
+1. **Scheduler interno** que permite a MomAI executar uma tarefa em determinado horário (Ex: Todo dia as 07:00 pode falar as principais notícias de tecnologia, e um relatório dos últimos e-mails. Outro exemplo seria lembrar de tomar agua a cada 30 minutos ou a cada 12h verificar o preço de um produto)
+2. **Quando o computador inicia**, MomAI pode iniciar junto e falar uma mensagem de inicialização ao usuário.
 
 ### Alguns eventos que vem ao ativar extensões
 
@@ -43,7 +45,7 @@ Ao contrário de chatbots onde o usuário obrigatoriamente tem que falar um coma
 2. Ao detectar uma pessoa pelo reconhecimento facial e que esteja previamente cadastrada, MomAI fala uma mensagem de boas vindas.
 3. Ao ficar muito tempo em redes sociais ou jogando, MomAI alerta os riscos e fala das tarefas que ainda tem que fazer.
 
-## Possibilidades de usar MomAI + Extensões
+## Possibilidades ao usar MomAI + Extensões
 
 1. Pedir para realizar tarefas no geral como:
    - Faça um relatório baseado em informações da internet, Youtube, Gmail, Google agendas, Notion, Obsidian.
@@ -64,11 +66,12 @@ Ao contrário de chatbots onde o usuário obrigatoriamente tem que falar um coma
 4. Tarefas de agendamentos:
    - Toda terça e quarta fazer um livro caixa em uma planilha do Excel baseado em PDFS da pasta financeiro, fazer um relatório e enviar para um determinado e-mail.
    - Me lembre daqui 3 minutos de jogar o lixo fora.
-   - Todo dia 01 de abril, quando detectar alguém faça trotes.
+   - Todo 1º de abril, quando detectar alguém faça uma piada de pane no sistema.
 5. Tarefas relacionados a automatização residencial como:
    - Ligue o ar condicionado.
    - Mude a luz da sala para uma cor mais quente
    - Sempre que você me detectar no reconhecimento facial pisque as luzes.
+
 
 ## Python
 
