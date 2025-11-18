@@ -13,9 +13,7 @@ MomAI consegue lembrar, realizar e agendar tarefas, interagir com dispositivos, 
 
 MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assistente, isso também favorece a personalização de prompts, cada agente possuí ferramentas próprias, por padrão existem 5 agentes no entanto as extensões adicionam seus próprios agentes, suas próprias ferramentas e seu próprio prompt.
 
-<Info>
-  Ferramenta nada mas é do que fornecer uma função Python para um LLM e descrever as entradas que essa função precisa para realizar a tarefa.
-</Info>
+> Ferramenta nada mas é do que fornecer uma função Python para um LLM e descrever as entradas que essa função precisa para realizar a tarefa.
 
 ### Existem dois tipos de agentes
 
@@ -72,6 +70,7 @@ Ao contrário de chatbots onde o usuário obrigatoriamente tem que falar um coma
    - Mude a luz da sala para uma cor mais quente
    - Sempre que você me detectar no reconhecimento facial pisque as luzes.
 
+> Futuramente MomAI recebera APP mobile e tera acesso a ferramentas para controlar o celular pelo pc e controlar o pc pelo celular, inclúsivel é possivel na maioria dos computadores ligar pelo própio celular usando wake on lan, para maior segurança o APP se conectara apenas a um wbsoket fornecido pelo FastAPI local. Novamente resaltando, este é um projeto experimental, priorizamos a segurança no entanto features serão lançadas constantemente e ainda não há uma previsibilidade para lançar a primeira versão estavel.
 
 ## Python
 
@@ -79,7 +78,7 @@ Por mas que exista uma alta gama de bibliotecas no NodeJS, as linguagens JavaScr
 
 1. Orquestração de agentes usando Langraph/Langchain
 2. TTS usando Whisper
-3. STT usando Kokoro, 
+3. STT usando Kokoro,
 4. Ferramentas por defeito
 5. Extensões
 
@@ -107,7 +106,7 @@ Você pode fazer um clone do modelo de exemplo disponibilizado no GitHub para fa
 
 <Steps>
   <Step title="Junho de 2025" iconType="solid">
-     Emi, um bot pessoal low code usando n8n para diversas automatizações.
+    Emi, um bot pessoal low code usando n8n para diversas automatizações.
   </Step>
   <Step title="Agosto de 2025">
     Criação de 8 projetos fechados até o desenvolvimento do oficial, cada um testando algo diferente
@@ -121,6 +120,7 @@ Você pode fazer um clone do modelo de exemplo disponibilizado no GitHub para fa
 </Steps>
 
 ## Referências e inspirações de outros projetos
+
 1. [vocalis](https://github.com/shaakz/vocalis) É um assistente com capacidades de speak to speak, usa Reactjs com backend FastAPI. Parte do código da escuta e da fala foram inspirados nesse projeto.
 2. [Obsidian](https://obsidian.md/) Seus plugins são de software aberto e desenvolvidos pela comunidade, o aplicativo em si é free use e auto hospedado, MomAI foi construída se inspirando um pouco no modelo de plugins do Obsidian.
 3. [J.U.N.I..N](https://www.youtube.com/watch?v=GQzO5tEZSBI&list=PLYAGaVIlnsYYDuiXdf9-15pDZg9mi60-k&index=1) É um dos primeiros projetos de teste exibidas no Youtube que inspiraram a criação do MomAI, inicialmente a assistente seria uma criadora de tools para realizar as tarefas.
