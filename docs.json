@@ -15,7 +15,7 @@
           "groups": [
             {
               "group": "Primeros pasos",
-              "pages": ["pt-BR/index", "pt-BR/quickstart", "pt-BR/development"]
+              "pages": ["pt-BR/index", "pt-BR/introdução", "pt-BR/por-que-momai", "pt-BR/development"]
             }
           ]
         }
