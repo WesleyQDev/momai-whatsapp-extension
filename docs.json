@@ -3,9 +3,9 @@
   "theme": "mint",
   "name": "MomAI",
   "colors": {
-    "primary": "#3464C8",
-    "light": "#157ACC",
-    "dark": "#1B63CF"
+    "primary": "#6366f1",
+    "light": "#818cf8",
+    "dark": "#4f46e5"
   },
   "favicon": "./icon.png",
   "navigation": {
@@ -14,7 +14,7 @@
           "language": "pt-BR",
           "groups": [
             {
-              "group": "Primeros pasos",
+              "group": "Primeiros Passos",
               "pages": ["pt-BR/index", "pt-BR/introdução", "pt-BR/por-que-momai", "pt-BR/development"]
             }
           ]
@@ -24,14 +24,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "GitHub",
+          "href": "https://github.com/WesleyQDev/MomAI",
+          "icon": "github"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "Issues",
+          "href": "https://github.com/WesleyQDev/MomAI/issues",
+          "icon": "bug"
         }
       ]
     }
@@ -41,16 +41,11 @@
     "dark": "/logo/logo.png"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
+    "links": [],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "label": "GitHub",
+      "href": "https://github.com/WesleyQDev/MomAI"
     }
   },
   "contextual": {
@@ -67,9 +62,7 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/WesleyQDev/MomAI"
     }
   }
 }

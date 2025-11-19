@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-float {
+    animation: subtle-float 4s ease-in-out infinite;
+  }
+  
+  .bg-grid-pattern {
+    background-image: linear-gradient(to right, #1f2937 1px, transparent 1px),
+                      linear-gradient(to bottom, #1f2937 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, transparent, 10%, white, 90%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, 10%, white, 90%, transparent);
+  }
+}
+
+@keyframes subtle-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
