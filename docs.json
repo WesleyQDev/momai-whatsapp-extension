@@ -29,9 +29,9 @@
           "icon": "github"
         },
         {
-          "anchor": "Issues",
-          "href": "https://github.com/WesleyQDev/MomAI/issues",
-          "icon": "bug"
+          "anchor": "Baixar MomAI",
+          "href": "https://wesleyqdev.github.io/momai-docs/",
+          "icon": "download"
         }
       ]
     }
@@ -41,12 +41,19 @@
     "dark": "/logo/logo.png"
   },
   "navbar": {
-    "links": [],
-    "primary": {
-      "type": "button",
-      "label": "GitHub",
-      "href": "https://github.com/WesleyQDev/MomAI"
-    }
+    "links": [
+          {
+        "label": "GitHub",
+        "href": "https://wesleyqdev.github.io/momai-docs/",
+        "icon": "github"
+      },
+      {
+        "label": "Baixar MomAI",
+        "href": "https://wesleyqdev.github.io/momai-docs/"
+      }
+
+    ]
+
   },
   "contextual": {
     "options": [
