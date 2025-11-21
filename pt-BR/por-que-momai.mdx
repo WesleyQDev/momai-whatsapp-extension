@@ -7,53 +7,58 @@ description: "MomAI da um passo a frente mostrando a verdadeira capacidade de um
 
 inspirado em J.A.R.V.I.s (Homem de ferro), MomAI consegue lembrar informações e internamente organizalas por data, hora, e assunto, executar tarefas quando um evento acontecer, agendar e criar lembretes, interagir com o sistema operacional e outros dispositivos,  falar, escutar e até enxergar, sendo que os dados são armazenados apenas no seu computador e processados por provedores de LLm de sua confiança.
 
-
 ### Arquitetura
 
-MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assistente, na instalação vem por defeito 5 agentes sendo que o principal é o MomAgent, quando um usuario envia um comando, primeiro é analisado por ele, como um supervisor e controlador dos demais agentes. Cada agente possui um LLM Provider, prompts e ferramentas.
-É por causa dessa arquitetura que é possivel adicionar diversos tipos de agentes por meio de extensões.
-> **Agentes de IA** são sistemas que têm autonomia para perceber o ambiente, tomar decisões e executar ações por meio de tools para atingir um objetivo. 
+MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assistente, na instalação vem por defeito 5 agentes sendo que o principal é o MomAgent, quando um usuario envia um comando, primeiro é analisado por ele, como um supervisor e controlador dos demais agentes. Cada agente possui um LLM Provider, prompts e ferramentas. É por causa dessa arquitetura que é possivel adicionar diversos tipos de agentes por meio de extensões.
 
-> **Tools (ferramentas)** são integrações externas que permitem que um agente de IA faça ações além de apenas gerar texto. Elas funcionam como “superpoderes” que ampliam o que o agente consegue fazer. Um agente, por si só, só pensa e responde usando o modelo de linguagem. Com ferramentas, ele pode agir no mundo real ou acessar sistemas externos.
-
-> **LM Provider** ou *Fornecedor de LLM* é a empresa que hospeda o modelo de IA em seus servidores e vende o acesso a ele (geralmente via API) para que o agente possa "pensar". Recomendamos fortemente o uso do **LM Studio** ou **Ollama** para manter seus dados privados e evitar preocupações com taxas pois são locais e sem taxas. Ainda assim, a MomAI aceita praticamente qualquer provedor. Alguns provedores que oferecem APIs gratuitas incluem **Google AI Studio**, **Groq** e **OpenRouter**.
-
+<AccordionGroup>
+  <Accordion title="Agentes de IA">
+    São sistemas que têm autonomia para perceber o ambiente, tomar decisões e executar ações por meio de tools para atingir um objetivo.
+  </Accordion>
+  <Accordion title="Tools (ferramentas)">
+    São integrações externas que permitem que um agente de IA faça ações além de apenas gerar texto. Elas funcionam como “superpoderes” que ampliam o que o agente consegue fazer. Um agente, por si só, só pensa e responde usando o modelo de linguagem. Com ferramentas, ele pode agir no mundo real ou acessar sistemas externos.
+  </Accordion>
+  <Accordion title="LM Provider ou Fornecedor de LLM">
+    é a empresa que hospeda o modelo de IA em seus servidores e vende o acesso a ele (geralmente via API) para que o agente possa "pensar". Recomendamos fortemente o uso do **LM Studio** ou **Ollama** para manter seus dados privados e evitar preocupações com taxas pois são locais e sem taxas. Ainda assim, a MomAI aceita praticamente qualquer provedor. Alguns provedores que oferecem APIs gratuitas incluem **Google AI Studio**, **Groq** e **OpenRouter**.
+  </Accordion>
+</AccordionGroup>
 
 ### Existem dois tipos de agentes na MomAI
 
 1. **Agentes de usuario**
-    ```mermaid
-      flowchart TB
-          n1("Usuario") --> n3("MomAgent")
-          n3 --> n4("SearchAgent") & n5("InterfaceAgent") & n6("SchedulerAgent")
-          n4 --> n3
-          n5 --> n3
-          n6 --> n3
-    ```
-    Quando o usuário solicita algo, MomAgent decide qual ou quais agentes são melhores para a tarefa:
-    - **InterfaceAgent**: O usuario ao pedir por alguma informação, MomAI se achar necessario usa este agente para criar uma interface mostrando na tela um relatório detalhado.
-    - **SchedulerAgent**: O Usuario ao pedir para lembrar ou executar algo em um determinado tempo, data ou hora, MomAI pede para que este agente guarde as informações do agendamento.
-    - **SearchAgent**: O usuario ao solicitar uma busca na internet, MomAI passa a solicitação para o agente, ou seja é este que realiza a busca e retorna o resultado para MomAI.
 
-    Extensões podem adicionar este tipo de agente, para que o usuario possa pedir para a assistente realizar outros tipos de tarefas.
+   ```mermaid
+     flowchart TB
+         n1("Usuario") --> n3("MomAgent")
+         n3 --> n4("SearchAgent") & n5("InterfaceAgent") & n6("SchedulerAgent")
+         n4 --> n3
+         n5 --> n3
+         n6 --> n3
+   ```
 
+   Quando o usuário solicita algo, MomAgent decide qual ou quais agentes são melhores para a tarefa:
+   - **InterfaceAgent**: O usuario ao pedir por alguma informação, MomAI se achar necessario usa este agente para criar uma interface mostrando na tela um relatório detalhado.
+   - **SchedulerAgent**: O Usuario ao pedir para lembrar ou executar algo em um determinado tempo, data ou hora, MomAI pede para que este agente guarde as informações do agendamento.
+   - **SearchAgent**: O usuario ao solicitar uma busca na internet, MomAI passa a solicitação para o agente, ou seja é este que realiza a busca e retorna o resultado para MomAI.
 
+   Extensões podem adicionar este tipo de agente, para que o usuario possa pedir para a assistente realizar outros tipos de tarefas.
 2. **Agentes de eventos**
-    ```mermaid
-    flowchart TB
-    n1("Lembrete Acionado") --> n2("ReminderAgent")
-    n3("Evento B") --> n4("Agente B")
-    ```
 
-    São usados exclusivamente quando um evento é acionado.
-    - **ReminderAgent**: Sempre que um evento de lembrete é disparado, este agente envia uma mensagem de voz .
+   ```mermaid
+   flowchart TB
+   n1("Lembrete Acionado") --> n2("ReminderAgent")
+   n3("Evento B") --> n4("Agente B")
+   ```
 
-    Ao contrario dos Agentes de usuario que são acionados pelo MomAgent, ao programar eventos junto é opcionalmente criado um agente própio para tal finalidade, não sendo obrigatório passar por um controlador.
+   São usados exclusivamente quando um evento é acionado.
+   - **ReminderAgent**: Sempre que um evento de lembrete é disparado, este agente envia uma mensagem de voz .
 
+   Ao contrario dos Agentes de usuario que são acionados pelo MomAgent, ao programar eventos junto é opcionalmente criado um agente própio para tal finalidade, não sendo obrigatório passar por um controlador.
 
 ## Um pouco mais sobre eventos
 
 Ao contrário de chatbots onde o usuário envia uma mensagem e espera uma resposta, eventos são acionados quando situações do mundo real acontecem ou seja MomAI pode realizar tarefas de forma autônoma se algum evento for disparado.
+
 ### Eventos que já vem por padrão
 
 1. **Scheduler interno** MomAI permite executar uma tarefa em determinado horário, quando chega a hora de realizar a tarefa, é disparado um evento para um agente de eventos (Ex: Todo dia as 07:00 pode falar as principais notícias de tecnologia, e um relatório dos últimos e-mails. Outro exemplo seria lembrar de tomar agua a cada 30 minutos ou a cada 12h verificar o preço de um produto)
@@ -148,9 +153,11 @@ Você pode fazer um clone do modelo de exemplo disponibilizado no GitHub para fa
 3. [J.U.N.I..N](https://www.youtube.com/watch?v=GQzO5tEZSBI&list=PLYAGaVIlnsYYDuiXdf9-15pDZg9mi60-k&index=1) É um dos primeiros projetos de caso de uso no Youtube que inspiraram a criação do MomAI, inicialmente a assistente seria uma criadora de tools para realizar as tarefas.
 
 ## Referência das techs
+
 1. [ElectronJS](https://www.electronjs.org/)
 
 ## Referências Youtuber
+
 1. [Eduardo Mendes](https://www.youtube.com/@Dunossauro) As Lives do dunossauro influenciaram drasticamente nas escolhas técnicas do projeto, um agradecimento pelo seu incrível trabalho.
 
 ## Próximos passos
