@@ -14,8 +14,12 @@
           "language": "pt-BR",
           "groups": [
             {
-              "group": "Primeiros Passos",
-              "pages": ["pt-BR/index", "pt-BR/por-que-momai", "pt-BR/development"]
+              "group": "MomAI",
+              "pages": ["pt-BR/index", "pt-BR/por-que-momai"]
+            },
+            {
+              "group": "Comunidade",
+              "pages": ["pt-BR/como-colaborar", "pt-BR/frontend", "pt-BR/backend", "pt-br/extensões"]
             }
           ]
         }
