@@ -9,7 +9,7 @@ inspirado em J.A.R.V.I.s (Homem de ferro), MomAI consegue lembrar informações 
 
 ### Arquitetura
 
-MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assistente, na instalação vem por defeito 5 agentes sendo que o principal é o MomAgent, quando um usuario envia um comando, primeiro é analisado por ele, como um supervisor e controlador dos demais agentes. Cada agente possui um LLM Provider, prompts e ferramentas. É por causa dessa arquitetura que é possivel adicionar diversos tipos de agentes por meio de extensões.
+MomAI usa uma arquitetura de agentes para quebrar as responsabilidades da assistente, na instalação vem por defeito 5 agentes sendo que o principal é o MomAgent, quando um usuario envia um comando, primeiro é analisado por ele, como um supervisor e controlador dos demais agentes. Cada agente possui um LLM Provider, prompts e ferramentas. É por causa dessa arquitetura que é possivel adicionar diversos tipos de agentes por meio de extensões. 
 
 <AccordionGroup>
   <Accordion title="Agentes de IA">
@@ -106,14 +106,14 @@ Por mas que exista uma alta gama de bibliotecas no NodeJS, as linguagens JavaScr
 1. Orquestração de agentes usando Langraph/Langchain
 2. TTS usando Whisper
 3. STT usando Kokoro,
-4. Ferramentas por defeito
+4. Tools
 5. Extensões
 
 ## Extensões
 
-O diferencial da MomAI é o poder escolher os poderes que você quer que sua Assistente possua, por padrão MomAI já fornece muitas funcionalidades no entanto você pode optar por adicionar extensões, aqui estão alguns exemplos de extensões:
+O diferencial do projeto é o poder escolher os "poderes" que sua assistente tera acesso, por ser de uso geral algumas funcionalidades poderiam ocupar muito armazenamento e processamendo do seu computador, por isso apenas algumas funcionalidades vem ativadas o restatnte você pode instalar por meio de extensões. Aqui algumas futuras extensões:
 
-1. WhatsApp: Uma poderosa extensão ao qual quando um contato manda uma mensagem o assistente alerta o usuário com uma mensagem personalizada como por exemplo "Wesley, você já almoçou? Sua mãe está te perguntando no Whats, posso responder?"
+1. **WhatsApp**: Adiciona um banco de dados de contatos, um evento é emitido quando um contato manda uma mensagem e um agente fala uma frase personalizada sobre a mensagem. Por exemplo "Senhor, você já almoçou? Sua mãe está te perguntando no Whats, posso responder?"
 2. Reconhecimento facial: Adiciona o poder de efetuar certas ações caso uma pessoa seja reconhecida, como uma mensagem de boas vindas, um relatório do ocorrido, ou até eventos que passaram enquanto o usuário estava fora do computador.
 3. Abrir aplicativos: O usuário pode adicionar uma lista de aplicativos para que MomAI tenha acesso quando solicitado (Ex: Abra a calculadora e o Chrome)
 4. Navegador: O usuário pode solicitar qualquer coisa que possa ser feito no navegador, MomAI ira tentar finalizar a tarefa, gravara um vídeo passo a passo, e retornara um relatório do ocorrido(Ex: Acesse o GitHub e crie um novo repositório, escolha o nome e a descrição).
