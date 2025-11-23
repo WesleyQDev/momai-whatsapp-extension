@@ -83,7 +83,7 @@ Ao contrário de chatbots onde o usuário envia uma mensagem e espera uma respos
 ## Possibilidades ao usar MomAI + Extensões
 
 1. Pedir para realizar tarefas no geral como:
-   - Revise minhas anotações (Notion, Obsidian, Anytypes) e me diga tudo o que eu já estudei sobre "Python Web Scrapping". Crie uma nova anotação com um roadmap dos próximos passos.
+   - Revise minhas anotações (Notion, Obsidian, Anytype) e me diga tudo o que eu já estudei sobre "Python Web Scrapping". Crie uma nova anotação com um roadmap dos próximos passos.
    - Faça um relatório sobre o que esta acontecendo nas grandes empresas de tecnologia, baseado neste ano qual é a nova tendencia?
    - Qual a previsão do tempo? Sera que vai dar certo os compromissos dessa semana?
    - Forneça uma lista com os principais canais do Youtube que citaram MomAI em seus últimos vídeos
@@ -121,15 +121,56 @@ Então... existe uma alta gama de bibliotecas no NodeJS, no entatno as linguagen
 
 ## Extensões
 
-O diferencial do projeto é o poder escolher os "poderes" que sua assistente tera acesso, por ser de uso geral algumas funcionalidades poderiam ocupar muito armazenamento e processamendo do seu computador, por isso apenas alguns agentes são instalados o restatnte você pode instalar por meio de extensões. Algumas futuras extensões:
+O diferencial do projeto é o poder escolher os "poderes" que sua assistente tera acesso, por ser de uso geral algumas funcionalidades poderiam ocupar muito armazenamento e processamendo do seu computador, por isso apenas alguns agentes são instalados, enquanto o restatnte você pode instalar por meio de extensões. Algumas a serem desenvolvidas:
 
-1. **WhatsApp**: Adiciona um banco de dados de contatos, um evento é emitido quando um contato manda uma mensagem e um agente fala uma frase personalizada sobre a mensagem. Por exemplo "Senhor, você já almoçou? Sua mãe está te perguntando no Whats, posso responder?"
-2. **Reconhecimento facial**: Adiciona o poder de efetuar certas ações caso uma pessoa seja reconhecida, como uma mensagem de boas vindas, um relatório do ocorrido, ou até eventos que passaram enquanto o usuário estava fora do computador.
-3. **Abertura de aplicativos**: O usuário pode adicionar uma lista de aplicativos para que MomAI tenha acesso quando solicitado (Ex: Abra a calculadora e o Chrome)
-4. **Navegação**: O usuário pode solicitar qualquer coisa que possa ser feito no navegador, MomAI ira tentar finalizar a tarefa, gravara um vídeo passo a passo, e retornara um relatório do ocorrido(Ex: Acesse o GitHub e crie um novo repositório, escolha o nome e a descrição).
-5. **Interação com planilhas**: Adiciona um agente de delegação com ferramentas para interagir com planilhas presentes no workspace.
 
-### Extensões da comunidade
+### WhatsApp
+Uma integração do MomAI com o Whatsapp por meio do EvolutionAPI.
+
+**Requisitos**
+- Docker desktop
+- Um número cadastrado no Whatsapp
+
+**Assets**
+- Adiciona um banco de dados com contatos
+- Adiciona uma interface de configuração para:
+  - Gerenciar contatos
+- Adiciona um arquivo docker compose com evolutionAPi e redis
+- Adiciona um arquvio de inicialização do docker.
+
+
+**Agentes de delegação**
+- Agente A: Envia uma mensagem personalizada. Tools:
+  - Envia uma mensagem personalizada para um grupo
+  - Envia uma mensagem personalizada para um contato
+
+**Eventos**
+- Evento A: É emitido quando um contato manda uma mensagem.
+- Evento B: Usuario permitiu a resposta
+
+**Agentes de eventos**
+- Agente A: Escreve uma frase personalizada sobre a mensagem. Por exemplo "Senhor, você já almoçou? Sua mãe está te perguntando no Whats, posso responder?"
+- Agente B: Envia uma mensagem com a resposta.
+
+### Reconhecimento facial
+Adiciona o poder de efetuar certas ações caso uma pessoa seja reconhecida, como uma mensagem de boas vindas, um relatório do ocorrido, ou até eventos que passaram enquanto o usuário estava fora do computador.
+
+### Abertura de aplicativos
+ O usuário pode adicionar uma lista de aplicativos para que MomAI tenha acesso quando solicitado (Ex: Abra a calculadora e o Chrome)
+
+###  Navegação 
+O usuário pode solicitar qualquer coisa que possa ser feito no navegador, MomAI ira tentar finalizar a tarefa, gravara um vídeo passo a passo, e retornara um relatório do ocorrido(Ex: Acesse o GitHub e crie um novo repositório, escolha o nome e a descrição).
+
+### Interação com planilhas
+Adiciona um agente de delegação com ferramentas para interagir com planilhas presentes no workspace.
+
+### Integração de notas (Anytype, Obsidian, Notion)
+Adiciona um agente com acesso a MCP de ferramentas de anotação. Quando o usuario pedir para anotar algo, sera feito no aplicativo de anotação padrão.
+
+### Integração suite do google
+Integra a suite do google ao MomAI
+
+## Extensões da comunidade
 
 Você pode fazer um clone do modelo de exemplo disponibilizado no GitHub para fazer a sua própria extensão. Para publicar na lista da comunidade, basta fazer um fork do arquivo community-plugins.json, adicionar no final da lista as informações do seu plugin e fazer um PR.
 
