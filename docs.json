@@ -42,7 +42,7 @@
   },
   "logo": {
     "light": "/logo/logo.png",
-    "dark": "/logo/dark.png"
+    "dark": "/logo/logo.png"
   },
   "navbar": {
     "links": [
