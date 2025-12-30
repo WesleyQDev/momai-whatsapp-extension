@@ -11,18 +11,17 @@ description: "Bem-vindo à documentação da MomAI, sua Assistente Virtual Exten
 
 ## Comunidade BR
 
-Criado no Brasil, a MomAI é um projeto de código aberto sob a licença MIT, desenvolvido como uma plataforma que integra diversas soluções, garantindo que o usuário não fique limitado a uma única opção.
+Criado no Brasil, o MoMAI é um projeto de código aberto sob a licença MIT. Desenvolvido sob uma arquitetura de monorepo modular, ele integra diversas soluções em um único ecossistema coeso, garantindo que o usuário tenha o poder de utilizar a plataforma completa ou apenas os módulos que desejar. Essa estrutura permite que o projeto evolua de forma ágil e colaborativa, sem que você fique limitado a uma única solução fechada.
 
 ### Resumo rápido das tecnologias (Nodejs + Python)
 
 - **NodeJS (Electron + Vite + React)** - inicializador, Interfaces gráficas, gerenciamento de atualização da aplicação.
-- **Langraph/Langchain** - Orquestração dos agentes
+- **Langraph/Langchain** - Orquestração da IA 
 - **FastAPI** - Conexão entre o Electron e o núcleo da Assistente Python, Usando WebSockets e Api
-- **llama.cpp** - Execução de modelos locais LLM
-- **Kokoro/ rany2/edge-tts** - Text to speak
-- **Whisper** - Speak to Text
+- **llama.cpp** - Execução de LMM locais (Suporta CPU, placas antigas AMD e GPUS da NVIDIA)
+- **Kokoro/ rany2/ edge-tts** - Bibliotecas usadas para transcrever o que o usuario esta falando (TTS)
+- **Whisper** - Biblioteca usada para a voz da MomAI (STT)
 - **APScheduler** - Agendamentos de funções Python
-- **DuckDuckGO** - Ferramenta de busca na internet
 - **Mintlify** - Documentação
 
 ### Ferramentas
@@ -36,12 +35,13 @@ Criado no Brasil, a MomAI é um projeto de código aberto sob a licença MIT, de
 - Ruff (Lint)
 - Tasker (Python)
 - Pytest (Testes)
+- Pydantic 
 
 **Node.js**
 
 - nvm (Gerenciador de versões Node)
 - pnpm (Gerenciador de pacotes)
-- ElectronBuilder / ElectronForge (Empacotador electron)
+- ElectronBuilder ou ElectronForge (Empacotador electron)
 
 ## Começando
 

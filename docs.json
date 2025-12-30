@@ -10,21 +10,40 @@
   "favicon": "./icon.png",
   "navigation": {
     "languages": [
-        {
-          "language": "pt-BR",
-          "groups": [
-            {
-              "group": "MomAI",
-              "pages": ["pt-BR/index", "pt-BR/por-que-momai"]
-            },
-            {
-              "group": "Comunidade",
-              "pages": ["pt-BR/como-colaborar", "pt-BR/frontend", "pt-BR/backend", "pt-br/extensões"]
-            }
-          ]
-        }
+      {
+        "language": "pt-BR",
+        "tabs": [
+          {
+            "tab": "MomAI",
+            "groups": [
+              {
+                "group": "MomAI",
+                "pages": ["pt-BR/index", "pt-BR/por-que-momai"]
+              },
+              {
+                "group": "Comunidade",
+                "pages": [
+                  "pt-BR/como-colaborar",
+                  "pt-BR/frontend",
+                  "pt-BR/backend",
+                  "pt-br/extensões"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Fortscript",
+            "groups": [
+              {
+                "group": "Fortscript",
+                "pages": ["pt-BR/fortscript"]
+              }
+            ]
+          }
+        ]
+      }
     ],
-  
+
     "global": {
       "anchors": [
         {
@@ -46,7 +65,7 @@
   },
   "navbar": {
     "links": [
-          {
+      {
         "label": "GitHub",
         "href": "https://wesleyqdev.github.io/momai-docs/",
         "icon": "github"
@@ -55,21 +74,19 @@
         "label": "Baixar MomAI",
         "href": "https://wesleyqdev.github.io/momai-docs/"
       }
-
     ]
-
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
   "footer": {
     "socials": {
