@@ -1,16 +1,50 @@
 ---
-title: "Frontend"
-description: "No site o MomAI vem como um executável empacotado via electron-forge. Nesta seção você aprende a baixar o código-fonte, executar o projeto e contribuir."
+title: "Configuração do Ambiente (Frontend)"
+description: "A interface do MomAI é construída com Electron, React e Vite. Siga os passos para rodar o ambiente de desenvolvimento local."
 ---
-Recomendamos instalar as dependências do backend e frontend juntos para evitar problemas de compatibilidade.
 
-**Pré-requisitos**
+O frontend é responsável pela interface gráfica e por gerenciar a comunicação com o núcleo Python via FastAPI.
+
+## Pré-requisitos
+
 <Info>
-  **Pré-requisitos**
-  - Node.js versão 19 ou superior
-  - Python 3.12 ou superior
-  - Git instalado e configurado
-
-
+  **Tecnologias principais:**
+  - **Node.js 19+**
+  - **pnpm** (Gerenciador de pacotes recomendado)
+  - **Electron Forge** (Empacotador)
 </Info>
-Siga os passos para a instalação:
+
+## Passos para Instalação
+
+### 1. Instalar dependências
+Navegue até a pasta do projeto e execute:
+```bash
+pnpm install
+```
+
+### 2. Executar em modo de desenvolvimento
+Isso iniciará o Vite para o hot-reload do React e abrirá a janela do Electron.
+```bash
+pnpm run dev
+```
+
+### 3. Build e Empacotamento
+Para gerar o executável final para o seu sistema operacional:
+```bash
+pnpm run make
+```
+
+## Estrutura de Comunicação
+
+O frontend se conecta ao backend (Python) através de uma porta local definida nas configurações. Ele utiliza **WebSockets** para receber atualizações em tempo real (como o texto que está sendo transcrito pela voz) e **APIs REST** para comandos diretos.
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card title="Configuração Backend" icon="server" href="/pt-BR/backend">
+    Certifique-se de que o núcleo Python esteja rodando.
+  </Card>
+  <Card title="Como Colaborar" icon="hands" href="/pt-BR/como-colaborar">
+    Veja como contribuir com novos componentes e telas.
+  </Card>
+</CardGroup>

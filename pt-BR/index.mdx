@@ -4,63 +4,81 @@ description: "Bem-vindo à documentação da MomAI, sua Assistente Virtual Exten
 ---
 
 <Warning>
-  Este é um projeto experimental. Embora a segurança seja uma prioridade, novas
-  funcionalidades serão lançadas continuamente e ainda não há previsão para o
-  lançamento da primeira versão estável.
+  🚧 **Projeto em Desenvolvimento** - MomAI ainda está sendo construído. Esta
+  documentação descreve funcionalidades planejadas e pode mudar conforme o
+  projeto evolui.
 </Warning>
 
-## Comunidade BR
+## O que é MomAI?
 
-Criado no Brasil, o MoMAI é um projeto de código aberto sob a licença MIT. Desenvolvido sob uma arquitetura de monorepo modular, ele integra diversas soluções em um único ecossistema coeso, garantindo que o usuário tenha o poder de utilizar a plataforma completa ou apenas os módulos que desejar. Essa estrutura permite que o projeto evolua de forma ágil e colaborativa, sem que você fique limitado a uma única solução fechada.
+MomAI é uma assistente virtual de código aberto, criada no Brasil 🇧🇷, que você poderá personalizar com extensões. Diferente de assistentes comuns, você terá controle total sobre quais funcionalidades instalar e onde seus dados são armazenados.
 
-### Resumo rápido das tecnologias (Nodejs + Python)
+### Por que usar MomAI?
 
-- **NodeJS (Electron + Vite + React)** - inicializador, Interfaces gráficas, gerenciamento de atualização da aplicação.
-- **Langraph/Langchain** - Orquestração da IA 
-- **FastAPI** - Conexão entre o Electron e o núcleo da Assistente Python, Usando WebSockets e Api
-- **llama.cpp** - Execução de LMM locais (Suporta CPU, placas antigas AMD e GPUS da NVIDIA)
-- **Kokoro/ rany2/ edge-tts** - Bibliotecas usadas para transcrever o que o usuario esta falando (TTS)
-- **Whisper** - Biblioteca usada para a voz da MomAI (STT)
-- **APScheduler** - Agendamentos de funções Python
-- **Mintlify** - Documentação
+- **Privacidade** - Seus dados ficam no seu computador
+- **Extensível** - Adicione apenas as funcionalidades que você precisa
+- **Código aberto** - Licença MIT, totalmente gratuito
+- **Multiplataforma** - Funcionará no Windows, Linux e Mac
 
-### Ferramentas
+## Tecnologias Utilizadas
 
-- **Git** - Gerenciador de versões
-- **GitHub** - CI/CD, releases
+### Resumo rápido (Node.js + Python)
 
-**Python**
+<AccordionGroup>
+  <Accordion title="Interface e App (Node.js)">
+    - **Electron** - Inicializador e empacotamento desktop
+    - **Vite + React** - Interfaces gráficas e reatividade
+    - **pnpm** - Gerenciamento eficiente de pacotes
+  </Accordion>
 
-- uv (Gerenciador de pacotes)
-- Ruff (Lint)
-- Tasker (Python)
-- Pytest (Testes)
-- Pydantic 
+  <Accordion title="Núcleo e Inteligência (Python)">
+    - **LangGraph / LangChain** - Orquestração dos fluxos de IA
+    - **FastAPI** - Ponte de comunicação via WebSockets e APIs
+    - **llama.cpp** - Execução de LLMs locais (suporta CPU, AMD e NVIDIA)
+    - **uv** - Gerenciador de pacotes e ambientes Python
+    - **Pydantic** - Validação de dados e esquemas
+  </Accordion>
+  
+  <Accordion title="Voz e Audio">
+    - **Whisper** - Transformação de voz em texto (STT)
+    - **Kokoro / edge-tts** - Transformação de texto em voz (TTS)
+  </Accordion>
 
-**Node.js**
-
-- nvm (Gerenciador de versões Node)
-- pnpm (Gerenciador de pacotes)
-- ElectronBuilder ou ElectronForge (Empacotador electron)
+  <Accordion title="Automação e Ferramental">
+    - **APScheduler** - Agendamento de tarefas e funções
+    - **Tasker (Python)** - Execução de tasks automatizadas
+    - **Pytest** - Garantia de qualidade via testes
+    - **Ruff** - Linting e formatação de código
+  </Accordion>
+</AccordionGroup>
 
 ## Começando
 
 <CardGroup cols={2}>
-  <Card title="Início Rápido" icon="rocket" href="/pt-BR/introdução">
-    Configure o MomAI em minutos e comece a usar.
-  </Card>
   <Card title="Por que MomAI?" icon="stars" href="/pt-BR/por-que-momai">
-    Entenda a filosofia e os benefícios do projeto.
+    Entenda a visão e os objetivos do projeto.
+  </Card>
+  <Card
+    title="Evolução do Projeto"
+    icon="clock-rotate-left"
+    href="/pt-BR/evolucao"
+  >
+    Acompanhe o histórico e progresso do desenvolvimento.
   </Card>
 </CardGroup>
 
 ## Explorar
 
 <CardGroup cols={2}>
-  <Card title="Guias de Desenvolvimento" icon="code" href="/pt-BR/development">
-    Aprenda a estender e personalizar o MomAI.
+  <Card title="Backend" icon="server" href="/pt-BR/backend">
+    Aprenda sobre o núcleo em Python e como configurar o ambiente.
   </Card>
-  <Card title="Referência da API" icon="book" href="/api-reference">
-    Documentação detalhada de endpoints e funções.
+  <Card title="Frontend" icon="desktop" href="/pt-BR/frontend">
+    Entenda a interface construída com Electron e React.
   </Card>
 </CardGroup>
+
+<Note>
+  Quer ajudar a construir o MomAI? Veja nosso [guia de
+  contribuição](/pt-BR/como-colaborar).
+</Note>

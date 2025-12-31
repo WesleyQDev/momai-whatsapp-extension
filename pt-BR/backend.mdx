@@ -1,16 +1,61 @@
 ---
-title: "Backend"
-description: "No site o MomAI vem como um executável empacotado via electron-forge. Nesta seção você aprende a baixar o código-fonte, executar o projeto e contribuir."
+title: "Configuração do Ambiente (Backend)"
+description: "O núcleo do MomAI é desenvolvido em Python. Siga os passos abaixo para configurar seu ambiente de desenvolvimento."
 ---
-Recomendamos instalar as dependências do backend e frontend juntos para evitar problemas de compatibilidade.
 
-**Pré-requisitos**
+Recomendamos configurar o backend e o frontend para garantir que a comunicação via WebSockets funcione corretamente durante os testes.
+
+## Pré-requisitos
+
 <Info>
-  **Pré-requisitos**
-  - Node.js versão 19 ou superior
-  - Python 3.12 ou superior
-  - Git instalado e configurado
-
-
+  **Verifique as versões instaladas:**
+  - **Python 3.12** ou superior (Recomendamos o uso do `uv` para gestão)
+  - **Node.js 19** ou superior (pnpm como gerenciador de pacotes)
+  - **Git** para clonar os módulos e extensões
 </Info>
-Siga os passos para a instalação:
+
+## Passos para Instalação
+
+### 1. Clonar o projeto
+```bash
+git clone https://github.com/WesleyQDev/momai
+cd momai
+```
+
+### 2. Configurar o Python (Núcleo)
+Nós usamos o `uv` pela sua velocidade e facilidade com ambientes virtuais.
+```bash
+# Criar ambiente virtual e instalar dependências
+uv sync
+```
+
+Se você preferir usar pip tradicional:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # No Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 3. Executar o Servidor FastAPI
+O backend atua como um servidor que aguarda as conexões do Electron.
+```bash
+# Usando o tasker ou comando direto
+python main.py
+```
+
+## Ferramentas de Desenvolvimento
+
+- **Ruff**: Usado para manter o código limpo e padronizado.
+- **Pytest**: Execute `pytest` para garantir que as alterações não quebraram o núcleo.
+- **Tasker**: Atalhos para tarefas comuns de desenvolvimento.
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card title="Frontend" icon="desktop" href="/pt-BR/frontend">
+    Entenda a interface gráfica em Electron e React.
+  </Card>
+  <Card title="Extensões" icon="puzzle-piece" href="/pt-BR/extensões">
+    Aprenda a criar extensões para o MomAI.
+  </Card>
+</CardGroup>

@@ -1,6 +1,6 @@
 ---
 title: "Por que MomAI?"
-description: "Uma plataforma que une seus sistemas em um só lugar."
+description: "Sua assistente, seus dados, seu controle. Onde a IA encontra a automação de verdade."
 ---
 
 ## Propósito
@@ -14,92 +14,70 @@ MomAI será um assistente virtual opensource com suporte planejado para Windows,
 - Se conectar a outros aplicativos e serviços através de extensões
 
 <Warning>
-  Por padrão, os dados são armazenados localmente e processados pelos provedores
-  de LLM. Cabe ao usuário escolher quais provedores utilizar. <br />A MomAI
-  possui uma extensão própria que adiciona o `llama.cpp`, permitindo baixar
-  modelos locais e executá-los diretamente na assistente. <br />
+  Por padrão, os dados são armazenados localmente e processados pelos provedores de LLM. Cabe ao usuário escolher quais provedores utilizar. <br />
+  A MomAI possui uma extensão própria que adiciona o `llama.cpp`, permitindo baixar modelos locais e executá-los diretamente na assistente. <br />
   No entanto, você também pode optar por usar chaves de API de terceiros.
 
-Extensões podem enviar ou receber informações de serviços externos. <br />{" "}
-Antes de adicionar uma nova extensão, revise as permissões às quais ela terá
-acesso e certifique-se de que você concorda com os riscos envolvidos.
-
+  Extensões podem enviar ou receber informações de serviços externos. <br />
+  Antes de adicionar uma nova extensão, revise as permissões às quais ela terá acesso e certifique-se de que você concorda com os riscos envolvidos.
 </Warning>
+
 ### Como vai funcionar?
 
-MomAI será construída como uma equipe de assistentes especializados. Pense como uma empresa:
+MomAI será construída como uma equipe de agentes especializados. Pense como uma empresa organizada:
 
-- **MomAgent** será o "gerente" principal que recebe seu pedido e decide qual assistente especializado deve executá-lo
-- **Assistentes especializados** cuidarão de tarefas específicas (buscar na internet, criar lembretes, mostrar informações na tela, etc.)
+- **MomAgent** será o "gerente" principal que recebe seu pedido e decide qual agente especializado deve executá-lo.
+- **Agentes Especializados** cuidarão de tarefas específicas (buscar na internet, criar lembretes, gerenciar interfaces, etc).
 
-Quando você falar algo, o MomAgent vai analisar e delegar para o assistente mais adequado. É como quando você entra em uma loja e o gerente te direciona para o vendedor certo.
+Quando você falar algo, o MomAgent vai analisar a intenção e delegar para o agente mais adequado. É um sistema modular onde cada agente é um especialista em sua função.
 
-Cada assistente terá suas próprias "ferramentas de trabalho" - conexões com sites, aplicativos e serviços. Você poderá adicionar mais assistentes através de extensões.
+Cada agente terá suas próprias ferramentas de trabalho - conexões com sites, aplicativos e serviços. Você poderá adicionar novos agentes através de extensões.
 
 <AccordionGroup>
   <Accordion title="Agentes (Agents)">
-    São como "funcionários virtuais" especializados. Cada um tem uma função
-    específica: alguns fazem buscas na internet, outros criam lembretes, e assim
-    por diante. O MomAgent é o "gerente" que coordena todos eles.
+    São como "funcionários virtuais" especializados. Cada um tem uma função específica: alguns fazem buscas na internet, outros criam lembretes, e assim por diante. O MomAgent é o "gerente" que coordena todos eles.
   </Accordion>
   <Accordion title="Ferramentas (Tools)">
-    São as capacidades que cada agente tem para fazer seu trabalho. Por exemplo:
-    abrir sites, enviar mensagens, criar arquivos, fazer cálculos. É como dar
-    uma caixa de ferramentas específica para cada profissional.
+    São as capacidades que cada agente tem para fazer seu trabalho. Por exemplo: abrir sites, enviar mensagens, criar arquivos, fazer cálculos.
   </Accordion>
   <Accordion title="MCP (Model Context Protocol)">
-    É como um "adaptador universal" que permite o MomAI se conectar facilmente
-    com diferentes aplicativos e serviços (como seu bloco de notas, e-mail,
-    etc.) sem precisar criar uma conexão diferente para cada um.
+    Um protocolo padrão que permite o MomAI se conectar facilmente com diferentes aplicativos e serviços (como seu bloco de notas, e-mail, etc.) sem precisar criar uma integração única para cada um.
   </Accordion>
   <Accordion title="Provedor de IA (LLM Provider)">
-    É o "cérebro" que dá inteligência aos agentes. Você poderá escolher usar: um
-    modelo que roda no seu próprio computador (mais privado) ou serviços online
-    gratuitos como Google AI Studio e Groq.
-  </Accordion>
-  <Accordion title="API">
-    É a "ponte de comunicação" que permite diferentes programas conversarem
-    entre si. É como o MomAI consegue se conectar com WhatsApp, Notion, e outros
-    serviços.
+    É o "cérebro" que dá inteligência aos agentes. Você poderá escolher usar: um modelo que roda localmente (via llama.cpp) ou serviços online como Google AI Studio e Groq.
   </Accordion>
 </AccordionGroup>
 
-### Existem dois tipos de agentes na MomAI
+### Fluxo de Funcionamento
 
-1. **Agentes de delegação**
+```mermaid
+sequenceDiagram
+    participant U as Usuário
+    participant M as MomAgent (Gerente)
+    participant A as Agente Especialista
+    participant L as LLM (IA)
 
-   ```mermaid
-     flowchart TB
-         n1("Usuário") --> n3("MomAgent")
-         n3 --> n4("SearchAgent") & n5("InterfaceAgent") & n6("SchedulerAgent")
-         n4 --> n3
-         n5 --> n3
-         n6 --> n3
-   ```
+    U->>M: "Qual a previsão do tempo?"
+    M->>L: Analisar intenção do usuário
+    L-->>M: Sugestão: Usar Agente de Busca
+    M->>A: Delegar tarefa de busca
+    A-->>M: Dados: "Ensolarado, 28°C"
+    M->>L: Formatar resposta final
+    L-->>M: "Hoje o dia está ótimo: Ensolarado com 28°C!"
+    M-->>U: Resposta por voz/texto
+```
 
-   Quando você pedir algo, MomAgent vai decidir qual assistente é melhor para aquela tarefa:
+### Tipos de Agentes
 
-   - **InterfaceAgent**: Quando você pedir informações complexas, este assistente vai criar uma tela visual com gráficos e relatórios organizados
-   - **SchedulerAgent**: Quando você pedir para lembrar de algo ou agendar uma tarefa, este assistente vai guardar e gerenciar seus compromissos
-   - **SearchAgent**: Quando você pedir para buscar algo na internet, este assistente vai pesquisar e trazer os resultados
+1. **Agentes de Delegação**: Acionados pelo MomAgent quando você faz um pedido direto.
+   - **InterfaceAgent**: Cria telas, gráficos e relatórios organizados.
+   - **SchedulerAgent**: Gerencia seus agendamentos e lembretes.
+   - **SearchAgent**: Realiza pesquisas e traz resultados da internet.
 
-   Extensões poderão adicionar novos assistentes especializados (ex: um assistente só para WhatsApp, outro só para e-mails).
-
-2. **Agentes de eventos**
-
-   ```mermaid
-   flowchart TB
-   n1("Lembrete Acionado") --> n2("ReminderAgent")
-   n3("Evento B") --> n4("Agente B")
-   ```
-
-   São ativados automaticamente quando algo específico acontece (sem você precisar pedir).
-
-   - **ReminderAgent**: Quando chegar a hora de um lembrete, este assistente vai te avisar por voz
-
-   Diferente dos assistentes de delegação que precisam do MomAgent para serem acionados, estes assistentes trabalham sozinhos quando detectam um evento.
-
-   Pense assim: quando um cliente entra numa loja, não precisa do gerente - o atendente já sabe o que fazer. Da mesma forma, quando chegar a hora de um lembrete, o ReminderAgent já sabe que deve te avisar, sem precisar consultar o MomAgent primeiro.
+2. **Agentes de Eventos (Autônomos)**: 
+   São ativados automaticamente por gatilhos do sistema, sem precisar de um comando direto.
+   - **ReminderAgent**: Avisa você por voz quando chega a hora de um lembrete.
+   - **SystemAgent**: Age quando o computador liga ou detecta eventos específicos do Windows/Linux/Mac.
 
 ## Um pouco mais sobre eventos
 
@@ -121,45 +99,25 @@ Diferente de um chatbot comum onde você precisa sempre dar comandos, MomAI ser�
 
 2. **Monitoramento de uso** - Se você ficar muito tempo em redes sociais ou jogos, a assistente pode te lembrar das tarefas pendentes
 
-## O que você poderá fazer com MomAI + Extensões
+## O que você pode fazer com MomAI + Extensões
 
-1. Pedir para realizar tarefas no geral como:
-   - Revise minhas anotações (Notion, Obsidian, Anytype) e me diga tudo o que eu já estudei sobre "Python Web Scraping". Crie uma nova anotação com um roadmap dos próximos passos.
-   - Faça um relatório sobre o que está acontecendo nas grandes empresas de tecnologia, baseado neste ano qual é a nova tendência?
-   - Qual a previsão do tempo? Será que vai dar certo os compromissos dessa semana?
-   - Forneça uma lista com os principais canais do Youtube que citaram MomAI em seus últimos vídeos
-   - Abra o site da faculdade, inclua as atividades que ainda tenho que fazer na agenda. Se tiver algo de urgência me conte.
-   - Avise no grupo dos amigos, que não vou poder ir hoje, é algo relacionado a um projeto importante.
-   - Faça uma busca completa sobre Eduardo Mendes e salve em um PDF na minha biblioteca para eu ler depois.
-2. Tarefas relacionadas ao computador como:
-   - Hibernar, desligar ou reiniciar.
-   - Aumentar/ diminuir volume, play/pause.
-   - Realizar um comando pelo terminal.
-   - Abrir aplicativos e pastas predefinidos pelo usuário em configurações.
-   - Criar, editar e deletar arquivos apenas na pasta MomAI workspace
-3. Tarefas que exigem memória como:
-   - Faça uma lista de vídeos de Python que vi semana passada
-   - Não me lembro quais músicas eu vi terça passada, consegue revisar o histórico?
-4. Tarefas de agendamentos:
-
-   - Toda terça e quarta fazer um livro caixa em uma planilha do Excel baseado em PDFS da pasta financeiro, fazer um relatório e enviar para um determinado e-mail.
-   - Me lembre daqui 3 minutos de jogar o lixo fora.
-
-5. Tarefas relacionados a automatização residencial como:
-   - Ligue o ar condicionado.
-   - Mude a luz da sala para uma cor mais quente
+1. **Gestão de Conhecimento**:
+   - Revisar anotações no Notion/Obsidian e criar roadmaps baseados em estudos anteriores.
+   - Gerar relatórios de tendências tecnológicas baseados em notícias recentes.
+2. **Controle do Sistema**:
+   - Controle de energia (hibernar/desligar).
+   - Manipulação de arquivos e automação via terminal.
+3. **Automação Residencial**:
+   - Controle de luzes, ar condicionado e dispositivos IoT conectados.
 
 > Futuramente, o MomAI receberá um aplicativo mobile e terá acesso a ferramentas para controlar o celular pelo PC e controlar o PC pelo celular. Inclusive, é possível, na maioria dos computadores, ligá-lo pelo próprio celular usando Wake-on-LAN. Para maior segurança, o aplicativo se conectará apenas a um WebSocket fornecido pela instância local do FastAPI.
 
 ## Por que Python?
 
-Python é a linguagem mais usada para projetos de inteligência artificial e automação. MomAI será desenvolvida em Python porque:
-
-1. **Melhor suporte para IA** - Tem as melhores bibliotecas para trabalhar com assistentes inteligentes
-2. **Conversão de voz** - Transforma sua fala em texto e vice-versa
-3. **Sistema de extensões** - Facilita criar e instalar novas funcionalidades
-4. **Modelos locais** - Permite rodar IAs direto no seu computador sem internet
-5. **Grande comunidade** - Mais fácil para outros desenvolvedores contribuírem com o projeto
+Python é a escolha ideal para IA e automação devido ao ecossistema robusto:
+- Suporte nativo para bibliotecas como LangChain e LangGraph.
+- Facilidade em processamento de áudio (STT/TTS).
+- Rapidez no desenvolvimento de extensões.
 
 ## Sistema de Extensões
 
@@ -224,20 +182,43 @@ Integra a suite do google ao MomAI
 
 Você pode fazer um clone do modelo de exemplo disponibilizado no GitHub para fazer a sua própria extensão. Para publicar na lista da comunidade, basta fazer um fork do arquivo community-plugins.json, adicionar no final da lista as informações do seu plugin e fazer um PR.
 
-![Diagrama Pn](/images/diagrama.png)
+```mermaid
+graph LR
+    subgraph UI [Interface]
+        E(fa:fa-desktop Electron / React)
+    end
+
+    subgraph Core [Núcleo de Inteligência]
+        C{fa:fa-brain Python Core}
+        AG[fa:fa-robot Agentes]
+    end
+
+    subgraph Ext [Ecossistema]
+        P((fa:fa-puzzle-piece Plugins))
+    end
+
+    E -- "APIs / WebSockets" --> C
+    P -- "Registro" --> C
+    C --- AG
+
+    style E fill:none,stroke:#475569,stroke-width:2px,color:#94a3b8
+    style C fill:none,stroke:#6366f1,stroke-width:2px,color:#818cf8,stroke-dasharray: 5 5
+    style P fill:none,stroke:#475569,stroke-width:2px,color:#94a3b8
+    style UI fill:none,stroke:#1e293b,stroke-dasharray: 2 2,color:#475569
+    style Core fill:none,stroke:#1e293b,stroke-dasharray: 2 2,color:#475569
+    style Ext fill:none,stroke:#1e293b,stroke-dasharray: 2 2,color:#475569
+```
 
 <Note>
   Se você quiser contribuir com uma extensão as interfaces podem ser construídas
   facilmente com HTML, CSS e JavaScript.
 </Note>
 
-## Referências e inspirações de outros projetos
+## Referências e Inspirações
 
-1. [vocalis](https://github.com/shaakz/vocalis) É um assistente com capacidades de speak to speak, usa Reactjs com backend FastAPI. Parte do código de escuta e fala da MomAI foram inspirados nesse projeto.
-2. [Obsidian](https://obsidian.md/) Seus plugins são de software aberto e desenvolvidos pela comunidade, o aplicativo em si não é open source e sim free use e auto hospedado, MomAI foi construída se inspirando no modelo de plugins do Obsidian.
-3. [J.U.N.I..N](https://www.youtube.com/watch?v=GQzO5tEZSBI&list=PLYAGaVIlnsYYDuiXdf9-15pDZg9mi60-k&index=1) É um dos primeiros projetos de caso de uso no Youtube que inspiraram a criação do MomAI, inicialmente a assistente seria uma criadora de tools para realizar as tarefas.
-4. [plombery](https://github.com/lucafaggianelli/plombery?tab=readme-ov-file) A ideia era que MomAI usasse apscheduler para seus agendamentos esse projeto traz muita coisa legal em relação a isso.
-5. [rafaballerini/AssistentePessoal](https://github.com/rafaballerini/AssistentePessoal/blob/main/assistente.py) Possui uma solução interessante para salvar os lembretes.
+1. [Vocalis](https://github.com/shaakz/vocalis) - Inspiração para Speak-to-Speak.
+2. [Obsidian](https://obsidian.md/) - Modelo de plugins da comunidade.
+3. [J.U.N.I..N](https://www.youtube.com/watch?v=GQzO5tEZSBI) - O projeto inicial que inspirou a criação.
 
 ## Referência das techs
 
@@ -249,22 +230,14 @@ Você pode fazer um clone do modelo de exemplo disponibilizado no GitHub para fa
 
 ## Próximos passos
 
-Now that you have your docs running, explore these key features:
+Agora que você conhece a arquitetura, explore os detalhes técnicos:
 
 <CardGroup cols={2}>
   <Card title="Como colaborar?" icon="hands" href="/pt-BR/como-colaborar">
-    Um guia de como colaborar com o desenvolvimento do projeto
+    Ajude a construir o futuro da MomAI.
   </Card>
-  <Card
-    title="Arquitetura do Sistema"
-    icon="diagram-project"
-    href="/pt-BR/backend"
-  >
-    Entenda como o MomAI será construído internamente
+  <Card title="Configuração Backend" icon="diagram-project" href="/pt-BR/backend">
+    Prepare seu ambiente de desenvolvimento.
   </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join
-  our [community](https://mintlify.com/community).
-</Note>
