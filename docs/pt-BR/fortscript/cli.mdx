@@ -1,0 +1,48 @@
+---
+title: "Interface de Linha de Comando (CLI)"
+description: "Gerencie seus processos de forma global e dinâmica, sem escrever código."
+---
+
+Enquanto a biblioteca FortScript é voltada para desenvolvedores, a **CLI (Command Line Interface)** foi projetada para usuários finais que desejam otimizar o desempenho do PC de forma simples e global.
+
+Com a CLI, você pode gerenciar múltiplos scripts e definir processos pesados dinamicamente através de uma interface interativa no terminal.
+
+## Instalação
+
+A melhor forma de instalar a CLI do FortScript é usando o **pipx**, para garantir que a aplicação fique isolada do seu Python global.
+
+```bash
+pipx install fortscript
+```
+
+---
+
+## Como usar
+
+Para iniciar o painel de controle, basta digitar o comando:
+
+```bash
+fort
+```
+
+### Funcionalidades da CLI
+
+1.  **Gerenciamento Global**: Diferente do uso como biblioteca, a CLI permite que você adicione scripts de qualquer lugar do seu computador para serem monitorados centralizadamente.
+2.  **Configuração Dinâmica**: Adicione ou remova "processos pesados" (jogos, editores) em tempo real através do menu.
+3.  **Persistência**: Suas configurações ficam salvas globalmente no sistema, para que você não precise reconfigurar toda vez que abrir o terminal.
+4.  **Monitoramento Ativo**: Visualize instantaneamente o status de cada script (Rodando, Pausado ou Aguardando) e o consumo atual de RAM.
+
+---
+
+## Quando usar a CLI vs Biblioteca?
+
+| Característica | CLI (Aplicação) | Biblioteca (Código) |
+| :--- | :--- | :--- |
+| **Público** | Usuários normais / Gamers | Desenvolvedores |
+| **Objetivo** | Uso pessoal no dia a dia | Integrar em bots ou sistemas |
+| **Configuração** | Menus interativos | Arquivo YAML ou código Python |
+| **Escopo** | Gerenciamento Global | Gerenciamento de sub-processos |
+
+<Tip>
+  Se você é um usuário que quer apenas que seu bot de Discord pare de rodar automaticamente quando você abrir o Valorant, utilize a **CLI**.
+</Tip>

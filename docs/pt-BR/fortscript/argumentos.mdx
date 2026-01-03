@@ -1,0 +1,87 @@
+---
+title: "Guia de Argumentos"
+description: "Referência completa dos parâmetros da classe FortScript."
+---
+
+Ao instanciar a classe `FortScript`, você pode personalizar totalmente seu comportamento através de diversos argumentos.
+
+## Construtor `FortScript`
+
+```python
+app = FortScript(
+    config_path='fortscript.yaml',
+    projects=None,
+    heavy_process=None,
+    ram_config=None,
+    callbacks=None,
+    log_level=None,
+    new_console=True
+)
+```
+
+### Detalhes dos Parâmetros
+
+| Argumento | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `config_path` | `str` | `'fortscript.yaml'` | Caminho para o arquivo de configuração YAML. |
+| `projects` | `list[ProjectConfig]` | `None` | Lista de projetos para gerenciar (sobrescreve o YAML). |
+| `heavy_process` | `list[HeavyProcessConfig]` | `None` | Lista de processos que ativam a pausa (sobrescreve o YAML). |
+| `ram_config` | `RamConfig` | `None` | Configurações de limites de memória RAM. |
+| `callbacks` | `Callbacks` | `None` | Funções para executar em eventos de pausa/retomada. |
+| `log_level` | `str \| int` | `'INFO'` | Nível de detalhe dos logs (DEBUG, INFO, WARNING, etc). |
+| `new_console` | `bool` | `True` | Se `True`, abre scripts Python em novas janelas (Windows apenas). |
+
+---
+
+## Exemplos de Uso Avançado
+
+### Definindo Projetos Dinamicamente
+Você não precisa de um arquivo YAML se preferir definir tudo no Python:
+
+```python
+from fortscript import FortScript
+
+meus_projetos = [
+    {"name": "API de Teste", "path": "./server.py"},
+    {"name": "Bot Telegram", "path": "./telegram/main.py"}
+]
+
+app = FortScript(projects=meus_projetos)
+app.run()
+```
+
+### Configurando RAM e Logs
+Controle exatamente quando o FortScript deve intervir:
+
+```python
+from fortscript import FortScript, RamConfig
+
+ram = RamConfig(threshold=85, safe=70)
+
+app = FortScript(
+    ram_config=ram,
+    log_level="DEBUG"
+)
+app.run()
+```
+
+### Utilizando Callbacks
+Execute ações personalizadas quando seus scripts são pausados ou retomados:
+
+```python
+from fortscript import FortScript, Callbacks
+
+def avisar_pausa():
+    print("Scripts em pausa para priorizar performance.")
+
+def avisar_retomada():
+    print("Processamento pesado finalizado. Retomando scripts.")
+
+callbacks = Callbacks(
+    on_pause=avisar_pausa,
+    on_resume=avisar_retomada
+)
+
+app = FortScript(callbacks=callbacks)
+app.run()
+```

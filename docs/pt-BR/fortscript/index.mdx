@@ -1,0 +1,74 @@
+---
+title: "Introdução ao FortScript"
+description: "Otimize o desempenho do seu PC pausando scripts automaticamente."
+---
+
+O **FortScript** é uma ferramenta inteligente projetada para quem precisa rodar scripts (bots, APIs, processos em segundo plano) mas não quer que eles interfiram no desempenho de tarefas pesadas, como jogos ou edição de vídeo.
+
+<CardGroup cols={2}>
+  <Card title="Multiplataforma" icon="desktop">
+    Compatibilidade total com Windows, Linux e MacOS.
+  </Card>
+  <Card title="Inteligente" icon="brain">
+    Monitoramento em tempo real de RAM e processos ativos.
+  </Card>
+  <Card title="Extensível" icon="code">
+    Suporte a callbacks para personalizar o comportamento de pausa e retomada.
+  </Card>
+  <Card title="Leve" icon="feather">
+    Consumo mínimo de recursos enquanto monitora seu sistema.
+  </Card>
+</CardGroup>
+
+## Por que usar o FortScript?
+
+Muitos desenvolvedores deixam processos rodando em segundo plano. No entanto, quando você abre um jogo pesado ou uma aplicação que exige muita memória, esses scripts podem causar:
+- **Lags e quedas de FPS** no seu jogo.
+- **Erros de Out of Memory (OOM)** em seus scripts.
+- **Lentidão geral** do sistema operacional.
+
+O FortScript automatiza a gestão desses processos, garantindo que seu PC foque no que é importante no momento, sem que você precise fechar e abrir manualmente seus scripts.
+
+## Como ele funciona?
+
+O fluxo de funcionamento do FortScript é simples e eficiente:
+
+1.  **Monitoramento**: Ele verifica constantemente a lista de processos ativos e o uso de memória RAM.
+2.  **Detecção**: Se um "processo pesado" definido for detectado ou se a RAM ultrapassar o limite seguro, ele entra em ação.
+3.  **Pausa**: O FortScript encerra temporariamente os scripts que você configurou para gerenciar.
+4.  **Recuperação**: Assim que o sistema volta ao estado estável (processos fechados e RAM livre), ele reinicia seus scripts automaticamente.
+
+---
+
+## Integração com MomAI
+
+O **FortScript** nasceu de uma necessidade central da **MomAI**: permitir que uma assistente virtual poderosa rode em segundo plano sem atrapalhar a experiência de jogo ou o trabalho pesado do usuário. 
+
+Dentro do ecossistema MomAI, ele monitora quando você abre o seu jogo favorito e pausa automaticamente os módulos de IA locais para liberar CPU e RAM, retomando-os assim que você fecha o jogo.
+
+### Uso Independente
+
+Embora seja um componente vital da MomAI, o FortScript foi desenvolvido como uma **biblioteca totalmente independente**. Isso significa que você pode utilizá-lo em qualquer um de seus próprios projetos:
+- Bots de automação.
+- Servidores locais de desenvolvimento.
+- Scripts de backup ou processamento de dados.
+- Qualquer aplicação que precise de uma gestão inteligente de recursos no Windows, Linux ou MacOS.
+
+---
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="bolt" href="/pt-BR/fortscript/quick-start">
+    Instale e comece a usar em menos de 2 minutos.
+  </Card>
+  <Card title="Configuração YAML" icon="file-code" href="/pt-BR/fortscript/yaml-config">
+    Aprenda a configurar seus projetos e gatilhos.
+  </Card>
+  <Card title="Guia da CLI" icon="terminal" href="/pt-BR/fortscript/cli">
+    A aplicação para usuários finais gerenciarem scripts globalmente.
+  </Card>
+  <Card title="Exemplo Real" icon="rocket" href="/pt-BR/fortscript/exemplo-real">
+    Veja um sistema de "Modo Gaming" completo em ação.
+  </Card>
+</CardGroup>

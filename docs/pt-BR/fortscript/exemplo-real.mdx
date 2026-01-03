@@ -1,0 +1,81 @@
+---
+title: "Exemplo Real: Modo Gaming"
+description: "Crie um sistema que otimiza seu ambiente de trabalho para jogos automaticamente."
+---
+
+Neste exemplo, vamos construir um **Orquestrador de Modo Gaming**. Imagine um cenário onde você tem um servidor local de banco de dados, um bot de automação e luzes inteligentes no seu quarto. 
+
+Queremos que, ao abrir qualquer jogo pesado:
+1. Nossos scripts de trabalho sejam pausados.
+2. Nossas luzes mudem para "Modo Jogo".
+3. Recebamos uma notificação no sistema.
+
+## Código do Projeto
+
+Este exemplo utiliza `Callbacks`, `RamConfig` e a lista integrada do módulo `GAMES`.
+
+```python
+from fortscript import FortScript, RamConfig, Callbacks
+from fortscript.games import GAMES
+import requests
+
+def set_room_light(mode: str):
+    """Simula uma chamada de API para luzes inteligentes (IoT)"""
+    print(f"💡 Ajustando luzes para: {mode}")
+    # requests.post("http://smart-home/api/lights", json={"scene": mode})
+
+def ao_pausar():
+    print("🎮 Jogo detectado! Otimizando sistema...")
+    set_room_light("gaming_red")
+    # Aqui você poderia enviar uma notificação via WinToast ou similar
+
+def ao_retomar():
+    print("💻 Trabalho retomado. Restaurando ambiente...")
+    set_room_light("work_white")
+
+# 1. Configuração personalizada de RAM
+# Pausa se chegar em 85%, retoma apenas quando baixar de 75%
+config_ram = RamConfig(threshold=85, safe=75)
+
+# 2. Definição dos scripts que queremos gerenciar
+scripts_de_trabalho = [
+    {"name": "Local Database", "path": "./db/start_server.exe"},
+    {"name": "Automation Bot", "path": "C:/Scripts/main.py"}
+]
+
+# 3. Inicialização com Callbacks e Módulo de Games
+app = FortScript(
+    projects=scripts_de_trabalho,
+    heavy_process=GAMES,          # Usando a lista de centenas de jogos
+    ram_config=config_ram,
+    callbacks=Callbacks(
+        on_pause=ao_pausar,
+        on_resume=ao_retomar
+    ),
+    log_level="INFO"
+)
+
+if __name__ == "__main__":
+    print("🚀 Orquestrador de Ambiente Ativo...")
+    app.run()
+```
+
+---
+
+## O que este projeto resolve?
+
+### 1. Automação de Periféricos e IoT
+Através do `on_pause`, o sistema não apenas silencia scripts, mas pode interagir com o mundo físico ou outras APIs. É o momento perfeito para mudar o DPI do mouse, alterar o perfil do teclado RGB ou silenciar notificações do Slack.
+
+### 2. Monitoramento Inteligente de RAM
+Com o `RamConfig` definido de forma mais agressiva (85/75), garantimos que o jogo nunca sofra com o "swap" de memória para o disco, o que causaria travamentos (stuttering).
+
+### 3. Base de Dados Gigante via Módulo Games
+Ao passar a lista `GAMES` para o argumento `heavy_process`, seu sistema já nasce reconhecendo títulos como *Valorant*, *Forza Horizon*, *Cyberpunk 2077* e centenas de outros, sem que você precise descobrir o nome de cada executável.
+
+### 4. Gestão de Processos Mistos
+Note que o exemplo mistura um executável (`.exe`) e um script Python (`.py`). O FortScript lida com as particularidades de encerramento de cada um de forma transparente.
+
+<Tip>
+  Você pode expandir este projeto adicionando os processos dos seus navegadores (Chrome, Edge) na lista de processos pesados se quiser que eles fechem quando você começar a jogar!
+</Tip>

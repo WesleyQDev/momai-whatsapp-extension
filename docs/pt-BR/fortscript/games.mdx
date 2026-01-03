@@ -1,0 +1,51 @@
+---
+title: "Módulo GAMES"
+description: "Poupe tempo usando nossa lista pré-definida de centenas de jogos."
+---
+
+Identificar o nome real do processo de um jogo nem sempre é fácil (ex: o processo do Fortnite pode ser `fortniteclient-win64-shipping`). 
+
+Para facilitar sua vida, o FortScript inclui um módulo chamado `games` com uma lista gigante de jogos e aplicativos populares já mapeados.
+
+## Como usar a lista integrada
+
+Em vez de preencher manualmente o `heavy_processes` no YAML, você pode importar e usar a lista `GAMES` diretamente no seu script Python.
+
+```python
+from fortscript import FortScript
+from fortscript.games import GAMES
+
+# GAMES contém centenas de entradas para:
+# FPS, MOBAs, RPGs, Simuladores, Softwares de Edição, etc.
+
+app = FortScript(heavy_process=GAMES)
+app.run()
+```
+
+## Filtrando ou Combinando Jogos
+
+Você pode combinar a lista padrão com seus próprios processos personalizados ou filtrar apenas o que deseja:
+
+```python
+from fortscript import FortScript
+from fortscript.games import GAMES
+
+meus_custom = [
+    {"name": "Meu App Pesado", "process": "myapp"}
+]
+
+# Unindo a lista padrão com a personalizada
+todos_pesados = GAMES + meus_custom
+
+app = FortScript(heavy_process=todos_pesados)
+app.run()
+```
+
+---
+
+## Contribuindo com a lista
+A lista `GAMES` está em constante crescimento. Se você sentiu falta de algum jogo popular ou encontrou um nome de processo incorreto, sinta-se à vontade para abrir um Pull Request no repositório oficial ou sugerir na nossa comunidade.
+
+<Card title="Repositório FortScript" icon="github" href="https://github.com/WesleyQDev/fortscript">
+  Veja a lista completa no arquivo games.py
+</Card>

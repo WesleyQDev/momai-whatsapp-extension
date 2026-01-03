@@ -1,0 +1,64 @@
+---
+title: "Configuração YAML"
+description: "Estrutura detalhada do arquivo fortscript.yaml."
+---
+
+O arquivo `fortscript.yaml` é a forma mais comum e organizada de configurar o FortScript. Ele permite separar a lógica do código das configurações de ambiente.
+
+## Exemplo Completo
+
+Abaixo está um exemplo com todos os campos suportados:
+
+```yaml
+# Lista de scripts/projetos que o FortScript deve gerenciar
+projects:
+  - name: "Discord Bot"
+    path: "C:/Users/Dev/Bot/main.py"
+  - name: "Web Crawler"
+    path: "./scrapers/index.py"
+  - name: "Node API"
+    path: "./api/package.json"
+
+# Lista de aplicativos/jogos "pesados" que acionam a pausa
+heavy_processes:
+  - name: "Forza Horizon 5"
+    process: "forzahorizon5"
+  - name: "Adobe Premiere"
+    process: "premiere"
+  - name: "Compilação Docker"
+    process: "docker"
+
+# Configurações de Memória RAM (opcional)
+ram_threshold: 95  # Pausa scripts se a RAM passar de 95%
+ram_safe: 85       # Retoma scripts apenas quando a RAM baixar de 85%
+
+# Nível de Log (opcional)
+# Opções: DEBUG, INFO, WARNING, ERROR, CRITICAL
+log_level: "INFO"
+```
+
+---
+
+## Campos Explicados
+
+### `projects`
+Uma lista de objetos contendo:
+- `name`: Nome amigável para identificação nos logs.
+- `path`: Caminho absoluto ou relativo para o arquivo.
+  - Se terminar em `.py`: Executa via `python`.
+  - Se terminar em `package.json`: Executa via `npm run start`.
+  - Se terminar em `.exe` (Windows): Executa o executável diretamente.
+
+### `heavy_processes`
+Uma lista de processos a serem monitorados:
+- `name`: Nome para exibição em log.
+- `process`: O nome do processo no Gerenciador de Tarefas (sem o .exe, ex: `chrome`, `valorant`).
+
+### `ram_threshold` e `ram_safe`
+O FortScript usa uma lógica de "Histerese" para evitar que os scripts fiquem abrindo e fechando repetidamente se a RAM estiver oscilando no limite.
+- `ram_threshold`: O gatilho de pausa.
+- `ram_safe`: O nível de "segurança" que deve ser atingido para que os scripts possam voltar a rodar.
+
+<Tip>
+  Sempre mantenha o `ram_safe` pelo menos 5% a 10% abaixo do `ram_threshold` para maior estabilidade.
+</Tip>

@@ -1,0 +1,54 @@
+---
+title: "Guia de Início Rápido"
+description: "Aprenda a instalar e rodar o FortScript rapidamente."
+---
+
+Siga estes passos para colocar o FortScript em funcionamento no seu projeto.
+
+## Instalação
+
+Você pode instalar o FortScript utilizando o seu gerenciador de pacotes favorito.
+
+### Como dependência do projeto
+Ideal para integrar o FortScript diretamente no código Python da sua aplicação.
+
+<Tabs>
+  <Tab title="pip">
+    ```bash
+    pip install fortscript
+    ```
+  </Tab>
+  <Tab title="poetry">
+    ```bash
+    poetry add fortscript
+    ```
+  </Tab>
+  <Tab title="uv">
+    ```bash
+    uv add fortscript
+    ```
+  </Tab>
+</Tabs>
+
+### 2. Iniciando via Python
+
+Para rodar o monitoramento dentro do seu script:
+
+```python
+from fortscript import FortScript
+
+# Por padrão, ele procura por 'fortscript.yaml' no diretório atual
+app = FortScript()
+app.run()
+```
+
+---
+
+## O que acontece agora?
+O FortScript começará a monitorar seu PC. 
+- Assim que você abrir o **League of Legends** ou o **GTA V**, ele fechará o `bot.py`.
+- Quando você fechar o jogo, ele abrirá o `bot.py` novamente.
+
+<Info>
+  O FortScript detecta automaticamente se o script é Python (`.py`), um projeto Node.js (`package.json`) ou um executável (`.exe`).
+</Info>

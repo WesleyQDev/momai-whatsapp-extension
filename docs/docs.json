@@ -35,8 +35,24 @@
             "tab": "Fortscript",
             "groups": [
               {
-                "group": "Fortscript",
-                "pages": ["pt-BR/fortscript"]
+                "group": "Começando",
+                "pages": [
+                  "pt-BR/fortscript/index",
+                  "pt-BR/fortscript/quick-start",
+                  "pt-BR/fortscript/cli"
+                ]
+              },
+              {
+                "group": "Referência",
+                "pages": [
+                  "pt-BR/fortscript/yaml-config",
+                  "pt-BR/fortscript/argumentos",
+                  "pt-BR/fortscript/games"
+                ]
+              },
+              {
+                "group": "Exemplos",
+                "pages": ["pt-BR/fortscript/exemplo-real"]
               }
             ]
           }
