@@ -2,6 +2,11 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "MomAI",
+  "seo": {
+    "metatags": {
+      "robots": "noindex"
+    }
+  },
   "colors": {
     "primary": "#6366f1",
     "light": "#818cf8",
@@ -18,7 +23,11 @@
             "groups": [
               {
                 "group": "MomAI",
-                "pages": ["pt-BR/index", "pt-BR/por-que-momai","pt-BR/evolucao"]
+                "pages": [
+                  "pt-BR/index",
+                  "pt-BR/por-que-momai",
+                  "pt-BR/evolucao"
+                ]
               },
               {
                 "group": "Comunidade",
