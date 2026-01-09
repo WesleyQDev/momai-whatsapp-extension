@@ -1,0 +1,26 @@
+# Virtual environments
+.venv/
+venv/
+env/
+.python-version
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Linters/Formatters cache
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
