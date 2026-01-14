@@ -57,7 +57,7 @@ O diferencial do MomAI é permitir que você escolha quais capacidades sua assis
 
 Para instruções de instalação, guia de contribuição, detalhes técnicos e mais informações, acesse a documentação completa:
 
-**[https://wesleyydev.mintlify.app](https://wesleyydev.mintlify.app)**
+**[https://wesleyqdev.github.io/momai](https://wesleyqdev.github.io/momai)**
 
 ## Licença
 
@@ -67,8 +67,8 @@ Este projeto está licenciado sob a licença MIT. Veja o arquivo [LICENSE](apps/
 
 <div align="center">
 
-**Feito com ❤️ no Brasil**
+**Feito com ❤️ WesleyQDev**
 
-[GitHub](https://github.com/WesleyQDev/MomAI) • [Documentação](https://wesleyydev.mintlify.app) • [Reportar Bug](https://github.com/WesleyQDev/MomAI/issues)
+[GitHub](https://github.com/WesleyQDev/MomAI) • [Documentação](https://wesleyqdev.github.io/momai) • [Reportar Bug](https://github.com/WesleyQDev/MomAI/issues)
 
 </div>

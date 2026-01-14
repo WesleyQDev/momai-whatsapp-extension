@@ -78,7 +78,7 @@
         },
         {
           "anchor": "Baixar MomAI",
-          "href": "https://wesleyqdev.github.io/momai-docs/",
+          "href": "https://wesleyqdev.github.io/momai/",
           "icon": "download"
         }
       ]
@@ -92,12 +92,12 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://wesleyqdev.github.io/momai-docs/",
+        "href": "https://wesleyqdev.github.io/momai/",
         "icon": "github"
       },
       {
         "label": "Baixar MomAI",
-        "href": "https://wesleyqdev.github.io/momai-docs/"
+        "href": "https://wesleyqdev.github.io/momai/"
       }
     ]
   },
