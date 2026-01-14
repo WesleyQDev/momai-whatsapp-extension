@@ -97,3 +97,4 @@ dist-electron/
 coverage/
 .nyc_output/
 *.tgz
+.turbo

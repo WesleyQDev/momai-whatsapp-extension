@@ -1,6 +1,6 @@
 <div align="center">
 
-![MomAI](docs/logo/logo.png)
+![MomAI](apps/docs/logo/logo.png)
 
 [![GitHub](https://img.shields.io/badge/GitHub-WesleyQDev%2FMomAI-181717?style=for-the-badge&logo=github)](https://github.com/WesleyQDev/MomAI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
@@ -61,7 +61,7 @@ Para instruções de instalação, guia de contribuição, detalhes técnicos e 
 
 ## Licença
 
-Este projeto está licenciado sob a licença MIT. Veja o arquivo [LICENSE](docs/LICENSE) para mais detalhes.
+Este projeto está licenciado sob a licença MIT. Veja o arquivo [LICENSE](apps/docs/LICENSE) para mais detalhes.
 
 ---
 

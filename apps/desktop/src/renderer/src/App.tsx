@@ -1,5 +1,7 @@
+import { NiceTitle } from '@momai/ui'
+
 function App(): React.JSX.Element {
-  return <h1>MomAI</h1>
+  return <NiceTitle />
 }
 
 export default App

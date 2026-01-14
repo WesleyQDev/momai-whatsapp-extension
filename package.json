@@ -1,17 +1,24 @@
 {
   "name": "momai",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "MomAI - Assistente de IA para mães",
+  "private": true,
   "scripts": {
-    "install:all": "pnpm install && uv sync",
+    "dev": "turbo run dev --parallel",
     "dev:python": "uv run apps/core/main.py",
-    "dev:desktop": "pnpm --filter desktop dev",
-    "dev": "pnpm run /dev:/",
+    "dev:desktop": "turbo run dev --filter=desktop",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "turbo run format",
     "docs": "cd apps/docs && mint dev"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.27.0"
+  "packageManager": "pnpm@10.27.0",
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "turbo": "^2.7.4"
+  }
 }
