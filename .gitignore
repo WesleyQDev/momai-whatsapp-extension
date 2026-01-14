@@ -1,22 +1,99 @@
-# IDEs
+# ====================
+# IDEs e Editores
+# ====================
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
-# OS
+# ====================
+# Sistema Operacional
+# ====================
 .DS_Store
 Thumbs.db
 desktop.ini
+*.lnk
 
+# ====================
 # Logs
+# ====================
 *.log
 *.log.*
+logs/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Environment files
+# ====================
+# Variáveis de Ambiente
+# ====================
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
 
-# Gemini/AI configs (pode conter chaves)
+# ====================
+# Node.js / pnpm
+# ====================
+node_modules/
+.pnpm-store/
+.npm/
+*.tsbuildinfo
+
+# ====================
+# Python
+# ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+.python-version
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ====================
+# Electron / Build
+# ====================
+out/
+release/
+dist-electron/
+*.asar
+
+# ====================
+# AI / Configurações Sensíveis
+# ====================
 .gemini/
+.claude/
+
+# ====================
+# Outros
+# ====================
+*.local
+.cache/
+coverage/
+.nyc_output/
+*.tgz

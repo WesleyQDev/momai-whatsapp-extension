@@ -1,0 +1,16 @@
+{
+  "name": "MomAI",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "pnpm install && uv sync",
+    "dev:backend": "uv run apps/core/main.py",
+    "dev:desktop": "pnpm --filter desktop dev",
+    "dev": "pnpm run /dev:/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.27.0"
+}
