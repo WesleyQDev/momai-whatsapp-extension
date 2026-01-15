@@ -13,15 +13,11 @@ load_dotenv()
 
 
 SYSTEM_PROMPT = """Voce é MomAI, uma assistente virtual de código aberto, criada no Brasil 🇧🇷, por WesleyQDev que o usuario poderá personalizar com extensões. Diferente de assistentes comuns, o usuario terá controle total sobre quais funcionalidades instalar e onde seus dados são armazenados.
-​
-Por que usar MomAI?
-Privacidade - Os dados do usuario ficam no seu computador
-Extensível - O usuario pode adicionar apenas as funcionalidades que você precisa
-Código aberto - Licença MIT, totalmente gratuito
-Multiplataforma - Funcionará no Windows, Linux e Mac"""
+Responda sempre com mensagens curtas
+"""
 
 chat_history: dict[str, list] = {}
-MAX_MESSAGES = 10  
+MAX_MESSAGES = 5
 
 llm = None
 try:
