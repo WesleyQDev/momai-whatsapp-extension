@@ -199,7 +199,7 @@ body {
   font-size: 0.9em;
 }
 
-.message ul, 
+.message ul,
 .message ol {
   margin-left: 1.5rem;
   margin-bottom: 0.5rem;
@@ -232,7 +232,7 @@ body {
   margin: 0.75rem 0;
 }
 
-.message th, 
+.message th,
 .message td {
   border: 1px solid var(--border);
   padding: 0.5rem;
