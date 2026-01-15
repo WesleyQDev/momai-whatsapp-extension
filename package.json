@@ -4,8 +4,8 @@
   "description": "MomAI - Assistente de IA para mães",
   "private": true,
   "scripts": {
-    "dev": "turbo run dev --parallel",
-    "dev:python": "uv run apps/core/main.py",
+    "dev": "concurrently \"npm:dev:desktop\" \"npm:dev:python\"",
+    "dev:python": "cd apps/core && uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000",
     "dev:desktop": "turbo run dev --filter=desktop",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -20,5 +20,14 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "turbo": "^2.7.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ],
+    "ignoredBuiltDependencies": [
+      "electron-winstaller"
+    ]
   }
 }
