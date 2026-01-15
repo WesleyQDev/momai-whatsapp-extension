@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MomAI - Assistente Virtual Extensível</title>
-    <meta name="description" content="MomAI: Assistente que escuta, fala, agenda e age. Ilimitada com extensões.">
+    <title>MomAI - A assistente que faz as coisas chatas por você</title>
+    <meta name="description" content="MomAI: Cansou de tarefas repetitivas? Deixa que ela cuida. Extensível, privada e feita pra sua rotina.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,6 +60,13 @@
             border-color: rgba(99, 102, 241, 0.3);
             background: rgba(30, 41, 59, 0.5);
         }
+        .frustration-item {
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-primary selection:text-white">
@@ -69,13 +76,13 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center gap-2">
-                    <img src="apps/docs/icon.png" alt="MomAI Logo" class="h-8 w-8">
+                    <img src="icon.png" alt="MomAI Logo" class="h-8 w-8">
                     <span class="font-bold text-xl tracking-tight">MomAI</span>
                 </div>
                 <div class="hidden md:block">
                     <div class="ml-10 flex items-baseline space-x-4">
                         <a href="https://github.com/WesleyQDev/MomAI" target="_blank" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">GitHub</a>
-                        <a href="https://wesleyqdev.github.io/momai/pt-BR" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-medium transition-all border border-white/5">Documentação</a>
+                        <a href="https://wesleyydev.mintlify.app/pt-BR/por-que-momai" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-medium transition-all border border-white/5">Documentação</a>
                     </div>
                 </div>
             </div>
@@ -92,12 +99,12 @@
                 <!-- Text Content -->
                 <div class="flex-1 text-center lg:text-left">
                     <h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-white">
-                        Assistente que <br/>
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Escuta, Fala e Age</span>
+                        Cansou de fazer <br/>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">sempre a mesma coisa?</span>
                     </h1>
                     
                     <p class="mt-6 text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                        MomAI não é apenas um chat. É uma assistente capaz de agendar tarefas, controlar seu sistema e expandir suas capacidades infinitamente através de extensões.
+                        A MomAI cuida das tarefas chatas pra você. Responder mensagens repetitivas, lembrar de beber água, verificar prazos da faculdade, baixar seus mangás... <strong class="text-white">ela faz.</strong>
                     </p>
                     
                     <div class="mt-10 flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
@@ -105,13 +112,13 @@
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                             Baixar V0.0
                         </a>
-                        <a href="https://wesleyqdev.github.io/momai/pt-BR" class="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-gray-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all">
-                            Documentação
+                        <a href="https://wesleyydev.mintlify.app/pt-BR/por-que-momai" class="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-gray-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all">
+                            Ver Documentação
                         </a>
                     </div>
                     
                     <p class="mt-4 text-sm text-gray-500 text-center lg:text-left">
-                        Versão Atual: <span class="text-gray-400 font-medium">v0.0.0 (Alpha)</span> • Em desenvolvimento
+                        Versão Atual: <span class="text-gray-400 font-medium">v0.0.0 (Alpha)</span> • Em desenvolvimento ativo
                     </p>
                 </div>
 
@@ -139,45 +146,43 @@
                             <!-- Header -->
                             <div class="flex justify-between items-center">
                                 <div>
-                                    <h3 class="text-white font-semibold">Painel de Controle</h3>
-                                    <p class="text-xs text-gray-400">MomAI v0.1.0 (Alpha)</p>
+                                    <h3 class="text-white font-semibold">Bom dia! ☀️</h3>
+                                    <p class="text-xs text-gray-400">Quarta-feira, 15 de Janeiro</p>
                                 </div>
                                 <div class="flex gap-2">
                                     <span class="px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">Online</span>
-                                    <span class="px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">Voice Active</span>
                                 </div>
                             </div>
 
-                            <!-- Voice Visualizer -->
-                            <div class="h-24 bg-black/40 rounded-xl border border-white/5 flex items-center justify-center gap-1 px-8 relative overflow-hidden">
-                                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-pulse"></div>
-                                <div class="w-1 h-4 bg-primary/40 rounded-full animate-[pulse_1s_ease-in-out_infinite]"></div>
-                                <div class="w-1 h-8 bg-primary/60 rounded-full animate-[pulse_1.2s_ease-in-out_infinite]"></div>
-                                <div class="w-1 h-12 bg-primary rounded-full animate-[pulse_0.8s_ease-in-out_infinite]"></div>
-                                <div class="w-1 h-6 bg-primary/60 rounded-full animate-[pulse_1.5s_ease-in-out_infinite]"></div>
-                                <div class="w-1 h-3 bg-primary/40 rounded-full animate-[pulse_1.1s_ease-in-out_infinite]"></div>
+                            <!-- Message -->
+                            <div class="bg-black/40 rounded-xl border border-white/5 p-4 relative overflow-hidden">
+                                <p class="text-sm text-gray-300 leading-relaxed">
+                                    "Você tem <strong class="text-white">3 tarefas</strong> pra hoje: 
+                                    trabalho de cálculo até 23h59, reunião às 14h, e o lixo reciclável é amanhã. 
+                                    <span class="text-primary">Sua mãe perguntou se você almoçou.</span> Posso responder?"
+                                </p>
                             </div>
 
                             <!-- Cards Grid -->
                             <div class="grid grid-cols-2 gap-4">
-                                <!-- Provider Card -->
+                                <!-- Reminder Card -->
                                 <div class="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-primary/30 transition-colors group">
                                     <div class="flex items-center gap-2 mb-2">
-                                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                                        <span class="text-xs text-gray-400 font-medium">Provedor LLM</span>
+                                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        <span class="text-xs text-gray-400 font-medium">Lembrete</span>
                                     </div>
-                                    <div class="text-sm text-white font-semibold group-hover:text-primary transition-colors">OpenAI GPT-4o</div>
-                                    <div class="text-[10px] text-gray-500 mt-1">Latência: 45ms</div>
+                                    <div class="text-sm text-white font-semibold group-hover:text-primary transition-colors">Beber água 💧</div>
+                                    <div class="text-[10px] text-gray-500 mt-1">Há 2 horas sem beber</div>
                                 </div>
 
                                 <!-- Extensions Card -->
                                 <div class="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-primary/30 transition-colors group">
                                     <div class="flex items-center gap-2 mb-2">
-                                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path></svg>
+                                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path></svg>
                                         <span class="text-xs text-gray-400 font-medium">Extensões</span>
                                     </div>
-                                    <div class="text-sm text-white font-semibold group-hover:text-primary transition-colors">5 Ativas</div>
-                                    <div class="text-[10px] text-gray-500 mt-1">Spotify, Calendar...</div>
+                                    <div class="text-sm text-white font-semibold group-hover:text-primary transition-colors">3 Ativas</div>
+                                    <div class="text-[10px] text-gray-500 mt-1">WhatsApp, Mangás...</div>
                                 </div>
                             </div>
                         </div>
@@ -187,6 +192,74 @@
             </div>
         </div>
     </main>
+
+    <!-- Frustrations Section -->
+    <section class="py-20 relative z-10 bg-black/20">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Sabe essas coisas?</h2>
+                <p class="text-gray-400">A tecnologia existe, mas ninguém juntou as peças pra você.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="feature-card p-6 rounded-xl frustration-item" style="animation-delay: 0.1s">
+                    <p class="text-gray-300"><span class="text-red-400 mr-2">✗</span> Comparar duas planilhas <strong class="text-white">célula por célula</strong> na mão</p>
+                </div>
+                <div class="feature-card p-6 rounded-xl frustration-item" style="animation-delay: 0.2s">
+                    <p class="text-gray-300"><span class="text-red-400 mr-2">✗</span> Responder <strong class="text-white">"sim" ou "não"</strong> no WhatsApp todo dia sobre a mesma coisa</p>
+                </div>
+                <div class="feature-card p-6 rounded-xl frustration-item" style="animation-delay: 0.3s">
+                    <p class="text-gray-300"><span class="text-red-400 mr-2">✗</span> Esquecer de <strong class="text-white">beber água</strong> porque o lembrete some</p>
+                </div>
+                <div class="feature-card p-6 rounded-xl frustration-item" style="animation-delay: 0.4s">
+                    <p class="text-gray-300"><span class="text-red-400 mr-2">✗</span> Prazos da faculdade <strong class="text-white">espalhados em 3 sistemas diferentes</strong></p>
+                </div>
+                <div class="feature-card p-6 rounded-xl frustration-item" style="animation-delay: 0.5s">
+                    <p class="text-gray-300"><span class="text-red-400 mr-2">✗</span> Querer ler mangás offline e ter que <strong class="text-white">baixar um por um</strong></p>
+                </div>
+                <div class="feature-card p-6 rounded-xl frustration-item" style="animation-delay: 0.6s">
+                    <p class="text-gray-300"><span class="text-red-400 mr-2">✗</span> Verificar <strong class="text-white">o que você tem pra fazer hoje</strong> toda manhã</p>
+                </div>
+            </div>
+
+            <div class="text-center mt-12">
+                <p class="text-xl text-gray-300">A MomAI foi criada pra resolver <strong class="text-primary">exatamente isso.</strong></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dream Section -->
+    <section class="py-20 relative z-10 border-y border-white/5 bg-gradient-to-b from-primary/5 to-transparent">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Imagina isso...</h2>
+            </div>
+
+            <div class="bg-[#0f172a] rounded-2xl p-8 border border-white/10 shadow-xl relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 pointer-events-none"></div>
+                
+                <div class="relative z-10 space-y-6 text-lg text-gray-300 leading-relaxed">
+                    <p>Você acorda. Seu computador <strong class="text-white">já ligou sozinho</strong> (Wake-on-LAN).</p>
+                    
+                    <p>Quando você senta pra tomar café, uma voz diz:</p>
+                    
+                    <blockquote class="border-l-4 border-primary pl-4 py-2 my-4 text-white italic bg-white/5 rounded-r-lg">
+                        "Bom dia! Você tem 3 coisas pra hoje: entregar o trabalho de cálculo até 23h59, reunião às 14h, e o lixo reciclável é amanhã. Sua mãe mandou mensagem perguntando se você almoçou. Quer que eu responda?"
+                    </blockquote>
+                    
+                    <p>Você diz <span class="text-primary">"responde que sim"</span> e continua tomando café.</p>
+                    
+                    <p>Duas horas depois: <span class="text-blue-400">"Ei, você não bebe água há um tempão. Vai lá."</span></p>
+                    
+                    <p>À noite, você abre o app de leitura e os últimos capítulos dos seus mangás <strong class="text-white">já estão lá, baixados automaticamente.</strong></p>
+                </div>
+            </div>
+
+            <div class="text-center mt-8">
+                <p class="text-xl text-white font-medium">Isso é o que MomAI quer ser.</p>
+            </div>
+        </div>
+    </section>
 
     <!-- Podcast Section -->
     <section class="py-12 relative z-10 border-y border-white/5 bg-white/5 backdrop-blur-sm">
@@ -198,7 +271,7 @@
                         Gerado com Google NotebookLLM
                     </div>
                     <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">MomAI Deep Dive</h2>
-                    <p class="text-gray-400">Ouça uma análise detalhada sobre o potencial da MomAI e como ela está mudando a interação com assistentes virtuais.</p>
+                    <p class="text-gray-400">Ouça uma análise sobre a visão do projeto e o que ele pode se tornar.</p>
                 </div>
                 <div class="flex-1 w-full max-w-xl">
                     <div class="bg-[#0f172a] rounded-xl p-6 border border-white/10 shadow-xl relative overflow-hidden group hover:border-primary/30 transition-colors">
@@ -229,14 +302,19 @@
     <!-- Features Grid -->
     <section class="py-20 relative z-10 bg-black/20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Como isso funciona?</h2>
+                <p class="text-gray-400">O poder da MomAI está na extensibilidade.</p>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <!-- Feature 1 -->
                 <div class="feature-card p-8 rounded-2xl">
                     <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6 text-primary border border-primary/20">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     </div>
-                    <h3 class="text-xl font-bold mb-3 text-white">Extensível</h3>
-                    <p class="text-gray-400">O poder da MomAI é ilimitado. Adicione novas capacidades através de extensões criadas pela comunidade.</p>
+                    <h3 class="text-xl font-bold mb-3 text-white">Extensões da Comunidade</h3>
+                    <p class="text-gray-400">O núcleo faz o básico. As extensões fazem a mágica. Baixar mangás, integrar com Notion, controlar casa inteligente... a comunidade cria.</p>
                 </div>
 
                 <!-- Feature 2 -->
@@ -244,17 +322,17 @@
                     <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6 text-primary border border-primary/20">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
                     </div>
-                    <h3 class="text-xl font-bold mb-3 text-white">Flexibilidade de Provedores</h3>
-                    <p class="text-gray-400">Você escolhe a inteligência. Conecte-se ao Ollama, LM Studio, OpenAI, Groq ou qualquer outro provedor compatível.</p>
+                    <h3 class="text-xl font-bold mb-3 text-white">Você Escolhe a IA</h3>
+                    <p class="text-gray-400">Modelo local gratuito, Gemini, GPT-4, Groq... você decide qual "cérebro" a MomAI usa. E pode trocar quando quiser.</p>
                 </div>
 
                 <!-- Feature 3 -->
                 <div class="feature-card p-8 rounded-2xl">
                     <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6 text-primary border border-primary/20">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
-                    <h3 class="text-xl font-bold mb-3 text-white">Interação Natural</h3>
-                    <p class="text-gray-400">Converse por voz ou texto. A MomAI entende o contexto e executa ações reais no seu computador.</p>
+                    <h3 class="text-xl font-bold mb-3 text-white">Age Sozinha</h3>
+                    <p class="text-gray-400">Diferente de chatbots, a MomAI não espera você pedir. Ela age quando o PC liga, quando chega a hora, quando alguém te manda mensagem.</p>
                 </div>
             </div>
         </div>
@@ -265,7 +343,7 @@
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-12">
                 <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Requisitos do Sistema</h2>
-                <p class="text-gray-400">Tudo o que você precisa para rodar a MomAI com performance.</p>
+                <p class="text-gray-400">Para rodar a MomAI com modelos locais ou na nuvem.</p>
             </div>
 
             <!-- Tabs -->
@@ -301,16 +379,8 @@
                                 <span>8GB RAM</span>
                             </li>
                             <li class="flex gap-3 text-sm text-gray-400">
-                                <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                <span>CPU 4 Cores (Intel i5 / Ryzen 5)</span>
-                            </li>
-                            <li class="flex gap-3 text-sm text-gray-400">
-                                <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                                <span>Python 3.10+ (Recomendado para uv/Sandbox)</span>
-                            </li>
-                            <li class="flex gap-3 text-sm text-gray-400">
                                 <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                <span>API Key (OpenAI, Anthropic) OU Local LLM</span>
+                                <span>API Key (Gemini, OpenAI) OU modelo local</span>
                             </li>
                         </ul>
                     </div>
@@ -320,24 +390,20 @@
                             <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             </div>
-                            <h3 class="text-lg font-semibold text-white">Recomendado</h3>
+                            <h3 class="text-lg font-semibold text-white">Para Modelos Locais</h3>
                         </div>
                         <ul class="space-y-4">
                             <li class="flex gap-3 text-sm text-gray-300">
-                                <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                <span>Windows 11 (64-bit)</span>
-                            </li>
-                            <li class="flex gap-3 text-sm text-gray-300">
                                 <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                                <span>16GB+ RAM (Ideal para LLMs locais)</span>
+                                <span>16GB+ RAM</span>
                             </li>
                             <li class="flex gap-3 text-sm text-gray-300">
                                 <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                <span>CPU 8 Cores + GPU NVIDIA (RTX 3060+)</span>
+                                <span>GPU NVIDIA (RTX 3060+) para velocidade</span>
                             </li>
                             <li class="flex gap-3 text-sm text-gray-300">
-                                <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                <span>Ollama ou LM Studio instalado</span>
+                                <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+                                <span>10GB espaço em disco</span>
                             </li>
                         </ul>
                     </div>
@@ -345,7 +411,6 @@
 
                 <!-- Linux Content -->
                 <div id="content-linux" class="tab-content hidden grid md:grid-cols-2 gap-8 animate-fade-in">
-                    <!-- Minimum -->
                     <div>
                         <div class="flex items-center gap-3 mb-6">
                             <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
@@ -363,35 +428,26 @@
                                 <span>8GB RAM</span>
                             </li>
                             <li class="flex gap-3 text-sm text-gray-400">
-                                <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                                <span>Python 3.10+ (Recomendado para uv/Sandbox)</span>
-                            </li>
-                            <li class="flex gap-3 text-sm text-gray-400">
                                 <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                <span>API Key (OpenAI, Anthropic) OU Local LLM</span>
+                                <span>Python 3.12+</span>
                             </li>
                         </ul>
                     </div>
-                    <!-- Recommended -->
                     <div class="border-l border-white/5 pl-0 md:pl-8 mt-8 md:mt-0">
                         <div class="flex items-center gap-3 mb-6">
                             <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             </div>
-                            <h3 class="text-lg font-semibold text-white">Recomendado</h3>
+                            <h3 class="text-lg font-semibold text-white">Para Modelos Locais</h3>
                         </div>
                         <ul class="space-y-4">
                             <li class="flex gap-3 text-sm text-gray-300">
-                                <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                <span>Distro Moderna com Wayland/X11</span>
-                            </li>
-                            <li class="flex gap-3 text-sm text-gray-300">
                                 <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                                <span>16GB+ RAM (32GB para modelos grandes)</span>
+                                <span>16GB+ RAM</span>
                             </li>
                             <li class="flex gap-3 text-sm text-gray-300">
                                 <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                <span>NVIDIA GPU com suporte a CUDA</span>
+                                <span>NVIDIA GPU com CUDA</span>
                             </li>
                         </ul>
                     </div>
@@ -399,7 +455,6 @@
 
                 <!-- macOS Content -->
                 <div id="content-mac" class="tab-content hidden grid md:grid-cols-2 gap-8 animate-fade-in">
-                    <!-- Minimum -->
                     <div>
                         <div class="flex items-center gap-3 mb-6">
                             <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
@@ -414,95 +469,32 @@
                             </li>
                             <li class="flex gap-3 text-sm text-gray-400">
                                 <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                                <span>8GB RAM (Unified Memory)</span>
+                                <span>8GB Unified Memory</span>
                             </li>
                             <li class="flex gap-3 text-sm text-gray-400">
                                 <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                <span>Apple Silicon (M1/M2/M3) ou Intel</span>
-                            </li>
-                            <li class="flex gap-3 text-sm text-gray-400">
-                                <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                <span>API Key (OpenAI, Anthropic) OU Local LLM</span>
+                                <span>Apple Silicon (M1/M2/M3)</span>
                             </li>
                         </ul>
                     </div>
-                    <!-- Recommended -->
                     <div class="border-l border-white/5 pl-0 md:pl-8 mt-8 md:mt-0">
                         <div class="flex items-center gap-3 mb-6">
                             <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             </div>
-                            <h3 class="text-lg font-semibold text-white">Recomendado</h3>
+                            <h3 class="text-lg font-semibold text-white">Para Modelos Locais</h3>
                         </div>
                         <ul class="space-y-4">
-                            <li class="flex gap-3 text-sm text-gray-300">
-                                <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                <span>macOS Sequoia 15.0+</span>
-                            </li>
                             <li class="flex gap-3 text-sm text-gray-300">
                                 <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                                 <span>16GB+ Unified Memory</span>
                             </li>
                             <li class="flex gap-3 text-sm text-gray-300">
                                 <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                <span>Apple Silicon M2 Pro ou superior</span>
+                                <span>M2 Pro ou superior (ideal)</span>
                             </li>
                         </ul>
                     </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Examples Section -->
-    <section class="py-20 relative z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">O que a MomAI pode fazer?</h2>
-                <p class="text-gray-400">Exemplos de tarefas que você pode realizar com MomAI + Extensões</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- Example 1: General Tasks -->
-                <div class="feature-card p-8 rounded-2xl">
-                    <div class="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center mb-6 text-purple-400 border border-purple-500/20">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-4 text-white">Tarefas Gerais</h3>
-                    <ul class="space-y-2 text-sm text-gray-400">
-                        <li class="flex gap-2"><span class="text-primary">•</span>Relatórios de e-mails, agenda e notícias</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Pesquisas na web e YouTube</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Resumos de PDFs e documentos</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Mensagens no WhatsApp</li>
-                    </ul>
-                </div>
-
-                <!-- Example 2: System Control -->
-                <div class="feature-card p-8 rounded-2xl">
-                    <div class="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-6 text-blue-400 border border-blue-500/20">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-4 text-white">Controle do Sistema</h3>
-                    <ul class="space-y-2 text-sm text-gray-400">
-                        <li class="flex gap-2"><span class="text-primary">•</span>Abrir apps e arquivos</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Volume, play/pause</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Comandos no terminal</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Criar/editar arquivos no workspace</li>
-                    </ul>
-                </div>
-
-                <!-- Example 3: Automation & Events -->
-                <div class="feature-card p-8 rounded-2xl">
-                    <div class="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center mb-6 text-green-400 border border-green-500/20">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-4 text-white">Automação & Eventos</h3>
-                    <ul class="space-y-2 text-sm text-gray-400">
-                        <li class="flex gap-2"><span class="text-primary">•</span>Agendamentos e lembretes</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Controle de casa inteligente</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Reconhecimento facial</li>
-                        <li class="flex gap-2"><span class="text-primary">•</span>Tarefas automáticas recorrentes</li>
-                    </ul>
                 </div>
             </div>
         </div>
@@ -510,7 +502,6 @@
 
     <script>
         function switchTab(tab) {
-            // Reset all tabs
             ['windows', 'linux', 'mac'].forEach(t => {
                 document.getElementById(`content-${t}`).classList.add('hidden');
                 const btn = document.getElementById(`tab-${t}`);
@@ -518,7 +509,6 @@
                 btn.classList.add('text-gray-400');
             });
 
-            // Activate selected tab
             document.getElementById(`content-${tab}`).classList.remove('hidden');
             const activeBtn = document.getElementById(`tab-${tab}`);
             activeBtn.classList.remove('text-gray-400');
@@ -531,12 +521,12 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div class="flex flex-col md:flex-row justify-between items-center">
                 <div class="flex items-center gap-2 mb-4 md:mb-0">
-                    <img src="apps/docs/icon.png" alt="MomAI Logo" class="h-6 w-6 grayscale opacity-50">
+                    <img src="icon.png" alt="MomAI Logo" class="h-6 w-6 grayscale opacity-50">
                     <span class="text-gray-500 text-sm">© 2025 MomAI Project. Open Source.</span>
                 </div>
                 <div class="flex gap-6">
                     <a href="https://github.com/WesleyQDev/MomAI" class="text-gray-500 hover:text-white transition-colors">GitHub</a>
-                    <a href="https://wesleyqdev.github.io/momai/pt-BR/introdução" class="text-gray-500 hover:text-white transition-colors">Docs</a>
+                    <a href="https://wesleyydev.mintlify.app/pt-BR/" class="text-gray-500 hover:text-white transition-colors">Docs</a>
                 </div>
             </div>
         </div>

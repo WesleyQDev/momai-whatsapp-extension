@@ -1,84 +1,79 @@
 ---
-title: "Introdução"
-description: "Bem-vindo à documentação da MomAI, sua Assistente Virtual Extensível"
+title: "MomAI"
+sidebarTitle: "Introdução"
+description: "A assistente que automatiza o que você cansa de fazer todo dia."
 ---
 
-<Warning>
-  🚧 **Projeto em Desenvolvimento** - MomAI ainda está sendo construído. Esta
-  documentação descreve funcionalidades planejadas e pode mudar conforme o
-  projeto evolui.
-</Warning>
+<img
+  className="block dark:hidden"
+  src="/logo/logo.png"
+  alt="MomAI Logo"
+/>
+<img
+  className="hidden dark:block"
+  src="/logo/logo.png"
+  alt="MomAI Logo"
+/>
 
-## O que é MomAI?
+## Por que esse projeto existe?
 
-MomAI é uma assistente virtual de código aberto, criada no Brasil 🇧🇷, que você poderá personalizar com extensões. Diferente de assistentes comuns, você terá controle total sobre quais funcionalidades instalar e onde seus dados são armazenados.
+Não foi por causa das big techs. Foi por causa das **pequenas coisas**.
 
-### Por que usar MomAI?
+Sabe aquela planilha que você precisa comparar com outra, célula por célula, porque ninguém fez uma ferramenta pra isso? Ou aquela mensagem no WhatsApp que você responde todo dia com "sim" ou "não", mas ainda assim precisa pegar o celular, abrir o app, digitar?
 
-- **Privacidade** - Seus dados ficam no seu computador
-- **Extensível** - Adicione apenas as funcionalidades que você precisa
-- **Código aberto** - Licença MIT, totalmente gratuito
-- **Multiplataforma** - Funcionará no Windows, Linux e Mac
+E os manhwas que você quer baixar pra ler offline no ônibus. Os resumos de notícias que você gostaria de receber, mas só das coisas que realmente te interessam. O lembrete pra beber água que você configura e esquece de olhar.
 
-## Tecnologias Utilizadas
+**MomAI nasceu dessa frustração.**
 
-### Resumo rápido (Node.js + Python)
+A tecnologia já permite automatizar quase tudo. Existem MCPs, APIs, agentes de IA. Mas na prática? Você ainda faz as mesmas tarefas repetitivas todo dia. Porque ninguém juntou as peças de um jeito que funcione pra **você**.
 
-<AccordionGroup>
-  <Accordion title="Interface e App (Node.js)">
-    - **Electron** - Inicializador e empacotamento desktop
-    - **Vite + React** - Interfaces gráficas e reatividade
-    - **pnpm** - Gerenciamento eficiente de pacotes
-  </Accordion>
+## O que a MomAI quer ser
 
-  <Accordion title="Núcleo e Inteligência (Python)">
-    - **LangGraph / LangChain** - Orquestração dos fluxos de IA
-    - **FastAPI** - Ponte de comunicação via WebSockets e APIs
-    - **llama.cpp** - Execução de LLMs locais (suporta CPU, AMD e NVIDIA)
-    - **uv** - Gerenciador de pacotes e ambientes Python
-    - **Pydantic** - Validação de dados e esquemas
-  </Accordion>
-  
-  <Accordion title="Voz e Audio">
-    - **Whisper** - Transformação de voz em texto (STT)
-    - **Kokoro / edge-tts** - Transformação de texto em voz (TTS)
-  </Accordion>
+Imagine seu computador ligando sozinho de manhã. Enquanto você toma café, ele já verificou:
 
-  <Accordion title="Automação e Ferramental">
-    - **APScheduler** - Agendamento de tarefas e funções
-    - **Tasker (Python)** - Execução de tasks automatizadas
-    - **Pytest** - Garantia de qualidade via testes
-    - **Ruff** - Linting e formatação de código
-  </Accordion>
-</AccordionGroup>
+- O que você tem pra fazer hoje
+- Os prazos da faculdade que estão chegando
+- Se tem alguma notícia importante sobre os assuntos que você acompanha
+- Se alguém te mandou mensagem que precisa de resposta
 
-## Começando
+E quando você senta pra trabalhar, uma notificação gentil: *"Ei, você não bebe água há 2 horas."*
+
+Depois: *"O lixo reciclável é amanhã. Quer que eu te lembre de noite?"*
+
+**Isso é MomAI.** Uma assistente que conhece sua rotina e cuida das coisas chatas pra você.
+
+## Para quem é esse projeto?
 
 <CardGroup cols={2}>
-  <Card title="Por que MomAI?" icon="stars" href="/pt-BR/por-que-momai">
-    Entenda a visão e os objetivos do projeto.
+  <Card title="Pra quem tem rotina" icon="calendar-check">
+    Estudantes, trabalhadores, qualquer pessoa que faz as mesmas coisas todo dia e gostaria de automatizar.
   </Card>
-  <Card
-    title="Evolução do Projeto"
-    icon="clock-rotate-left"
-    href="/pt-BR/evolucao"
-  >
-    Acompanhe o histórico e progresso do desenvolvimento.
+  <Card title="Pra quem gosta de criar" icon="screwdriver-wrench">
+    Desenvolvedores que querem construir extensões: um bot pra baixar mangás, um agente que organiza downloads, ou algo que ninguém pensou ainda.
+  </Card>
+  <Card title="Pra quem quer privacidade" icon="shield-halved">
+    Tudo pode rodar na sua máquina. Seus dados, suas regras.
+  </Card>
+  <Card title="Pra comunidade" icon="people-group">
+    Cada extensão criada ajuda todo mundo. O poder da MomAI cresce junto com quem usa.
   </Card>
 </CardGroup>
 
-## Explorar
+## O que já funciona hoje?
+
+- **Chat com IA**: Funciona offline (modelo local) ou com APIs externas
+- **Interface Desktop**: Electron + React, bonita e rápida
+- **Memória de conversa**: Ela lembra do contexto
+
+Mas o mais importante é a **arquitetura**: foi desenhada desde o início para receber extensões. O sistema de agentes e eventos é a fundação.
+
+## Próximos Passos
 
 <CardGroup cols={2}>
-  <Card title="Backend" icon="server" href="/pt-BR/backend">
-    Aprenda sobre o núcleo em Python e como configurar o ambiente.
+  <Card title="Entenda a Visão Completa" icon="lightbulb" href="/pt-BR/por-que-momai">
+    Veja a arquitetura de agentes e tudo que está planejado.
   </Card>
-  <Card title="Frontend" icon="desktop" href="/pt-BR/frontend">
-    Entenda a interface construída com Electron e React.
+  <Card title="Coloque pra Rodar" icon="terminal" href="/pt-BR/backend">
+    Configure o ambiente e teste você mesmo.
   </Card>
 </CardGroup>
-
-<Note>
-  Quer ajudar a construir o MomAI? Veja nosso [guia de
-  contribuição](/pt-BR/como-colaborar).
-</Note>

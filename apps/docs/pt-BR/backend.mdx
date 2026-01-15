@@ -1,61 +1,77 @@
 ---
-title: "Configuração do Ambiente (Backend)"
-description: "O núcleo do MomAI é desenvolvido em Python. Siga os passos abaixo para configurar seu ambiente de desenvolvimento."
+title: "Ambiente de Desenvolvimento"
+sidebarTitle: "Backend"
+description: "Como colocar o núcleo Python para funcionar."
 ---
 
-Recomendamos configurar o backend e o frontend para garantir que a comunicação via WebSockets funcione corretamente durante os testes.
+O backend é onde a "inteligência" do MomAI vive. É um servidor Python (FastAPI) que recebe suas mensagens, processa com um modelo de IA e devolve a resposta.
 
-## Pré-requisitos
+## O que você vai precisar
 
-<Info>
-  **Verifique as versões instaladas:**
-  - **Python 3.12** ou superior (Recomendamos o uso do `uv` para gestão)
-  - **Node.js 19** ou superior (pnpm como gerenciador de pacotes)
-  - **Git** para clonar os módulos e extensões
-</Info>
+- **Python 3.12** ou superior
+- **Node.js 22** ou superior
+- **pnpm** para gerenciar pacotes
 
-## Passos para Instalação
+## Passo a passo
 
-### 1. Clonar o projeto
+### 1. Clone o repositório
+
 ```bash
 git clone https://github.com/WesleyQDev/momai
 cd momai
 ```
 
-### 2. Configurar o Python (Núcleo)
-Nós usamos o `uv` pela sua velocidade e facilidade com ambientes virtuais.
+### 2. Instale as dependências
+
+Na raiz do projeto, rode:
+
 ```bash
-# Criar ambiente virtual e instalar dependências
-uv sync
+pnpm install
 ```
 
-Se você preferir usar pip tradicional:
+Isso cuida de tudo: dependências do Node (para o frontend) e do Python (para o backend).
+
+### 3. Configure o modelo de IA
+
+O MomAI é flexível quanto ao "cérebro" que você quer usar. Você pode:
+
+**Usar um modelo local (offline, gratuito):**
+Não precisa fazer nada. Na primeira execução, o sistema baixa automaticamente o modelo `Qwen3-4B` (~3GB).
+
+**Usar uma API externa (Gemini, OpenAI, etc):**
+Crie um arquivo `.env` na pasta `apps/core`:
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # No Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+# apps/core/.env
+GEMINI_API_KEY="sua-chave-aqui"
 ```
 
-### 3. Executar o Servidor FastAPI
-O backend atua como um servidor que aguarda as conexões do Electron.
+### 4. Inicie o servidor
+
 ```bash
-# Usando o tasker ou comando direto
-python main.py
+npm run dev:python
 ```
 
-## Ferramentas de Desenvolvimento
+Quando você ver `Uvicorn running on http://127.0.0.1:8000`, está pronto.
 
-- **Ruff**: Usado para manter o código limpo e padronizado.
-- **Pytest**: Execute `pytest` para garantir que as alterações não quebraram o núcleo.
-- **Tasker**: Atalhos para tarefas comuns de desenvolvimento.
+<Note>
+  O download do modelo local acontece apenas na primeira vez. Depois disso, a inicialização é rápida.
+</Note>
 
-## Próximos Passos
+## Verificando se funcionou
 
-<CardGroup cols={2}>
-  <Card title="Frontend" icon="desktop" href="/pt-BR/frontend">
-    Entenda a interface gráfica em Electron e React.
-  </Card>
-  <Card title="Extensões" icon="puzzle-piece" href="/pt-BR/extensões">
-    Aprenda a criar extensões para o MomAI.
-  </Card>
-</CardGroup>
+Acesse `http://127.0.0.1:8000/status` no navegador. Você deve ver algo como:
+
+```json
+{
+  "status": "online",
+  "version": "V0.1.0",
+  "model": "local"
+}
+```
+
+## Próximo passo
+
+<Card title="Iniciar o Frontend" icon="desktop" href="/pt-BR/frontend">
+  Com o backend rodando, agora é hora de abrir a interface.
+</Card>

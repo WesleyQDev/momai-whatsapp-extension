@@ -158,6 +158,92 @@ body {
 }
 
 /* ===========================
+   MARKDOWN STYLES
+=========================== */
+.message strong {
+  font-weight: bold;
+  color: #fff;
+}
+
+.message p {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.message p:last-child {
+  margin-bottom: 0;
+}
+
+.message code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.85em;
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  color: #e2e8f0;
+}
+
+.message pre {
+  background-color: #0f131a;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  border: 1px solid #30363d;
+}
+
+.message pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.9em;
+}
+
+.message ul, 
+.message ol {
+  margin-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.message li {
+  margin-bottom: 0.25rem;
+}
+
+.message a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.message a:hover {
+  text-decoration: underline;
+}
+
+.message blockquote {
+  border-left: 3px solid var(--text-muted);
+  margin: 0.5rem 0;
+  padding-left: 1rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.message table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+}
+
+.message th, 
+.message td {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.message th {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ===========================
    MENU INTERNO
 =========================== */
 .menu {

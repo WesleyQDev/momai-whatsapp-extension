@@ -1,50 +1,53 @@
 ---
-title: "Configuração do Ambiente (Frontend)"
-description: "A interface do MomAI é construída com Electron, React e Vite. Siga os passos para rodar o ambiente de desenvolvimento local."
+title: "Interface Desktop"
+sidebarTitle: "Frontend"
+description: "Como rodar a interface gráfica do MomAI."
 ---
 
-O frontend é responsável pela interface gráfica e por gerenciar a comunicação com o núcleo Python via FastAPI.
-
-## Pré-requisitos
+O frontend é a janela onde você interage com a MomAI. Ele é construído com Electron, React e Vite.
 
 <Info>
-  **Tecnologias principais:**
-  - **Node.js 19+**
-  - **pnpm** (Gerenciador de pacotes recomendado)
-  - **Electron Forge** (Empacotador)
+  O frontend precisa do backend rodando para funcionar. Se você ainda não configurou, veja o [guia do backend](/pt-BR/backend) primeiro.
 </Info>
 
-## Passos para Instalação
+## Iniciando em modo de desenvolvimento
 
-### 1. Instalar dependências
-Navegue até a pasta do projeto e execute:
+Se você já rodou `pnpm install` na raiz do projeto, as dependências já estão instaladas.
+
 ```bash
-pnpm install
+npm run dev:desktop
 ```
 
-### 2. Executar em modo de desenvolvimento
-Isso iniciará o Vite para o hot-reload do React e abrirá a janela do Electron.
+Isso vai:
+1. Iniciar o servidor Vite (para hot-reload durante desenvolvimento)
+2. Abrir a janela do Electron automaticamente
+
+## Gerando um executável
+
+Se você quiser usar o MomAI sem precisar de terminal:
+
 ```bash
-pnpm run dev
+npm run build
 ```
 
-### 3. Build e Empacotamento
-Para gerar o executável final para o seu sistema operacional:
-```bash
-pnpm run make
-```
+O instalador será gerado na pasta `apps/desktop/dist`.
 
-## Estrutura de Comunicação
+## Problemas comuns
 
-O frontend se conecta ao backend (Python) através de uma porta local definida nas configurações. Ele utiliza **WebSockets** para receber atualizações em tempo real (como o texto que está sendo transcrito pela voz) e **APIs REST** para comandos diretos.
+<AccordionGroup>
+  <Accordion title="A tela está em branco">
+    Verifique se o backend está rodando (`npm run dev:python`). O frontend tenta conectar em `localhost:8000`. Sem o servidor, o chat não funciona.
+  </Accordion>
+  <Accordion title="Erro com módulos nativos (node-gyp)">
+    No Windows, você precisa das ferramentas de build do C++. Instale via Visual Studio Build Tools ou rode:
+    ```bash
+    npm install --global windows-build-tools
+    ```
+  </Accordion>
+</AccordionGroup>
 
-## Próximos Passos
+## Próximo passo
 
-<CardGroup cols={2}>
-  <Card title="Configuração Backend" icon="server" href="/pt-BR/backend">
-    Certifique-se de que o núcleo Python esteja rodando.
-  </Card>
-  <Card title="Como Colaborar" icon="hands" href="/pt-BR/como-colaborar">
-    Veja como contribuir com novos componentes e telas.
-  </Card>
-</CardGroup>
+<Card title="Entenda a arquitetura" icon="sitemap" href="/pt-BR/por-que-momai">
+  Veja como o sistema de agentes e extensões funciona.
+</Card>
