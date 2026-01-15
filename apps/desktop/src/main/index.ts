@@ -1,7 +1,50 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { spawn, type ChildProcess } from 'child_process'
 import icon from '../../resources/icon.png?asset'
+
+let pythonProcess: ChildProcess | null = null
+
+function startPythonBackend(): void {
+  const cwd = process.cwd()
+  // Se rodando de apps/desktop, o core está em ../core
+  const corePath = resolve(cwd, '../core')
+  
+  console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
+
+  // Usamos shell: true no Windows para garantir que o comando 'uv' seja encontrado
+  pythonProcess = spawn('uv', ['run', 'uvicorn', 'main:app', '--reload', '--host', '127.0.0.1', '--port', '8000'], {
+    cwd: corePath,
+    shell: true,
+    stdio: 'pipe'
+  })
+
+  pythonProcess.stdout?.on('data', (data) => {
+    console.log(`[Python]: ${data.toString().trim()}`)
+  })
+  
+  pythonProcess.stderr?.on('data', (data) => {
+    console.error(`[Python PDF]: ${data.toString().trim()}`)
+  })
+
+  pythonProcess.on('close', (code) => {
+    console.log(`[Python] Processo encerrado com código ${code}`)
+  })
+}
+
+function killPythonBackend(): void {
+  if (pythonProcess && pythonProcess.pid) {
+    if (process.platform === 'win32') {
+      // No Windows, matar apenas o processo pai (cmd) não mata o filho (uvicorn).
+      // Usamos taskkill /T (tree) para garantir.
+      spawn('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'])
+    } else {
+      pythonProcess.kill()
+    }
+    pythonProcess = null
+  }
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -53,6 +96,7 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  startPythonBackend() // Inicia o Python
   createWindow()
 
   app.on('activate', function () {
@@ -61,6 +105,8 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+app.on('will-quit', killPythonBackend) // Garante que o Python morra ao fechar
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
