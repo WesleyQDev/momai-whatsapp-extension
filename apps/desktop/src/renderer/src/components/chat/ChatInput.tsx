@@ -33,6 +33,7 @@ export default function ChatInput({
       >
         <option value="local">Qwen</option>
         <option value="genai">Gemini</option>
+        <option value="groq">Groq</option>
       </select>
       <button type="button" onClick={onSend} disabled={isLoading || !text.trim()}>
         <svg

@@ -1,7 +1,8 @@
 import re
 import asyncio
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage, trim_messages
-from local_model import load_model, AVAILABLE_TOOLS
+from local_model import load_model
+from tools import TOOLS, AVAILABLE_TOOLS
 import json
 from pydantic import BaseModel
 from langchain.chat_models import init_chat_model
@@ -32,13 +33,19 @@ def initialize_llm(mode: str):
                 repo_id="Qwen/Qwen3-4B-GGUF",
                 filename="Qwen3-4B-Q4_K_M.gguf"
             )
+        elif mode == "groq":
+            print("[AI_core] Carregando modelo Groq...")
+            from langchain_groq import ChatGroq
+            new_llm = ChatGroq(model="llama-3.3-70b-versatile")
         else:  # genai
             print("[AI_core] Carregando modelo GenAI...")
             new_llm = init_chat_model("google_genai:gemini-2.5-flash-lite")
 
-        llm = new_llm
+        # Vincular ferramentas globalmente a qualquer modelo carregado
+        llm = new_llm.bind_tools(TOOLS)
         llm_mode = mode
-        print(f"[AI_core] Modelo {mode} pronto!")
+        print(
+            f"[AI_core] Modelo {mode} pronto com {len(TOOLS)} ferramentas!")
         return llm
     except Exception as e:
         print(f"[AI_core] Erro ao carregar modelo {mode}: {e}")
@@ -101,99 +108,123 @@ async def generate(message: ChatMessage):
 
     try:
         messages = get_trimmed_messages(message.thread_id, message.content)
-        full_response = ""
-        inside_think = False
-        first_token = True
 
-        # Primeira chamada ao modelo (pode retornar tool_calls)
-        response = llm.invoke(messages)  # type: ignore
-        
-        # Parse manual de tool_calls no conteúdo (para modelos que retornam XML/Texto)
-        if hasattr(response, 'content') and isinstance(response.content, str):
-            tool_call_regex = r'<tool_call>(.*?)</tool_call>'
-            match = re.search(tool_call_regex, response.content, re.DOTALL)
-            if match:
-                try:
-                    tool_json_str = match.group(1).strip()
-                    tool_data = json.loads(tool_json_str)
-                    
-                    print(f"[AI_core] Tool call detectado no texto: {tool_data}")
+        while True:
+            full_response_message = None
+            full_response_content = ""  # Conteúdo bruto para parsing
+            full_content = ""  # Conteúdo limpo para o usuário
+            inside_think = False
+            inside_tool_call = False
 
-                    if not hasattr(response, 'tool_calls'):
-                        response.tool_calls = []
-                    
-                    # Garante formato correto
-                    args = tool_data.get("arguments", {})
-                    if isinstance(args, str):
-                        try:
-                            args = json.loads(args)
-                        except:
-                            pass
-
-                    response.tool_calls.append({
-                        "name": tool_data.get("name"),
-                        "args": args,
-                        "id": tool_data.get("id", f"call_{tool_data.get('name')}")
-                    })
-                    
-                    # Limpa o content para não mostrar o XML para o usuário
-                    response.content = response.content.replace(match.group(0), "").strip()
-                except Exception as e:
-                    print(f"[AI_core] Erro ao parsear tool_call manual: {e}")
-
-        # Verifica se há tool_calls na resposta
-        if hasattr(response, 'tool_calls') and response.tool_calls:
-            # Adiciona a resposta do AI com tool_calls ao histórico
-            messages.append(response)
-            
-            # Executa cada tool call
-            for tool_call in response.tool_calls:
-                tool_name = tool_call["name"]
-                tool_args = tool_call.get("args", {})
-                tool_id = tool_call.get("id", tool_name)
-                
-                print(f"[AI_core] Executando tool: {tool_name} com args: {tool_args}")
-                
-                if tool_name in AVAILABLE_TOOLS:
-                    # Executa a tool
-                    tool_result = AVAILABLE_TOOLS[tool_name].invoke(tool_args)
-                    print(f"[AI_core] Resultado da tool: {tool_result}")
-                    
-                    # Adiciona o resultado como ToolMessage
-                    messages.append(ToolMessage(
-                        content=str(tool_result),
-                        tool_call_id=tool_id
-                    ))
+            # Streaming real usando astream
+            async for chunk in llm.astream(messages):
+                if full_response_message is None:
+                    full_response_message = chunk
                 else:
-                    messages.append(ToolMessage(
-                        content=f"Tool '{tool_name}' não encontrada.",
-                        tool_call_id=tool_id
-                    ))
-            
-            # Chama o modelo novamente com o resultado da tool
-            response = llm.invoke(messages)  # type: ignore
-        
-        # Processa a resposta final (streaming para o usuário)
-        if hasattr(response, 'content') and response.content:
-            raw_content = response.content
-            # Limpa o conteúdo
-            cleaned = clean_response(raw_content)
-            for token in cleaned:
-                full_response += token
-                yield f"data: {json.dumps({'token': token})}\n\n"
-        
-        # Limpa e salva resposta final
-        final_reply = clean_response(full_response)
-        if message.thread_id in chat_history:
-            chat_history[message.thread_id].append(
-                AIMessage(content=final_reply))
+                    full_response_message += chunk
 
-        # Dispara o TTS em background para não travar o evento final
-        print(f"[AI_core] Chamando TTS para o texto: {final_reply[:50]}...")
-        asyncio.create_task(speak(final_reply))
+                if chunk.content:
+                    # Acumula o conteúdo bruto original para o parsing de ferramentas no final
+                    full_response_content += chunk.content
+                    content = chunk.content
 
-        yield f"data: {json.dumps({'done': True})}\n\n"
+                    # Filtro básico para blocos de pensamento <think>
+                    if "<think>" in content:
+                        inside_think = True
+                        content = content.split("<think>")[0]
+
+                    if "</think>" in content:
+                        inside_think = False
+                        content = content.split("</think>")[-1]
+
+                    # Filtro para chamadas de ferramentas <tool_call>
+                    if "<tool_call>" in content:
+                        inside_tool_call = True
+                        content = content.split("<tool_call>")[0]
+
+                    if "</tool_call>" in content:
+                        inside_tool_call = False
+                        content = content.split("</tool_call>")[-1]
+
+                    if not inside_think and not inside_tool_call and content:
+                        # Garante compatibilidade de caracteres (Windows)
+                        filtered_content = "".join(
+                            c for c in content if ord(c) <= 0xFFFF)
+                        if filtered_content:
+                            full_content += filtered_content
+                            yield f"data: {json.dumps({'token': filtered_content})}\n\n"
+
+            # Verifica se há tool_calls após o stream terminar
+            tool_calls = getattr(full_response_message, "tool_calls", [])
+
+            # Fallback manual para modelos locais que cospem a tag <tool_call> como texto (ex: Qwen)
+            if not tool_calls and llm_mode == "local":
+                import re
+                # Busca por tags <tool_call> ... </tool_call> no conteúdo BRUTO original
+                match = re.search(
+                    r'<tool_call>\s*(.*?)\s*</tool_call>', full_response_content, re.DOTALL)
+                if match:
+                    try:
+                        tool_data = json.loads(match.group(1).strip())
+                        # Normaliza os campos (alguns modelos usam 'arguments', outros 'args')
+                        tool_args = tool_data.get(
+                            "arguments") or tool_data.get("args") or {}
+
+                        tool_calls = [{
+                            "name": tool_data.get("name"),
+                            "args": tool_args,
+                            "id": f"call_{tool_data.get('name')}"
+                        }]
+                        print(
+                            f"[AI_core] Tool call detectada manualmente no texto: {tool_calls}")
+                    except Exception as e:
+                        print(
+                            f"[AI_core] Erro ao parsear tool call manual: {e}")
+
+            if tool_calls:
+                # Adiciona a resposta do AI com tool_calls ao histórico
+                messages.append(full_response_message)
+
+                for tool_call in tool_calls:
+                    tool_name = tool_call["name"]
+                    tool_args = tool_call.get("args", {})
+                    tool_id = tool_call.get("id", tool_name)
+
+                    print(
+                        f"[AI_core] Executando tool: {tool_name} com args: {tool_args}")
+
+                    if tool_name in AVAILABLE_TOOLS:
+                        tool_result = AVAILABLE_TOOLS[tool_name].invoke(
+                            tool_args)
+                        messages.append(ToolMessage(
+                            content=str(tool_result),
+                            tool_call_id=tool_id
+                        ))
+                    else:
+                        messages.append(ToolMessage(
+                            content=f"Erro: Tool '{tool_name}' não encontrada.",
+                            tool_call_id=tool_id
+                        ))
+
+                # Volta para o início do loop para gerar a resposta final com base no resultado da ferramenta
+                continue
+            else:
+                # Salva a resposta final no histórico
+                final_reply = clean_response(full_content)
+                if message.thread_id in chat_history:
+                    chat_history[message.thread_id].append(
+                        AIMessage(content=final_reply))
+
+                # Dispara o TTS em background
+                print(
+                    f"[AI_core] Chamando TTS para o texto: {final_reply[:50]}...")
+                asyncio.create_task(speak(final_reply))
+
+                yield f"data: {json.dumps({'done': True})}\n\n"
+                break
 
     except Exception as e:
         print(f"Erro no stream: {e}")
+        import traceback
+        traceback.print_exc()
         yield f"data: {json.dumps({'error': str(e)})}\n\n"

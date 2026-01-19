@@ -1,24 +1,10 @@
 from huggingface_hub import hf_hub_download
 from langchain_community.chat_models import ChatLlamaCpp
-from langchain_core.tools import tool
-from langchain_core.runnables import Runnable
+from langchain_core.language_models import BaseChatModel
 import multiprocessing
-from datetime import datetime
 
 
-@tool
-def get_current_time() -> str:
-    """Retorna a hora atual no formato HH:MM:SS."""
-    return datetime.now().strftime("%H:%M")
-
-
-# Dicionário de tools disponíveis para execução
-AVAILABLE_TOOLS = {
-    "get_current_time": get_current_time,
-}
-
-
-def load_model(repo_id: str, filename: str) -> Runnable | None:
+def load_model(repo_id: str, filename: str) -> BaseChatModel | None:
     try:
         print(f"Baixando/Verificando modelo: {repo_id}")
         model_path = hf_hub_download(repo_id=repo_id, filename=filename)
@@ -36,14 +22,11 @@ def load_model(repo_id: str, filename: str) -> Runnable | None:
             verbose=False,
             streaming=True,
             use_mmap=True,
-            use_mlock=True
+            use_mlock=True,
         )
-        
-        # Vincular a tool ao modelo
-        llm_with_tools = llm.bind_tools([get_current_time])
-        
+
         print("Modelo local carregado com sucesso!")
-        return llm_with_tools
+        return llm
     except Exception as e:
         print(f"Erro ao carregar modelo local: {e}")
         return None
