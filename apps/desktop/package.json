@@ -4,8 +4,8 @@
   "private": true,
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "wesleyqdev",
+  "homepage": "https://wesleyydev.mintlify.app",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
@@ -24,7 +24,6 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@momai/ui": "workspace:*",
     "axios": "^1.13.2",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"

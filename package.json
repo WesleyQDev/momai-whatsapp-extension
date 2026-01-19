@@ -1,11 +1,10 @@
 {
   "name": "momai",
   "version": "1.0.0",
-  "description": "MomAI - Assistente de IA para mães",
+  "description": "MomAI",
   "private": true,
   "scripts": {
     "dev": "npm run dev:desktop",
-    "dev:python": "cd apps/core && uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000",
     "dev:desktop": "cd apps/desktop && electron-vite dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -14,8 +13,8 @@
     "docs": "cd apps/docs && mint dev"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "WesleyQDev",
+  "license": "MIT",
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
     "concurrently": "^9.2.1",

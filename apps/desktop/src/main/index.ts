@@ -1,29 +1,49 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  globalShortcut,
+  Tray,
+  Menu,
+  nativeImage
+} from 'electron'
 import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { spawn, type ChildProcess } from 'child_process'
+import { spawn, execSync, type ChildProcess } from 'child_process'
 import icon from '../../resources/icon.png?asset'
 
 let pythonProcess: ChildProcess | null = null
+let tray: Tray | null = null
 
 function startPythonBackend(): void {
-  const cwd = process.cwd()
-  // Se rodando de apps/desktop, o core está em ../core
-  const corePath = resolve(cwd, '../core')
-  
-  console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
+  // Localiza o caminho para apps/core baseado na estrutura do projeto
+  // app.getAppPath() no dev aponta para a raiz do apps/desktop
+  const corePath = resolve(app.getAppPath(), '..', 'core')
 
-  // Usamos shell: true no Windows para garantir que o comando 'uv' seja encontrado
-  pythonProcess = spawn('uv', ['run', 'uvicorn', 'main:app', '--reload', '--host', '127.0.0.1', '--port', '8000'], {
-    cwd: corePath,
-    shell: true,
-    stdio: 'pipe'
-  })
+  const pythonExe =
+    process.platform === 'win32'
+      ? join(corePath, '.venv', 'Scripts', 'python.exe')
+      : join(corePath, '.venv', 'bin', 'python')
+
+  console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
+  console.log(`[Electron] Usando executável: ${pythonExe}`)
+
+  // Executamos o uvicorn como um módulo do python do venv para garantir o uso das dependências instaladas
+  pythonProcess = spawn(
+    pythonExe,
+    ['-m', 'uvicorn', 'main:app', '--reload', '--host', '127.0.0.1', '--port', '8000'],
+    {
+      cwd: corePath,
+      shell: false,
+      stdio: 'pipe'
+    }
+  )
 
   pythonProcess.stdout?.on('data', (data) => {
     console.log(`[Python]: ${data.toString().trim()}`)
   })
-  
+
   pythonProcess.stderr?.on('data', (data) => {
     console.error(`[Python PDF]: ${data.toString().trim()}`)
   })
@@ -35,12 +55,16 @@ function startPythonBackend(): void {
 
 function killPythonBackend(): void {
   if (pythonProcess && pythonProcess.pid) {
-    if (process.platform === 'win32') {
-      // No Windows, matar apenas o processo pai (cmd) não mata o filho (uvicorn).
-      // Usamos taskkill /T (tree) para garantir.
-      spawn('taskkill', ['/pid', pythonProcess.pid.toString(), '/f', '/t'])
-    } else {
-      pythonProcess.kill()
+    try {
+      if (process.platform === 'win32') {
+        // Usamos execSync para garantir que o comando termine antes do Electron fechar.
+        // O /T garante que mate toda a árvore de processos (incluindo workers do uvicorn).
+        execSync(`taskkill /pid ${pythonProcess.pid} /f /t`)
+      } else {
+        pythonProcess.kill('SIGTERM')
+      }
+    } catch (err) {
+      console.error('[Electron] Erro ao encerrar processo Python:', err)
     }
     pythonProcess = null
   }
@@ -64,6 +88,43 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+
+  mainWindow.on('minimize', (event: Event) => {
+    event.preventDefault()
+    mainWindow.hide()
+  })
+
+  // Tray configuration
+  if (!tray) {
+    const iconPath = join(__dirname, '../../resources/icon.png')
+    tray = new Tray(nativeImage.createFromPath(iconPath))
+    tray.setToolTip('MomAI')
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Abrir',
+        click: () => {
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      },
+      {
+        label: 'Sair',
+        click: () => app.quit()
+      }
+    ])
+
+    tray.setContextMenu(contextMenu)
+
+    tray.on('click', () => {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide()
+      } else {
+        mainWindow.show()
+        mainWindow.focus()
+      }
+    })
+  }
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -99,6 +160,22 @@ app.whenReady().then(() => {
   startPythonBackend() // Inicia o Python
   createWindow()
 
+  // Register a 'CommandOrControl+Shift+Space' shortcut listener.
+  globalShortcut.register('Alt+Space', () => {
+    const windows = BrowserWindow.getAllWindows()
+    if (windows.length > 0) {
+      const win = windows[0]
+      if (win.isVisible() && win.isFocused()) {
+        win.hide()
+      } else {
+        win.show()
+        win.focus()
+      }
+    } else {
+      createWindow()
+    }
+  })
+
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -106,7 +183,10 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('will-quit', killPythonBackend) // Garante que o Python morra ao fechar
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+  killPythonBackend()
+}) // Garante que o Python morra ao fechar e limpa atalhos
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
