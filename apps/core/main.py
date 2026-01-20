@@ -16,6 +16,7 @@ import tomllib
 from pathlib import Path
 from AI_core import initialize_llm
 import AI_core
+import tools
 
 
 class ChatMessage(BaseModel):
@@ -28,6 +29,16 @@ class ModeChange(BaseModel):
 
 
 load_dotenv()
+
+# Sincroniza versão com as tools no startup
+try:
+    pyproject_path = Path(__file__).parent / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        data = tomllib.load(f)
+        __version__ = data.get("project", {}).get("version", "0.0.0")
+        tools.version = __version__
+except Exception:
+    __version__ = "0.0.0"
 
 app = FastAPI()
 
@@ -54,17 +65,9 @@ async def handle_chat_stream(message: ChatMessage):
 
 @app.get("/status")
 def get_status():
-    try:
-        pyproject_path = Path(__file__).parent / "pyproject.toml"
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-            __version__ = data.get("project", {}).get("version", "0.0.0")
-    except Exception:
-        __version__ = "0.0.0"
-
     return {
         "status": "ok",
-        "version": __version__,
+        "version": tools.version,
         "mode": AI_core.llm_mode,
     }
 

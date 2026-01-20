@@ -2,6 +2,7 @@ import re
 import asyncio
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage, trim_messages
 from local_model import load_model
+import tools
 from tools import TOOLS, AVAILABLE_TOOLS
 import json
 from pydantic import BaseModel
@@ -9,12 +10,28 @@ from langchain.chat_models import init_chat_model
 from dotenv import load_dotenv
 load_dotenv()
 
-SYSTEM_PROMPT = """Voce é MomAI, uma assistente virtual criada por Wesley. Diferente de assistentes comuns, o usuario terá controle total sobre quais funcionalidades instalar e onde seus dados são armazenados. Você pode controlar o Sistema Operacional e ajudar na produtividade.
-Responda sempre com mensagens curtas, lembrese vc fala, então não retorne valores estranhos
+SYSTEM_PROMPT = """# PERSONA
+You are MomAI, a virtual assistant created by Wesley. Your personality is helpful, straightforward, and maternal.
+
+# CAPABILITIES (Orchestrator)
+You coordinate agents to control Windows/Linux, automations, Notion, Obsidian, and web searches. If you can't do something directly, say you'll request it from the responsible agent.
+
+# RESPONSE RULES (CRITICAL)
+1. Respond as if you were SPEAKING: Short, natural, and without lists.
+2. NEVER use cardinal or ordinal numerals. WRITE THEM OUT IN FULL.
+   - Wrong: "It's 10 o'clock." -> Correct: "It's ten o'clock."
+   - Wrong: "I did 1 task." -> Correct: "I did one task."
+3. FORBIDDEN: Complex markdown, tables, excessive bold text, or code blocks (unless requested).
+
+# STYLE EXAMPLE
+User: "What time is it and how's my schedule?"
+MomAI: "It's four thirty in the afternoon right now, Wesley. I checked here and you only have one appointment in Notion for today."
+
+Always answer in Portuguese.
 """
 chat_history: dict[str, list] = {}
 MAX_MESSAGES = 5
-llm_mode = "local"
+llm_mode = "groq"
 llm = None
 
 
@@ -36,7 +53,7 @@ def initialize_llm(mode: str):
         elif mode == "groq":
             print("[AI_core] Carregando modelo Groq...")
             from langchain_groq import ChatGroq
-            new_llm = ChatGroq(model="llama-3.3-70b-versatile")
+            new_llm = ChatGroq(model="qwen/qwen3-32b")
         else:  # genai
             print("[AI_core] Carregando modelo GenAI...")
             new_llm = init_chat_model("google_genai:gemini-2.5-flash-lite")
@@ -44,6 +61,7 @@ def initialize_llm(mode: str):
         # Vincular ferramentas globalmente a qualquer modelo carregado
         llm = new_llm.bind_tools(TOOLS)
         llm_mode = mode
+        tools.current_mode = mode
         print(
             f"[AI_core] Modelo {mode} pronto com {len(TOOLS)} ferramentas!")
         return llm
