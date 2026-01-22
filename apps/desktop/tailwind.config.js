@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./src/renderer/index.html",
-    "./src/renderer/src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./src/renderer/index.html', './src/renderer/src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -13,11 +10,9 @@ module.exports = {
         text: 'var(--text)',
         'text-muted': 'var(--text-muted)',
         accent: 'var(--accent)',
-        'user-bg': 'var(--user-bg)',
-      },
-    },
+        'user-bg': 'var(--user-bg)'
+      }
+    }
   },
-  plugins: [
-    require('tailwind-scrollbar'),
-  ],
+  plugins: [require('tailwind-scrollbar')]
 }
