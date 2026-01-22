@@ -24,3 +24,7 @@ build/
 htmlcov/
 .coverage
 coverage.xml
+# AI Models
+models/
+vosk-model-*/
+bin/

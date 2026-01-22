@@ -91,10 +91,12 @@ dist-electron/
 .claude/
 
 # ====================
-# Llama.cpp / AI Models
+# Llama.cpp / AI Models / Vosk
 # ====================
 apps/core/bin/
 apps/core/models/
+apps/core/vosk-model-*/
+
 
 # ====================
 # Outros
