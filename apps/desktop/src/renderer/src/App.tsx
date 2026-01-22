@@ -9,8 +9,8 @@ function App(): React.JSX.Element {
   const { statusInfo, localMode, changeMode, isUpdating } = useStatus()
 
   return (
-    <div className="app">
-      <div className="container">
+    <div className="h-full flex">
+      <div className="flex w-full gap-5">
         <LateralBar />
         <ContainerChat
           messages={messages}

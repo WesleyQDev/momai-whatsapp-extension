@@ -26,7 +26,7 @@ export default function ContainerChat({
   isModeChanging = false
 }: ContainerChatProps): JSX.Element {
   return (
-    <div className="chat-menu container-box">
+    <div className="bg-[#0c1222] w-[25rem] my-8 mx-20 rounded-[15px] border border-[#252931] flex flex-col overflow-hidden">
       <MessageList 
         messages={messages} 
         isLoading={isLoading} 

@@ -18,4 +18,9 @@ dependencies = [
     "langchain-openai>=1.1.7",
     "pygame>=2.6.1",
     "psutil>=7.2.1",
+    "speechrecognition>=3.14.5",
+    "pyaudio>=0.2.14",
+    "vosk>=0.3.45",
+    "pvporcupine>=4.0.1",
+    "sounddevice>=0.5.4",
 ]
