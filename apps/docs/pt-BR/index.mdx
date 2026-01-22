@@ -21,8 +21,6 @@ Não foi por causa das big techs. Foi por causa das **pequenas coisas**.
 
 Sabe aquela planilha que você precisa comparar com outra, célula por célula, porque ninguém fez uma ferramenta pra isso? Ou aquela mensagem no WhatsApp que você responde todo dia com "sim" ou "não", mas ainda assim precisa pegar o celular, abrir o app, digitar?
 
-E os manhwas que você quer baixar pra ler offline no ônibus. Os resumos de notícias que você gostaria de receber, mas só das coisas que realmente te interessam. O lembrete pra beber água que você configura e esquece de olhar.
-
 **MomAI nasceu dessa frustração.**
 
 A tecnologia já permite automatizar quase tudo. Existem MCPs, APIs, agentes de IA. Mas na prática? Você ainda faz as mesmas tarefas repetitivas todo dia. Porque ninguém juntou as peças de um jeito que funcione pra **você**.
@@ -31,44 +29,35 @@ A tecnologia já permite automatizar quase tudo. Existem MCPs, APIs, agentes de 
 
 Imagine seu computador ligando sozinho de manhã. Enquanto você toma café, ele já verificou:
 
-- O que você tem pra fazer hoje
+- O que você tem pra fazer hoje (Notion/Google Calendar)
 - Os prazos da faculdade que estão chegando
 - Se tem alguma notícia importante sobre os assuntos que você acompanha
-- Se alguém te mandou mensagem que precisa de resposta
 
-E quando você senta pra trabalhar, uma notificação gentil: _"Ei, você não bebe água há 2 horas."_
+E quando você senta pra trabalhar, uma voz amigável te dá bom dia e te avisa das pendências.
 
-Depois: _"O lixo reciclável é amanhã. Quer que eu te lembre de noite?"_
+## O que já funciona hoje?
 
-**Isso é MomAI.** Uma assistente que conhece sua rotina e cuida das coisas chatas pra você.
+- **Chat com IA**: Motor local otimizado (`llama-server`) que roda suave mesmo em GPUs de entrada como AMD RX 580.
+- **Streaming de Voz (TTS)**: Ela fala enquanto pensa. O sistema quebra as frases e envia para áudio em tempo real, sem pausas chatas.
+- **Memória de conversa**: Ela lembra do contexto e da sua rotina.
+- **Modo Híbrido**: Escolha entre privacidade total (Offline) ou velocidade de nuvem (Groq/Gemini).
 
 ## Para quem é esse projeto?
 
 <CardGroup cols={2}>
   <Card title="Pra quem tem rotina" icon="calendar-check">
-    Estudantes, trabalhadores, qualquer pessoa que faz as mesmas coisas todo dia
-    e gostaria de automatizar.
+    Pessoas que fazem as mesmas coisas todo dia e gostariam de uma ajuda proativa.
   </Card>
   <Card title="Pra quem gosta de criar" icon="screwdriver-wrench">
-    Desenvolvedores que querem construir extensões: um bot pra baixar mangás, um
-    agente que organiza downloads, ou algo que ninguém pensou ainda.
+    Desenvolvedores que querem construir extensões para suas necessidades específicas.
   </Card>
   <Card title="Pra quem quer privacidade" icon="shield-halved">
-    Tudo pode rodar na sua máquina. Seus dados, suas regras.
+    Pessoas que querem usar IA sem mandar seus dados para servidores corporativos.
   </Card>
   <Card title="Pra comunidade" icon="people-group">
-    Cada extensão criada ajuda todo mundo. O poder da MomAI cresce junto com
-    quem usa.
+    Um projeto aberto que cresce com a contribuição de todos.
   </Card>
 </CardGroup>
-
-## O que já funciona hoje?
-
-- **Chat com IA**: Funciona offline (modelo local) ou com APIs externas
-- **Interface Desktop**: Electron + React, bonita e rápida
-- **Memória de conversa**: Ela lembra do contexto
-
-Mas o mais importante é a **arquitetura**: foi desenhada desde o início para receber extensões. O sistema de agentes e eventos é a fundação.
 
 ## Próximos Passos
 

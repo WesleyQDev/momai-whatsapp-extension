@@ -6,7 +6,7 @@ import { useStatus } from './hooks/useStatus'
 
 function App(): React.JSX.Element {
   const { text, setText, messages, isLoading, sendMessage, messagesEndRef } = useChat()
-  const { statusInfo, localMode, changeMode } = useStatus()
+  const { statusInfo, localMode, changeMode, isUpdating } = useStatus()
 
   return (
     <div className="app">
@@ -21,6 +21,7 @@ function App(): React.JSX.Element {
           messagesEndRef={messagesEndRef}
           currentMode={localMode}
           onModeChange={changeMode}
+          isModeChanging={isUpdating}
         />
         <Status statusInfo={statusInfo} />
       </div>

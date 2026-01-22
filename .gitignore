@@ -1,6 +1,7 @@
 # ====================
 # IDEs e Editores
 # ====================
+GEMINI.md
 .vscode/
 .idea/
 *.swp
@@ -88,6 +89,12 @@ dist-electron/
 # ====================
 .gemini/
 .claude/
+
+# ====================
+# Llama.cpp / AI Models
+# ====================
+apps/core/bin/
+apps/core/models/
 
 # ====================
 # Outros

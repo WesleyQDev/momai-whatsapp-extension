@@ -5,7 +5,7 @@ const POLLING_INTERVAL = 5000
 
 export function useStatus() {
   const [statusInfo, setStatusInfo] = useState<StatusData | null>(null)
-  const [localMode, setLocalMode] = useState<string>('genai')
+  const [localMode, setLocalMode] = useState<string>('groq')
   const [isOnline, setIsOnline] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
 

@@ -7,11 +7,16 @@
 
 </div>
 
-
-
 ## O que é MomAI?
 
-MomAI é uma assistente virtual de código aberto, criada no Brasil, que você pode personalizar com extensões. Diferente de assistentes comuns, você tem **controle total** sobre quais funcionalidades instalar e onde seus dados são armazenados.
+MomAI é uma assistente virtual de código aberto, **local-first** e focada em privacidade. Ela combina a inteligência dos LLMs modernos com a capacidade de executar ações reais no seu computador.
+
+### Destaques da Versão Atual
+
+- **Motor de IA Local (Server Mode):** Roda modelos Llama/Qwen via `llama.cpp` em processo dedicado (C++), garantindo performance máxima sem travar a interface.
+- **Streaming TTS Real-time:** Fala com você enquanto ainda está pensando, com latência mínima e quebra inteligente de frases.
+- **Híbrida:** Alterne instantaneamente entre modelos locais (Offline) e nuvem (Groq/Gemini) com um clique.
+- **Interface Moderna:** Desktop App feito em Electron + React
 
 ### Por que usar MomAI?
 
@@ -32,26 +37,7 @@ MomAI é uma assistente virtual de código aberto, criada no Brasil, que você p
 
 MomAI é construída como uma equipe de agentes especializados. O **MomAgent** atua como gerente principal, delegando tarefas para agentes especializados conforme a necessidade.
 
-**Agentes de Delegação:**
-
-- **InterfaceAgent** - Cria telas, gráficos e relatórios
-- **SchedulerAgent** - Gerencia agendamentos e lembretes
-- **SearchAgent** - Realiza pesquisas na internet
-
-**Agentes de Eventos:**
-
-- **ReminderAgent** - Avisa por voz quando chega a hora
-- **SystemAgent** - Age com eventos do sistema operacional
-
-## Sistema de Extensões
-
-O diferencial do MomAI é permitir que você escolha quais capacidades sua assistente terá:
-
-- **WhatsApp** - Integração via Evolution API
-- **Navegação** - Automação de navegadores
-- **Planilhas** - Interação com planilhas do workspace
-- **Notas** - Integração com Notion, Obsidian, Anytype
-- **Smart Home** - Controle de dispositivos IoT
+O backend Python atua como orquestrador, gerenciando o ciclo de vida do servidor de inferência local e das ferramentas.
 
 ## Documentação
 

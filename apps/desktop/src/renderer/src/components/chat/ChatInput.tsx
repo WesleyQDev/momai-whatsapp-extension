@@ -5,6 +5,7 @@ interface ChatInputProps {
   isLoading: boolean
   currentMode: string
   onModeChange: (mode: string) => void
+  isModeChanging?: boolean
 }
 
 export default function ChatInput({
@@ -13,7 +14,8 @@ export default function ChatInput({
   onSend,
   isLoading,
   currentMode,
-  onModeChange
+  onModeChange,
+  isModeChanging = false
 }: ChatInputProps) {
   return (
     <footer>
@@ -21,7 +23,7 @@ export default function ChatInput({
         type="text"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        disabled={isLoading}
+        disabled={isLoading || isModeChanging}
         placeholder="Digite sua mensagem..."
         onKeyDown={(e) => e.key === 'Enter' && onSend()}
       />
@@ -29,13 +31,14 @@ export default function ChatInput({
         value={currentMode}
         onChange={(e) => onModeChange(e.target.value)}
         className="mode-selector-inline"
-        disabled={isLoading}
+        disabled={isLoading || isModeChanging}
+        style={{ opacity: isModeChanging ? 0.7 : 1 }}
       >
         <option value="local">Qwen</option>
         <option value="genai">Gemini</option>
         <option value="groq">Groq</option>
       </select>
-      <button type="button" onClick={onSend} disabled={isLoading || !text.trim()}>
+      <button type="button" onClick={onSend} disabled={isLoading || isModeChanging || !text.trim()}>
         <svg
           width="20"
           height="25"

@@ -127,35 +127,76 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   padding: 10px;
 
   overflow-y: auto;
 }
 
 /* ===========================
+   MESSAGE CONTAINER (AVATAR + BUBBLE)
+=========================== */
+.message-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  max-width: 80%;
+}
+
+.message-container.assistant {
+  align-self: flex-start;
+  flex-direction: row;
+}
+
+.message-container.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  flex-shrink: 0;
+}
+
+/* ===========================
    MENSAGEM
 =========================== */
 .message {
-  padding: 10px;
-  max-width: 70%;
+  padding: 12px 16px;
   width: fit-content;
   word-wrap: break-word;
 }
 
-/* Assistant → direita */
-.assistant {
-  background-color: #252b37;
-  border-radius: 0 15px 15px 15px;
-  align-self: flex-end;
+/* Assistant Bubble (Claude Style - No Background) */
+.message-container.assistant .message {
+  background-color: transparent;
+  padding: 12px 0; /* Remove padding lateral pois não tem borda */
+  color: #e2e8f0;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
-/* User → esquerda */
-.user {
-  background-color: #1e2538;
-  border-radius: 15px 15px 15px 0;
-  align-self: flex-start;
+/* Ajuste fino para alinhar o topo do texto com o topo do avatar visualmente */
+.message-container.assistant {
+  align-items: flex-start; /* Alinha avatar e texto no topo */
 }
+
+.message-container.assistant .avatar {
+  margin-top: 10px; /* Compensa o padding do texto */
+}
+
+/* User Bubble */
+.message-container.user .message {
+  background-color: #1e2538;
+  border-radius: 15px 15px 0 15px;
+  color: #f1f5f9;
+}
+
 
 /* ===========================
    MARKDOWN STYLES
@@ -242,6 +283,45 @@ body {
 .message th {
   background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* ===========================
+   TYPING INDICATOR
+=========================== */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  margin-top: 5px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--text-muted);
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 
 /* ===========================
    MENU INTERNO
@@ -385,4 +465,27 @@ footer button {
   font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--accent);
+}
+
+/* ===========================
+   SYSTEM MESSAGE (LOADING BUBBLE)
+=========================== */
+.system-message {
+  align-self: center;
+  background-color: rgba(139, 92, 246, 0.1);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  margin: 10px 0;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }

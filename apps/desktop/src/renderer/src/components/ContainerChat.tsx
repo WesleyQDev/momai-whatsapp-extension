@@ -11,6 +11,7 @@ interface ContainerChatProps {
   messagesEndRef: RefObject<HTMLDivElement | null>
   currentMode: string
   onModeChange: (mode: string) => void
+  isModeChanging?: boolean
 }
 
 export default function ContainerChat({
@@ -21,11 +22,17 @@ export default function ContainerChat({
   onSendMessage,
   messagesEndRef,
   currentMode,
-  onModeChange
+  onModeChange,
+  isModeChanging = false
 }: ContainerChatProps): JSX.Element {
   return (
     <div className="chat-menu container-box">
-      <MessageList messages={messages} isLoading={isLoading} messagesEndRef={messagesEndRef} />
+      <MessageList 
+        messages={messages} 
+        isLoading={isLoading} 
+        messagesEndRef={messagesEndRef}
+        isModeChanging={isModeChanging}
+      />
       <ChatInput
         text={text}
         setText={setText}
@@ -33,6 +40,7 @@ export default function ContainerChat({
         isLoading={isLoading}
         currentMode={currentMode}
         onModeChange={onModeChange}
+        isModeChanging={isModeChanging}
       />
     </div>
   )

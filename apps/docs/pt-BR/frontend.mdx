@@ -15,19 +15,31 @@ O frontend é a janela onde você interage com a MomAI. Ele é construído com E
 Se você já rodou `pnpm install` na raiz do projeto, as dependências já estão instaladas.
 
 ```bash
-npm run dev:desktop
+# Na raiz ou em apps/desktop
+pnpm run dev
 ```
 
 Isso vai:
 1. Iniciar o servidor Vite (para hot-reload durante desenvolvimento)
 2. Abrir a janela do Electron automaticamente
+3. (Opcionalmente) Iniciar o backend Python se configurado no script principal
+
+## Funcionalidades da Interface
+
+### Troca de Modelo (Model Switching)
+No rodapé do chat, você pode alternar entre **Modo Nuvem** (Gemini/Groq) e **Modo Local** (Qwen/Llama).
+- Ao trocar para **Local**, o sistema pode levar alguns segundos para carregar o modelo na memória.
+- Um indicador visual ("Alterando modelo de IA...") aparecerá no chat e o campo de entrada ficará bloqueado para evitar erros.
+
+### Chat Streaming
+O chat suporta streaming de texto e Markdown. Blocos de código, tabelas e listas são renderizados automaticamente.
 
 ## Gerando um executável
 
 Se você quiser usar o MomAI sem precisar de terminal:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 O instalador será gerado na pasta `apps/desktop/dist`.
@@ -36,13 +48,10 @@ O instalador será gerado na pasta `apps/desktop/dist`.
 
 <AccordionGroup>
   <Accordion title="A tela está em branco">
-    Verifique se o backend está rodando (`npm run dev:python`). O frontend tenta conectar em `localhost:8000`. Sem o servidor, o chat não funciona.
+    Verifique se o backend está rodando. O frontend tenta conectar em `localhost:8000`. Sem o servidor, o chat não funciona.
   </Accordion>
-  <Accordion title="Erro com módulos nativos (node-gyp)">
-    No Windows, você precisa das ferramentas de build do C++. Instale via Visual Studio Build Tools ou rode:
-    ```bash
-    npm install --global windows-build-tools
-    ```
+  <Accordion title="O chat não conecta no Local Mode">
+    Verifique se você baixou os binários do `llama-server` conforme explicado no guia do Backend.
   </Accordion>
 </AccordionGroup>
 

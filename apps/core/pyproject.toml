@@ -15,4 +15,7 @@ dependencies = [
     "duckduckgo-search>=8.1.1",
     "ddgs>=9.10.0",
     "pygetwindow>=0.0.9",
+    "langchain-openai>=1.1.7",
+    "pygame>=2.6.1",
+    "psutil>=7.2.1",
 ]

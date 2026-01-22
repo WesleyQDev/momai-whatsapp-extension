@@ -9,6 +9,7 @@ if sys.platform == "win32":
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from contextlib import asynccontextmanager
 from AI_core import generate
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -18,6 +19,23 @@ from AI_core import initialize_llm
 import AI_core
 import tools
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    yield
+    # Shutdown
+    print("[FastAPI] Encerrando aplicação e limpando recursos...")
+    try:
+        from local_model import stop_server
+        stop_server()
+    except Exception as e:
+        print(f"Erro ao parar servidor local: {e}")
+        
+    try:
+        import tts_manager
+        tts_manager.stop_all()
+    except Exception as e:
+        print(f"Erro ao parar TTS: {e}")
 
 class ChatMessage(BaseModel):
     content: str
@@ -40,7 +58,7 @@ try:
 except Exception:
     __version__ = "0.0.0"
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

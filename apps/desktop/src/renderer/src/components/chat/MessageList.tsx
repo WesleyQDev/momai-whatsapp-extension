@@ -6,12 +6,14 @@ interface MessageListProps {
   messages: Message[]
   isLoading: boolean
   messagesEndRef: RefObject<HTMLDivElement | null>
+  isModeChanging?: boolean
 }
 
 export default function MessageList({
   messages,
   isLoading,
-  messagesEndRef
+  messagesEndRef,
+  isModeChanging = false
 }: MessageListProps): JSX.Element {
   return (
     <main className="messages">
@@ -23,6 +25,14 @@ export default function MessageList({
           isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
         />
       ))}
+      
+      {isModeChanging && (
+        <div className="system-message">
+          <span className="typing-dot" style={{width: 6, height: 6, backgroundColor: 'var(--accent)'}}></span>
+          <span>Alterando modelo de IA...</span>
+        </div>
+      )}
+
       <div ref={messagesEndRef} />
     </main>
   )

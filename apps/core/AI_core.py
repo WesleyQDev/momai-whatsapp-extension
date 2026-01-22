@@ -1,7 +1,7 @@
 import re
 import asyncio
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage, trim_messages
-from local_model import load_model
+from local_model import load_model, stop_server
 import tools
 from tools import TOOLS, AVAILABLE_TOOLS
 import json
@@ -16,21 +16,20 @@ You are MomAI, a virtual assistant created by Wesley. Your personality is helpfu
 # CAPABILITIES (Orchestrator)
 You coordinate agents to control Windows/Linux, automations, Notion, Obsidian, and web searches. If you can't do something directly, say you'll request it from the responsible agent.
 
-# RESPONSE RULES (CRITICAL)
+# RESPONSE RULES
 1. Respond as if you were SPEAKING: Short, natural, and without lists.
-2. NEVER use cardinal or ordinal numerals. WRITE THEM OUT IN FULL.
-   - Wrong: "It's 10 o'clock." -> Correct: "It's ten o'clock."
-   - Wrong: "I did 1 task." -> Correct: "I did one task."
+2. Use full words for numbers when it feels natural for speech (e.g., "ten" instead of "10").
 3. FORBIDDEN: Complex markdown, tables, excessive bold text, or code blocks (unless requested).
+4. **CRITICAL: ALWAYS ANSWER IN PORTUGUESE (PT-BR).** Even if the user speaks another language, reply in Portuguese.
 
 # STYLE EXAMPLE
-User: "What time is it and how's my schedule?"
-MomAI: "It's four thirty in the afternoon right now, Wesley. I checked here and you only have one appointment in Notion for today."
+User: "What time is it?"
+MomAI: "São quatro e meia da tarde, Senhor."
 
-Always answer in Portuguese.
+Always answer in Portuguese (Brasil).
 """
 chat_history: dict[str, list] = {}
-MAX_MESSAGES = 5
+MAX_MESSAGES = 20
 llm_mode = "groq"
 llm = None
 
@@ -43,12 +42,16 @@ def initialize_llm(mode: str):
     prev_llm = llm
     llm = None
 
+    # Se não for modo local, garante que o servidor local esteja parado para economizar recurso
+    if mode != "local":
+        stop_server()
+
     try:
         if mode == "local":
             print("[AI_core] Carregando modelo local...")
             new_llm = load_model(
-                repo_id="Qwen/Qwen3-4B-GGUF",
-                filename="Qwen3-4B-Q4_K_M.gguf"
+                repo_id="unsloth/Qwen3-4B-Instruct-2507-GGUF",
+                filename="Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
             )
         elif mode == "groq":
             print("[AI_core] Carregando modelo Groq...")
@@ -106,6 +109,24 @@ def get_trimmed_messages(thread_id: str, new_message: str) -> list:
     return messages
 
 
+def clean_text_for_tts(text: str) -> str:
+    """
+    Remove formatação Markdown e caracteres especiais para a voz ficar natural.
+    """
+    # Remove negrito/itálico (**texto**, *texto*, __texto__)
+    text = re.sub(r'[*_]{1,3}([^*_]+)[*_]{1,3}', r'\1', text)
+    # Remove links [texto](url) -> texto
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    # Remove headers (# Titulo)
+    text = re.sub(r'#+\s?', '', text)
+    # Remove code blocks/backticks
+    text = re.sub(r'`+', '', text)
+    # Remove restos de bullets
+    text = re.sub(r'^\s*[-*]\s+', '', text, flags=re.MULTILINE)
+
+    return text.strip()
+
+
 def clean_response(text: str) -> str:
     """Limpa tokens residuais da resposta e remove caracteres que quebram o console Windows."""
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
@@ -118,8 +139,13 @@ def clean_response(text: str) -> str:
 
 
 async def generate(message: ChatMessage):
-    # Import adiado para garantir que tts_manager carregue HAS_TTS corretamente
-    from tts_manager import speak
+    # Import adiado para evitar ciclo
+    import tts_manager
+
+    # Para fala anterior se houver
+    tts_manager.stop_all()
+    tts_manager.start_workers()
+
     if llm is None:
         yield f"data: {json.dumps({'error': 'Modelo ainda está sendo carregado. Por favor, aguarde...'})}\n\n"
         return
@@ -127,12 +153,21 @@ async def generate(message: ChatMessage):
     try:
         messages = get_trimmed_messages(message.thread_id, message.content)
 
+        tts_buffer = ""
+
         while True:
             full_response_message = None
-            full_response_content = ""  # Conteúdo bruto para parsing
-            full_content = ""  # Conteúdo limpo para o usuário
+            full_response_content = ""
+            full_content = ""
             inside_think = False
             inside_tool_call = False
+
+            # Buffer para acumular texto do TTS
+            tts_buffer = ""
+
+            # Padrão para detectar fim de sentença (Ponto, Exclamação, Interrogação) seguido de espaço ou fim de string
+            import re
+            sentence_end_pattern = re.compile(r'(.*?[.?!])(\s+|$)', re.DOTALL)
 
             # Streaming real usando astream
             async for chunk in llm.astream(messages):
@@ -142,38 +177,69 @@ async def generate(message: ChatMessage):
                     full_response_message += chunk
 
                 if chunk.content:
-                    # Acumula o conteúdo bruto original para o parsing de ferramentas no final
                     full_response_content += chunk.content
                     content = chunk.content
 
-                    # Filtro básico para blocos de pensamento <think>
+                    # Filtro de pensamento e tools (mantido igual)
                     if "<think>" in content:
                         inside_think = True
                         content = content.split("<think>")[0]
-
                     if "</think>" in content:
                         inside_think = False
                         content = content.split("</think>")[-1]
 
-                    # Filtro para chamadas de ferramentas <tool_call>
                     if "<tool_call>" in content:
                         inside_tool_call = True
                         content = content.split("<tool_call>")[0]
-
                     if "</tool_call>" in content:
                         inside_tool_call = False
                         content = content.split("</tool_call>")[-1]
 
                     if not inside_think and not inside_tool_call and content:
-                        # Garante compatibilidade de caracteres (Windows)
+                        # LangChain já entrega string decodificada, então o problema do UTF-8
+                        # deve ser apenas caracteres de controle.
                         filtered_content = "".join(
                             c for c in content if ord(c) <= 0xFFFF)
+
                         if filtered_content:
                             full_content += filtered_content
                             yield f"data: {json.dumps({'token': filtered_content})}\n\n"
 
+                            # Acumula no buffer do TTS
+                            tts_buffer += filtered_content
+
+                            # Tenta extrair frases completas do buffer
+                            while True:
+                                match = sentence_end_pattern.search(tts_buffer)
+                                if match:
+                                    # Encontrou uma frase completa
+                                    sentence = match.group(1).strip()
+                                    remaining = tts_buffer[match.end():]
+
+                                    if sentence:
+                                        # Envia apenas se for uma frase real (evita "..." solto)
+                                        if len(sentence) > 2:
+                                            # Limpa Markdown antes de falar
+                                            clean_sentence = clean_text_for_tts(
+                                                sentence)
+                                            if clean_sentence.strip():
+                                                tts_manager.speak_sentence(
+                                                    clean_sentence)
+
+                                    tts_buffer = remaining  # Mantém o resto no buffer
+                                else:
+                                    break  # Nenhuma frase completa encontrada, espera mais tokens
+
+            # Envia resto do buffer de áudio se sobrou algo relevante
+            if tts_buffer.strip():
+                clean_phrase = clean_text_for_tts(
+                    clean_response(tts_buffer)).strip()
+                if len(clean_phrase) > 1:
+                    tts_manager.speak_sentence(clean_phrase)
+
             # Verifica se há tool_calls após o stream terminar
-            tool_calls = getattr(full_response_message, "tool_calls", [])
+            tool_calls = getattr(full_response_message, "tool_calls", [
+            ]) if full_response_message else []
 
             # Fallback manual para modelos locais que cospem a tag <tool_call> como texto (ex: Qwen)
             if not tool_calls and llm_mode == "local":
@@ -193,13 +259,20 @@ async def generate(message: ChatMessage):
                             "args": tool_args,
                             "id": f"call_{tool_data.get('name')}"
                         }]
+
+                        # Fix: Recria a mensagem com as tools devidamente formatadas para o LangChain
+                        full_response_message = AIMessage(
+                            content=full_response_content,
+                            tool_calls=tool_calls
+                        )
+
                         print(
                             f"[AI_core] Tool call detectada manualmente no texto: {tool_calls}")
                     except Exception as e:
                         print(
                             f"[AI_core] Erro ao parsear tool call manual: {e}")
 
-            if tool_calls:
+            if tool_calls and full_response_message:
                 # Adiciona a resposta do AI com tool_calls ao histórico
                 messages.append(full_response_message)
 
@@ -233,10 +306,7 @@ async def generate(message: ChatMessage):
                     chat_history[message.thread_id].append(
                         AIMessage(content=final_reply))
 
-                # Dispara o TTS em background
-                print(
-                    f"[AI_core] Chamando TTS para o texto: {final_reply[:50]}...")
-                asyncio.create_task(speak(final_reply))
+                # Streaming TTS já cuidou da fala.
 
                 yield f"data: {json.dumps({'done': True})}\n\n"
                 break
