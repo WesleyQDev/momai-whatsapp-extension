@@ -2,148 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===========================
-   TRAVA SCROLL GLOBAL
-=========================== */
-html,
-body,
-#root {
-  height: 100%;
-  overflow: hidden;
-}
-
-/* ===========================
-   VARIÁVEIS
-=========================== */
-:root {
-  --bg: #060a15;
-  --surface: rgba(30, 41, 59, 0.5);
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #f1f5f9;
-  --text-muted: #64748b;
-  --accent: #8b5cf6;
-  --user-bg: rgba(139, 92, 246, 0.15);
-}
-
-
-/* ===========================
-   RESET
-=========================== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* ===========================
-   BODY
-=========================== */
-body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-
-
-/* ===========================
-   MARKDOWN STYLES
-=========================== */
-.message strong {
-  font-weight: bold;
-  color: #fff;
-}
-
-.message p {
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.message p:last-child {
-  margin-bottom: 0;
-}
-
-.message code {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 0.85em;
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  color: #e2e8f0;
-}
-
-.message pre {
-  background-color: #0f131a;
-  padding: 1rem;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin: 0.75rem 0;
-  border: 1px solid #30363d;
-}
-
-.message pre code {
-  background-color: transparent;
-  padding: 0;
-  color: inherit;
-  font-size: 0.9em;
-}
-
-.message ul,
-.message ol {
-  margin-left: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.message li {
-  margin-bottom: 0.25rem;
-}
-
-.message a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.message a:hover {
-  text-decoration: underline;
-}
-
-.message blockquote {
-  border-left: 3px solid var(--text-muted);
-  margin: 0.5rem 0;
-  padding-left: 1rem;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.message table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 0.75rem 0;
-}
-
-.message th,
-.message td {
-  border: 1px solid var(--border);
-  padding: 0.5rem;
-  text-align: left;
-}
-
-.message th {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-@keyframes typing {
-  0%, 80%, 100% {
-    transform: scale(0);
-    opacity: 0.6;
+@layer base {
+  html,
+  body,
+  #root {
+    @apply h-full overflow-hidden;
   }
-  40% {
-    transform: scale(1);
-    opacity: 1;
+
+  body {
+    @apply font-sans bg-bg text-text;
+  }
+
+  * {
+    @apply m-0 p-0 box-border;
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+@layer components {
+  /* ===========================
+     MARKDOWN STYLES (Scoped to .message)
+  =========================== */
+  .message strong {
+    @apply font-bold text-white;
+  }
+
+  .message p {
+    @apply mb-2 leading-relaxed;
+  }
+
+  .message p:last-child {
+    @apply mb-0;
+  }
+
+  .message code {
+    @apply font-mono text-[0.85em] bg-black/20 px-1.5 py-0.5 rounded text-slate-200;
+  }
+
+  .message pre {
+    @apply bg-[#0f131a] p-4 rounded-lg overflow-x-auto my-3 border border-white/10;
+  }
+
+  .message pre code {
+    @apply bg-transparent p-0 text-inherit text-[0.9em];
+  }
+
+  .message ul,
+  .message ol {
+    @apply ml-6 mb-2;
+  }
+
+  .message li {
+    @apply mb-1;
+  }
+
+  .message a {
+    @apply text-accent no-underline hover:underline;
+  }
+
+  .message blockquote {
+    @apply border-l-4 border-text-muted my-2 pl-4 text-text-muted italic;
+  }
+
+  .message table {
+    @apply border-collapse w-full my-3;
+  }
+
+  .message th,
+  .message td {
+    @apply border border-white/10 p-2 text-left;
+  }
+
+  .message th {
+    @apply bg-white/5;
+  }
 }

@@ -24,10 +24,49 @@ import os
 import psutil
 import json
 import asyncio
+import logging
+
+# Silencia logs de acesso do uvicorn especificamente para o endpoint /status para evitar spam no console
+
+
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/status" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # Gerenciador de Websockets
 active_websockets: list[WebSocket] = []
 main_loop: asyncio.AbstractEventLoop = None
+
+# Gerenciador de Interface Gráfica (Graph State)
+active_graph = {
+    "view": None,  # 'center' | 'side' | None
+    "bypass_wake_word": False
+}
+
+
+def get_graph_state():
+    return active_graph
+
+
+def set_graph_state(view: str | None, bypass_wake_word: bool = False):
+    global active_graph
+    active_graph = {
+        "view": view,
+        "bypass_wake_word": bypass_wake_word
+    }
+    print(f"[Main] Graph State alterado: {active_graph}")
+
+
+async def broadcast_to_sockets(message: dict):
+    """Envia uma mensagem para todos os websockets conectados."""
+    for ws in active_websockets:
+        try:
+            await ws.send_json(message)
+        except Exception as e:
+            print(f"[WebSocket] Erro ao transmitir: {e}")
 
 
 async def process_voice_command(text: str):
@@ -95,8 +134,14 @@ async def lifespan(app: FastAPI):
     global main_loop
     main_loop = asyncio.get_running_loop()
 
+    # Função para checar se deve ignorar wake word (Interface ativa)
+    def should_bypass_wake_word():
+        state = get_graph_state()
+        return state["view"] is not None and state["bypass_wake_word"]
+
     print("[FastAPI] Iniciando serviço de Wake Word (palavra-chave: 'Sistema')...")
-    ww = WakeWordDetector(keyword="Sistema", callback=on_wake_word)
+    ww = WakeWordDetector(keyword="Sistema", callback=on_wake_word,
+                          bypass_condition=should_bypass_wake_word)
     ww.start()
 
     # Thread para monitorar o processo pai (Electron) no Windows

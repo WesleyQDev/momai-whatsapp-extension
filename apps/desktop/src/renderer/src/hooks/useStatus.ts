@@ -26,7 +26,6 @@ export function useStatus() {
     console.log('[useStatus] Mudando modo para:', mode)
     const previousStatus = statusInfo
     
-    // Atualização otimista
     setLocalMode(mode)
     if (statusInfo) {
       setStatusInfo({ ...statusInfo, mode })
@@ -35,11 +34,9 @@ export function useStatus() {
     setIsUpdating(true)
     try {
       await updateMode(mode)
-      console.log('[useStatus] Modo atualizado no backend, verificando status...')
       await checkStatus()
     } catch (error) {
       console.error('Erro ao trocar modo:', error)
-      // Reverte em caso de erro
       setStatusInfo(previousStatus)
       if (previousStatus) setLocalMode(previousStatus.mode)
     } finally {
@@ -48,10 +45,24 @@ export function useStatus() {
   }
 
   useEffect(() => {
+    // Busca inicial apenas
     checkStatus()
-    const intervalId = setInterval(checkStatus, POLLING_INTERVAL)
-    return () => clearInterval(intervalId)
-  }, [checkStatus])
+
+    const handleRemoteChange = (e: any) => {
+      const { detail } = e
+      console.log('[useStatus] IA trocou modelo remotamente:', detail)
+      setLocalMode(detail)
+      if (statusInfo) {
+        setStatusInfo({ ...statusInfo, mode: detail })
+      }
+    }
+
+    window.addEventListener('ai_model_changed', handleRemoteChange)
+
+    return () => {
+      window.removeEventListener('ai_model_changed', handleRemoteChange)
+    }
+  }, [checkStatus, statusInfo])
 
   return {
     statusInfo,

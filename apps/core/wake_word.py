@@ -12,9 +12,10 @@ logger = logging.getLogger("uvicorn.error")
 
 
 class WakeWordDetector:
-    def __init__(self, keyword="sistema", callback=None):
+    def __init__(self, keyword="sistema", callback=None, bypass_condition=None):
         self.keyword = keyword.lower()
         self.callback = callback
+        self.bypass_condition = bypass_condition
         self.running = False
         self.thread = None
 
@@ -85,6 +86,21 @@ class WakeWordDetector:
             self.running = False
 
     def _process_text(self, text):
+        # 0. Verifica se deve ignorar Wake Word (Contexto Ativo)
+        if self.bypass_condition and self.bypass_condition():
+            logger.info(
+                f"[WakeWord] Bypass ativo (Interface Aberta). Comando: '{text}'")
+            # Para TTS se estiver falando
+            try:
+                import tts_manager
+                tts_manager.stop_all()
+            except:
+                pass
+
+            if self.callback:
+                self.callback(text)
+            return
+
         # Verifica wake word ou variações
         variations = [self.keyword, "o sistema",
                       "no sistema", "sistema", "e sistema", "cistema"]

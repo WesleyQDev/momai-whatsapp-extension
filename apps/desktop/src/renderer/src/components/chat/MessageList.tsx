@@ -7,13 +7,15 @@ interface MessageListProps {
   isLoading: boolean
   messagesEndRef: RefObject<HTMLDivElement | null>
   isModeChanging?: boolean
+  onViewDetails: (content: string) => void
 }
 
 export default function MessageList({
   messages,
   isLoading,
   messagesEndRef,
-  isModeChanging = false
+  isModeChanging = false,
+  onViewDetails
 }: MessageListProps): JSX.Element {
   return (
     <main className="flex-1 flex flex-col gap-4 p-2.5 overflow-y-auto scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent">
@@ -23,6 +25,7 @@ export default function MessageList({
           key={i}
           message={msg}
           isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
+          onViewDetails={onViewDetails}
         />
       ))}
       

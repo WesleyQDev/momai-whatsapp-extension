@@ -1,4 +1,5 @@
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 from datetime import datetime
 import platform
 import os
@@ -6,7 +7,7 @@ import subprocess
 import webbrowser
 import psutil
 from langchain_community.tools import DuckDuckGoSearchRun
-from typing import List, Literal
+from typing import List, Literal, Dict, Any
 import pygetwindow as gw
 from pathlib import Path
 
@@ -48,17 +49,28 @@ def get_system_stats():
     mem = psutil.virtual_memory()
     battery = psutil.sensors_battery()
 
-    status = f"CPU: {cpu_usage}% | RAM: {mem.percent}% ({round(mem.used/1024**3, 1)}GB/{round(mem.total/1024**3, 1)}GB)"
+    status = f"**CPU:** {cpu_usage}% | **RAM:** {mem.percent}%\n\n(`{round(mem.used/1024**3, 1)}GB` utilizados de `{round(mem.total/1024**3, 1)}GB`)"
     if battery:
-        status += f" | Battery: {battery.percent}% {'(Charging)' if battery.power_plugged else '(Discharging)'}"
+        status += f"\n\n**Bateria:** {battery.percent}% {'(Carregando ⚡)' if battery.power_plugged else '(Descarregando)'}"
 
-    return f"System Stats: {status}"
+    # Side View Graph
+    show_graph.invoke({
+        "view": "side",
+        "content": f"# Status do Sistema\n\n{status}",
+        "options": [],
+        "bypass_wake_word": False
+    })
+
+    return f"Relatório de status exibido na lateral. Resumo: CPU {cpu_usage}%, RAM {mem.percent}%."
 
 
-@tool
+class SystemControlInput(BaseModel):
+    command: Literal['volume_up', 'volume_down', 'mute', 'lock_screen'] = Field(description="O comando de sistema a ser executado.")
+
+@tool(args_schema=SystemControlInput)
 def system_control(command: Literal['volume_up', 'volume_down', 'mute', 'lock_screen']):
     """
-    Controls Windows system functions.
+    Executa comandos de controle do sistema operacional Windows (Volume, Bloqueio de Tela).
     """
     try:
         if command == "volume_up":
@@ -81,16 +93,16 @@ def system_control(command: Literal['volume_up', 'volume_down', 'mute', 'lock_sc
         return f"Error controlling system: {str(e)}"
 
 
-@tool
+class SearchFilesystemInput(BaseModel):
+    query: str = Field(description="O padrão de busca (ex: '*.pdf', 'relatorio', '*'). Use '*' para listar tudo.")
+    search_type: Literal['file', 'folder', 'both'] = Field(default='both', description="Filtrar por 'file' (arquivo), 'folder' (pasta) ou 'both' (ambos).")
+    location_alias: str = Field(default="common", description="Alias da pasta alvo: 'docs', 'desktop', 'downloads', 'pics', 'common' ou 'home'.")
+
+@tool(args_schema=SearchFilesystemInput)
 def search_filesystem(query: str, search_type: Literal['file', 'folder', 'both'] = 'both', location_alias: str = "common") -> str:
     """
-    Dynamically searches or lists files/folders (OneDrive Aware).
-
-    Args:
-        query: Pattern to look for. Use '*' to list ALL contents of a folder.
-               Examples: '*.pdf', 'budget', '*'.
-        search_type: 'file', 'folder', or 'both'.
-        location_alias: Target folder alias (e.g., 'docs', 'downloads', 'desktop', 'pics').
+    Pesquisa arquivos ou lista conteúdos de pastas no sistema de arquivos do Windows (suporta OneDrive).
+    Use para encontrar documentos, imagens ou verificar arquivos do usuário.
     """
     user_home = Path.home()
 
@@ -307,11 +319,135 @@ def manage_window(title: str, action: Literal['focus', 'close', 'minimize', 'max
         return f"Window error: {str(e)}"
 
 
+class ShowGraphInput(BaseModel):
+    view: Literal['center', 'side'] = Field(description="'center' para diálogos/decisões (modal). 'side' para informações/status (lateral).")
+    content: str = Field(description="Conteúdo em Markdown a ser exibido.")
+    options: List[str] = Field(default=[], description="Lista de opções (botões) para o usuário escolher.")
+    ui_schema: Dict[str, Any] = Field(default=None, description="Schema JSON para UI dinâmica (DynamicRenderer).")
+    bypass_wake_word: bool = Field(default=False, description="Se True, ativa o microfone imediatamente após exibir.")
+
+@tool(args_schema=ShowGraphInput)
+def show_graph(view: Literal['center', 'side'], content: str, options: list[str] = None, ui_schema: dict = None, bypass_wake_word: bool = False):
+    """
+    Exibe uma interface gráfica rica (UI) para o usuário.
+    Use 'center' para pedir confirmações ou escolhas importantes.
+    Use 'side' para mostrar dados, status ou relatórios sem bloquear a tela.
+    """
+    import main
+    import asyncio
+
+    if options is None:
+        options = []
+
+    # Atualiza estado no backend
+    main.set_graph_state(view, bypass_wake_word)
+
+    payload = {
+        "type": "graph_open",
+        "data": {
+            "view": view,
+            "content": content,
+            "options": options,
+            "ui_schema": ui_schema,
+            "bypass_wake_word": bypass_wake_word
+        }
+    }
+
+    if main.main_loop:
+        asyncio.run_coroutine_threadsafe(
+            main.broadcast_to_sockets(payload), main.main_loop)
+
+    return f"Interface '{view}' aberta. O usuário está vendo o conteúdo."
+
+
+@tool
+def close_graph():
+    """Fecha qualquer interface gráfica aberta e reativa o Wake Word."""
+    import main
+    import asyncio
+
+    main.set_graph_state(None, False)
+
+    payload = {"type": "graph_close"}
+
+    if main.main_loop:
+        asyncio.run_coroutine_threadsafe(
+            main.broadcast_to_sockets(payload), main.main_loop)
+
+    return "Interface fechada."
+
+
+@tool
+def ask_confirmation(message: str, options: list[str] = None):
+    """
+    Exibe dialog de confirmação (Graph Center).
+    OBRIGATÓRIO: Use para escolhas do usuário.
+    """
+    if options is None:
+        options = ["Sim", "Não"]
+
+    return show_graph.invoke({
+        "view": "center",
+        "content": f"### Confirmação Necessária\n\n{message}",
+        "options": options,
+        "bypass_wake_word": True
+    })
+
+
+@tool
+def open_model_selector():
+    """
+    Abre o seletor de modelos de IA (Graph Center).
+    Use quando o usuário pedir para trocar de modelo ou "mudar cerebro".
+    """
+    return show_graph.invoke({
+        "view": "center",
+        "content": "### Selecione o Modelo de IA\n\nEscolha qual 'cérebro' devo utilizar.\n\n- **Local:** Mais privacidade, offline.\n- **Groq:** Mais inteligente, requer internet.\n- **Gemini:** Multimodal, Google AI.",
+        "options": ["Local", "Groq", "Gemini"],
+        "bypass_wake_word": True
+    })
+
+
+@tool
+def switch_ai_model(mode: Literal['local', 'groq', 'gemini']):
+    """Troca o modelo de IA. Apenas execute isso DEPOIS que o usuário escolher no seletor."""
+    import AI_core
+    import main
+    import asyncio
+
+    try:
+        # Feedback visual antes de começar (para evitar sensação de travamento)
+        show_graph.invoke({
+            "view": "center",
+            "content": f"### 🔄 Trocando para {mode.title()}...\n\nPor favor, aguarde enquanto configuro o novo modelo.",
+            "options": [],
+            "bypass_wake_word": True
+        })
+
+        AI_core.initialize_llm(mode)
+
+        # Fecha o gráfico após escolha bem sucedida
+        close_graph.invoke({})
+
+        payload = {
+            "type": "model_changed",
+            "data": {"new_mode": mode}
+        }
+        if main.main_loop:
+            asyncio.run_coroutine_threadsafe(
+                main.broadcast_to_sockets(payload), main.main_loop)
+
+        return f"Modelo alterado com sucesso para {mode}, Senhor."
+    except Exception as e:
+        return f"Erro ao trocar para o modelo {mode}: {str(e)}"
+
+
 # Export
 TOOLS = [
     get_current_time, get_system_stats, system_control,
     search_filesystem, open_browser, manage_process,
-    open_program, open_file, manage_window
+    open_program, open_file, manage_window,
+    show_graph, close_graph, ask_confirmation, open_model_selector, switch_ai_model
 ]
 
 AVAILABLE_TOOLS = {t.name: t for t in TOOLS}

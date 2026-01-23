@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 interface ChatInputProps {
   text: string
   setText: (text: string) => void
@@ -17,9 +19,47 @@ export default function ChatInput({
   onModeChange,
   isModeChanging = false
 }: ChatInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    // Focus on mount
+    inputRef.current?.focus()
+
+    // Focus when window gains focus (e.g. via Alt+Space)
+    const handleFocus = () => {
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 50)
+    }
+
+    // Ubiquitous typing: Focus input when typing anywhere
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is already typing in an input or select
+      const activeElement = document.activeElement
+      const isTyping = activeElement instanceof HTMLInputElement || 
+                       activeElement instanceof HTMLTextAreaElement || 
+                       activeElement instanceof HTMLSelectElement
+      
+      // Ignore function keys, control, alt, etc.
+      const isSpecialKey = e.key.length > 1 && e.key !== 'Backspace'
+
+      if (!isTyping && !isSpecialKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        inputRef.current?.focus()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('keydown', handleGlobalKeyDown)
+    }
+  }, [])
+
   return (
     <footer className="flex gap-2.5 p-2.5 border-t border-[#252931] items-center">
       <input
+        ref={inputRef}
         type="text"
         className="flex-1 bg-[#0f1629] border border-[#252931] rounded-[10px] p-2.5 text-text outline-none placeholder:text-text-muted disabled:opacity-50"
         value={text}

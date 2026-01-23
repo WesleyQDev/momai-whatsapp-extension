@@ -75,7 +75,10 @@ function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
+    minWidth: 450,
+    minHeight: 500,
     show: false,
+    frame: false,
     icon: join(__dirname, '../../resources/icon.png'),
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -93,6 +96,16 @@ function createWindow(): void {
     event.preventDefault()
     mainWindow.hide()
   })
+
+  ipcMain.on('window-minimize', () => mainWindow.minimize())
+  ipcMain.on('window-maximize', () => {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow.maximize()
+    }
+  })
+  ipcMain.on('window-close', () => mainWindow.hide())
 
   // Tray configuration
   if (!tray) {
@@ -168,6 +181,9 @@ app.whenReady().then(() => {
       if (win.isVisible() && win.isFocused()) {
         win.hide()
       } else {
+        // Mini Mode on toggle
+        win.setSize(500, 600)
+        win.center()
         win.show()
         win.focus()
       }

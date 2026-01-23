@@ -23,4 +23,5 @@ dependencies = [
     "vosk>=0.3.45",
     "pvporcupine>=4.0.1",
     "sounddevice>=0.5.4",
+    "langgraph>=1.0.6",
 ]

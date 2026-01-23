@@ -12,6 +12,7 @@ interface ContainerChatProps {
   currentMode: string
   onModeChange: (mode: string) => void
   isModeChanging?: boolean
+  onViewDetails: (content: string) => void
 }
 
 export default function ContainerChat({
@@ -23,15 +24,17 @@ export default function ContainerChat({
   messagesEndRef,
   currentMode,
   onModeChange,
-  isModeChanging = false
+  isModeChanging = false,
+  onViewDetails
 }: ContainerChatProps): JSX.Element {
   return (
-    <div className="bg-[#0c1222] w-[25rem] my-8 mx-20 rounded-[15px] border border-[#252931] flex flex-col overflow-hidden">
+    <div className="bg-[#0a0f1e] bg-gradient-to-b from-indigo-500/5 to-transparent w-full h-full flex flex-col overflow-hidden shadow-2xl border-r border-border">
       <MessageList 
         messages={messages} 
         isLoading={isLoading} 
         messagesEndRef={messagesEndRef}
         isModeChanging={isModeChanging}
+        onViewDetails={onViewDetails}
       />
       <ChatInput
         text={text}

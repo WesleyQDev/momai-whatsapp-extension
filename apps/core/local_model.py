@@ -1,5 +1,4 @@
 import subprocess
-import sys
 import os
 import time
 import requests
@@ -126,7 +125,7 @@ def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
 
         if not paths['exe'].exists():
             logger.error(
-                f"[local_model] ERRO: llama-server.exe não encontrado!")
+                "[local_model] ERRO: llama-server.exe não encontrado!")
             return None
 
         cmd = [
@@ -138,7 +137,8 @@ def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
             "--parallel", "1",
             "--flash-attn", "on",
             "--cache-prompt",
-            "--mlock"
+            "--mlock",
+            "--no-mmap"
         ]
 
         logger.info(f"[local_model] Iniciando servidor...")
@@ -166,21 +166,21 @@ def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
             except Exception as e:
                 logger.warning(f"[local_model] Erro ao assignar Job: {e}")
 
-        # Verifica morte na largada
-        time.sleep(2)
+        # Verifica morte na largada (Rápido)
+        time.sleep(0.2)
         if server_process.poll() is not None:
             stdout, stderr = server_process.communicate()
             logger.error(
                 f"[local_model] ERRO: Servidor morreu! STDERR: {stderr}")
             return None
 
-        # Healthcheck Loop
+        # Healthcheck Loop (Otimizado)
         logger.info("[local_model] Aguardando healthcheck...")
-        for i in range(60):
+        for i in range(120): # 120 * 0.5 = 60s
             if server_process.poll() is not None:
                 return None
             try:
-                if requests.get("http://localhost:8080/health", timeout=1).status_code == 200:
+                if requests.get("http://localhost:8080/health", timeout=0.5).status_code == 200:
                     logger.info("[local_model] Servidor PRONTO!")
                     return ChatOpenAI(
                         base_url="http://localhost:8080/v1",
@@ -192,9 +192,9 @@ def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
             except:
                 pass
 
-            if i % 5 == 0:
-                logger.info(f"[local_model] ...")
-            time.sleep(1)
+            if i % 10 == 0:
+                logger.info("[local_model] ...")
+            time.sleep(0.5)
 
         logger.error("[local_model] Timeout!")
         stop_server()
