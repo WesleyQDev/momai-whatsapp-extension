@@ -13,30 +13,45 @@ logger = logging.getLogger("uvicorn.error")
 
 class WakeWordDetector:
     def __init__(self, keyword="sistema", callback=None, bypass_condition=None):
+        """
+        Initializes the Wake Word detector using Vosk.
+
+        Args:
+            keyword (str): The word to listen for.
+            callback (callable): Function to call when detected.
+            bypass_condition (callable): Function that returns True if wake word should be bypassed.
+        """
         self.keyword = keyword.lower()
         self.callback = callback
         self.bypass_condition = bypass_condition
         self.running = False
         self.thread = None
 
-        # Configuração do Vosk - Modelo Small
+        # Vosk Configuration - Small Model
         model_path = "vosk-model-small-pt-0.3"
         if not os.path.exists(model_path):
             logger.error(
-                f"[WakeWord] Modelo Vosk não encontrado em {model_path}")
+                f"[WakeWord] Vosk model not found at {model_path}")
             raise FileNotFoundError(f"Model not found: {model_path}")
 
         self.model = vosk.Model(model_path)
         self.q = queue.Queue()
+        self.last_trigger_time = 0
+        self.trigger_cooldown = 1.5 # Seconds between commands
 
     def _audio_callback(self, indata, frames, time, status):
-        """Callback chamado pelo sounddevice para cada chunk de áudio."""
+        """
+        Callback called by sounddevice for each audio chunk.
+        """
         if status:
             logger.warning(f"[WakeWord] Audio Status: {status}")
         self.q.put(bytes(indata))
 
     def _listen_loop(self):
-        logger.info("[WakeWord] Iniciando loop de escuta 100% Local (Vosk)...")
+        """
+        Main listening loop (100% Local via Vosk).
+        """
+        logger.info("[WakeWord] Starting 100% Local listening loop (Vosk)...")
 
         device_info = sd.query_devices(sd.default.device[0], 'input')
         samplerate = int(device_info['default_samplerate'])
@@ -47,15 +62,15 @@ class WakeWordDetector:
 
                 rec = vosk.KaldiRecognizer(self.model, samplerate)
 
-                logger.info("[WakeWord] Pronto e ouvindo!")
+                logger.info("[WakeWord] Ready and listening!")
 
                 while self.running:
                     try:
-                        # Timeout para permitir checar self.running
+                        # Timeout allows checking self.running
                         data = self.q.get(timeout=1.0)
 
                         if rec.AcceptWaveform(data):
-                            # Reconheceu uma frase completa
+                            # Recognized a full phrase
                             result = json.loads(rec.Result())
                             text = result.get("text", "").lower()
 
@@ -63,34 +78,43 @@ class WakeWordDetector:
                                 self._process_text(text)
 
                         else:
-                            # Reconhecimento parcial
-                            # Opcional: verificar wake word aqui para ser mais rápido
+                            # Partial recognition
+                            # Optional: check wake word here for faster response
                             partial = json.loads(rec.PartialResult())
                             p_text = partial.get("partial", "").lower()
 
-                            # Se a keyword for detectada no parcial e tiver contexto de comando...
+                            # Variations of the keyword
                             variations = [self.keyword, "o sistema",
                                           "no sistema", "sistema", "e sistema"]
                             if any(v in p_text for v in variations):
-                                # Se detectamos a keyword no parcial, não interrompemos, deixamos completar a frase
-                                # para pegar o comando inteiro.
+                                # If keyword detected in partial, we wait for full phrase
                                 pass
 
                     except queue.Empty:
                         continue
                     except Exception as e:
-                        logger.error(f"[WakeWord] Erro no loop: {e}")
+                        logger.error(f"[WakeWord] Loop error: {e}")
 
         except Exception as e:
-            logger.error(f"[WakeWord] Erro fatal no microfone: {e}")
+            logger.error(f"[WakeWord] Fatal microphone error: {e}")
             self.running = False
 
     def _process_text(self, text):
-        # 0. Verifica se deve ignorar Wake Word (Contexto Ativo)
+        """
+        Processes recognized text to detect wake word or bypass mode.
+        """
+        now = time.time()
+        
+        # 0. Check for Bypass Mode (Active UI Context)
         if self.bypass_condition and self.bypass_condition():
+            # Noise filter in bypass mode: ignore very short texts and respect cooldown
+            if len(text.strip()) < 3 or (now - self.last_trigger_time) < self.trigger_cooldown:
+                return
+
             logger.info(
-                f"[WakeWord] Bypass ativo (Interface Aberta). Comando: '{text}'")
-            # Para TTS se estiver falando
+                f"[WakeWord] Bypass active (Interface Open). Command: '{text}'")
+            self.last_trigger_time = now
+            # Stop TTS if speaking
             try:
                 import tts_manager
                 tts_manager.stop_all()
@@ -101,47 +125,49 @@ class WakeWordDetector:
                 self.callback(text)
             return
 
-        # Verifica wake word ou variações
+        # Check cooldown for normal mode too
+        if (now - self.last_trigger_time) < self.trigger_cooldown:
+            return
+
+        # Check wake word or variations
         variations = [self.keyword, "o sistema",
                       "no sistema", "sistema", "e sistema", "cistema"]
 
         detected_variation = next((v for v in variations if v in text), None)
 
         if detected_variation:
-            logger.info(f"[WakeWord] Palavra-chave detectada: '{text}'")
+            self.last_trigger_time = now
+            logger.info(f"[WakeWord] Keyword detected: '{text}'")
 
-            # 1. Para o TTS se estiver falando
+            # 1. Stop TTS if speaking
             try:
                 import tts_manager
                 tts_manager.stop_all()
             except:
                 pass
 
-            # 2. Beep de confirmação apenas se houver comando junto
-            # Se a pessoa só falou "sistema", a gente bipa. Se falou "sistema ligar luz", a gente executa direto.
-            # print("\a")
-
-            # 3. Extrai comando
-            # Remove a variação detectada e espaços extras
+            # 2. Extract command
+            # Remove detected variation and extra spaces
             command = text.replace(detected_variation, "", 1).strip()
 
-            # Limpeza extra
+            # Extra cleanup
             command = command.lstrip(",").lstrip(".").strip()
 
             if command:
-                # Comando veio junto. Ex: "sistema que horas são" -> "que horas são"
-                print("\a")  # Beep rápido
-                logger.info(f"[WakeWord] Comando extraído: '{command}'")
+                # Command included. Ex: "sistema que horas são" -> "que horas são"
+                print("\a")  # Quick beep
+                logger.info(f"[WakeWord] Command extracted: '{command}'")
                 if self.callback:
                     self.callback(command)
             else:
-                # Comando vazio, apenas acordou.
-                # Como o Vosk é contínuo, simplesmente ignoramos "acordar sem comando"
-                # ou podemos pedir para repetir. Por enquanto, só confirma com beep.
+                # Empty command, just woke up.
+                # Since Vosk is continuous, we just ignore "wake without command"
+                # or could ask to repeat. For now, just beep.
                 print("\a")
                 pass
 
     def start(self):
+        """Starts the detection thread."""
         if not self.running:
             self.running = True
             self.thread = threading.Thread(
@@ -149,6 +175,7 @@ class WakeWordDetector:
             self.thread.start()
 
     def stop(self):
+        """Stops the detection thread."""
         self.running = False
         if self.thread:
             self.thread.join(timeout=2)

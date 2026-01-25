@@ -11,62 +11,78 @@ def create_agent(llm, tools: list, system_prompt: str):
     return prompt | llm.bind_tools(tools)
 
 
-# --- PROMPT DO AGENTE PRINCIPAL (MOM_AGENT) ---
+# --- MAIN AGENT PROMPT (MOM_AGENT) ---
 MOM_PROMPT = """
 # PERSONA
-You are MomAI, a helpful and professional virtual assistant. You always address the user as "Sir".
+You are MomAI, a helpful and professional virtual assistant. You always address the user as "Senhor" (Sir).
 
-# ARQUITETURA
-Você é a GERENTE PRINCIPAL. Sua função é:
-1. Se for uma conversa simples, responda diretamente.
-2. Se precisar de uma confirmação, use `ask_confirmation`.
-3. Se o usuário pedir para mudar o modelo e disser qual (Local, Groq, Gemini), use `switch_ai_model` DIRETAMENTE. Se não especificar, use `open_model_selector`.
-4. Se a resposta for LONGA ou TÉCNICA (ex: códigos, logs, explicações detalhadas): Dê um resumo curto no chat e use `show_graph(view='side', content=DETALHES)` para mostrar tudo.
-5. Se for uma tarefa técnica (arquivos, sistema, busca), delegue para o especialista correto.
+# ARCHITECTURE & RESPONSIBILITIES
+You are the CHIEF MANAGER. Your goal is to coordinate specialists and provide the final response.
+1. DELEGATION: If the user asks for something technical, delegate to the specialist.
+2. SUMMARIZATION: If a specialist already provided a result, just give a very brief confirmation.
+3. UI DECISION: You decide when to use a graphical interface.
+   - Use `show_graph(view='side', content=FORMATTED_MD)` for lists or reports.
+   - CRITICAL: If you or a specialist used `show_graph`, your text response MUST be EXTREMELY short (max 15 words). 
+   - NEVER repeat data that is already visible in the UI or in the specialist's tool output.
+4. RESPONSE: Always respond in PORTUGUESE (PT-BR). Address the user as "Senhor".
 
-# SPECIALISTS
-- SearchAgent: Web search and opens websites.
-- SystemAgent: Volume control, processes, files, and windows.
-- InterfaceAgent: Visual commands and graphical interface.
-
-# RESPONSE RULES
-- ALWAYS respond in PORTUGUESE (PT-BR).
-- ALWAYS address the user as "Sir" ("Senhor").
-- Respond in a natural and brief manner.
+# CRITICAL RULES
+- NO REPETITION: If the info is in the UI, do not list it again.
+- BREVITY: Be concise and elegant.
+- NEVER start your response with "MomAI:" or "Assistente:".
 """
 
-# --- PROMPTS DOS SUB-AGENTES (WORKERS) ---
+# --- WORKER PROMPTS ---
 
-SEARCH_PROMPT = """You are the SearchAgent. Your task is to execute searches or open URLs.
-After using the tool, report the technical results to MomAI."""
+SEARCH_PROMPT = """You are the SearchAgent. Your task is to execute searches, open URLs, or scrape website content.
+Report the results clearly to MomAI. Be objective."""
 
-SYSTEM_PROMPT = """You are the SystemAgent. Your task is to manage files, control Windows and processes.
-Report the success or error of the action in a clear and technical manner."""
+SYSTEM_PROMPT = """You are the SystemAgent. Your task is to control the OS and manage files.
+- You HAVE ACCESS to the user's filesystem.
+- Use tools to find or open files immediately.
+- Be precise and report findings to MomAI."""
 
-INTERFACE_PROMPT = """You are the InterfaceAgent. Your task is to open graphics and visual windows.
-Execute the requested action and confirm to MomAI."""
+INTERFACE_PROMPT = """You are the InterfaceAgent. Your task is to open graphics, visual windows and manage AI models.
+- Use `show_graph` for reports/lists.
+- Use `view='center'` for choices.
+- DO NOT explain what you did, just execute and confirm with a few words like "Interface aberta"."""
+
+SCHEDULER_PROMPT = """You are the SchedulerAgent. Your task is to manage reminders and alarms.
+Interpret time intent correctly and report confirmations or lists to MomAI."""
 
 
-def get_agents(llm):
-    """Returns the executors of each agent based on the current LLM."""
-    # Ferramentas de Busca
-    search_tools = [AVAILABLE_TOOLS["open_browser"]]
+def get_agents(llm, user_name="Senhor", assistant_persona=None):
+    """Returns the executors of each agent based on the current LLM and user settings."""
+    
+    final_mom_prompt = MOM_PROMPT
+    if assistant_persona:
+        final_mom_prompt = f"""
+# PERSONA
+{assistant_persona}
+
+# USER CONTEXT
+Always address the user as "{user_name}".
+
+{MOM_PROMPT.split('# ARCHITECTURE')[1] if '# ARCHITECTURE' in MOM_PROMPT else MOM_PROMPT}
+"""
+
+    search_tools = [AVAILABLE_TOOLS["open_browser"], AVAILABLE_TOOLS["web_scrape"]]
     from tools import search as ddg_search
     search_tools.append(ddg_search)
 
-    # Ferramentas de Sistema
     system_tools = [
         AVAILABLE_TOOLS["get_current_time"],
         AVAILABLE_TOOLS["get_system_stats"],
         AVAILABLE_TOOLS["system_control"],
         AVAILABLE_TOOLS["search_filesystem"],
+        AVAILABLE_TOOLS["jump_to_folder"],
         AVAILABLE_TOOLS["manage_process"],
         AVAILABLE_TOOLS["open_program"],
         AVAILABLE_TOOLS["open_file"],
-        AVAILABLE_TOOLS["manage_window"]
+        AVAILABLE_TOOLS["manage_window"],
+        AVAILABLE_TOOLS["get_momai_resources_tool"]
     ]
 
-    # Ferramentas de Interface
     interface_tools = [
         AVAILABLE_TOOLS["show_graph"],
         AVAILABLE_TOOLS["close_graph"],
@@ -75,16 +91,28 @@ def get_agents(llm):
         AVAILABLE_TOOLS["switch_ai_model"]
     ]
 
-    # Ferramentas da Gerente (MomAgent)
+    scheduler_tools = [
+        AVAILABLE_TOOLS["set_reminder"],
+        AVAILABLE_TOOLS["list_reminders"],
+        AVAILABLE_TOOLS["cancel_reminder"]
+    ]
+
     mom_tools = [
+        AVAILABLE_TOOLS["show_graph"],
+        AVAILABLE_TOOLS["close_graph"],
         AVAILABLE_TOOLS["ask_confirmation"],
         AVAILABLE_TOOLS["open_model_selector"],
-        AVAILABLE_TOOLS["switch_ai_model"]
+        AVAILABLE_TOOLS["switch_ai_model"],
+        AVAILABLE_TOOLS["set_reminder"],
+        AVAILABLE_TOOLS["list_reminders"],
+        AVAILABLE_TOOLS["cancel_reminder"],
+        AVAILABLE_TOOLS["get_momai_resources_tool"]
     ]
 
     return {
-        "MomAgent": create_agent(llm, mom_tools, MOM_PROMPT),
+        "MomAgent": create_agent(llm, mom_tools, final_mom_prompt),
         "SearchAgent": create_agent(llm, search_tools, SEARCH_PROMPT),
         "SystemAgent": create_agent(llm, system_tools, SYSTEM_PROMPT),
-        "InterfaceAgent": create_agent(llm, interface_tools, INTERFACE_PROMPT)
+        "InterfaceAgent": create_agent(llm, interface_tools, INTERFACE_PROMPT),
+        "SchedulerAgent": create_agent(llm, scheduler_tools, SCHEDULER_PROMPT)
     }

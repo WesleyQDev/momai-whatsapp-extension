@@ -24,4 +24,11 @@ dependencies = [
     "pvporcupine>=4.0.1",
     "sounddevice>=0.5.4",
     "langgraph>=1.0.6",
+    "apscheduler>=3.11.2",
+    "sqlalchemy>=2.0.45",
+    "dateparser>=1.2.2",
+    "beautifulsoup4>=4.14.3",
+    "requests>=2.32.5",
+    "langgraph-checkpoint-sqlite>=3.0.3",
+    "aiosqlite>=0.22.1",
 ]

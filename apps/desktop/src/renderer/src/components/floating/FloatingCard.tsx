@@ -4,13 +4,19 @@ interface FloatingCardProps {
   children: React.ReactNode
   title?: string
   onClose?: () => void
+  width?: string
 }
 
-export default function FloatingCard({ children, title, onClose }: FloatingCardProps) {
+export default function FloatingCard({
+  children,
+  title,
+  onClose,
+  width = 'max-w-md'
+}: FloatingCardProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed top-10 inset-x-0 bottom-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
-        className="w-full max-w-md bg-[#0f172a]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-zoom-in"
+        className={`w-full ${width} bg-[#0f172a]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-zoom-in`}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || onClose) && (

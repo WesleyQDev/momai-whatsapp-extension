@@ -11,11 +11,12 @@ from langchain_openai import ChatOpenAI
 # Configurar logger
 logger = logging.getLogger("uvicorn.error")
 
-# Variável global
+# Global variable
 server_process = None
 
 # --- Windows Job Object Support ---
-# Isso garante que se o Python morrer (crash/kill), o Windows mata o llama-server automaticamente.
+# This ensures that if the Python process dies (crash/kill), 
+# Windows automatically kills the llama-server.
 if os.name == 'nt':
     try:
         job_handle = ctypes.windll.kernel32.CreateJobObjectW(None, None)
@@ -60,73 +61,128 @@ if os.name == 'nt':
         )
         if not ret:
             logger.warning(
-                "[local_model] Falha ao configurar Job Object (SetInformationJobObject)")
+                "[local_model] Failed to configure Job Object (SetInformationJobObject)")
 
     except Exception as e:
-        logger.warning(f"[local_model] Erro ao criar Job Object: {e}")
+        logger.warning(f"[local_model] Error creating Job Object: {e}")
         job_handle = None
 else:
     job_handle = None
 
 
+import downloader
+from models import SessionLocal, Settings
+
 def get_paths():
-    """Retorna os caminhos dos binários e modelos"""
+    """
+    Returns the paths for binaries and models based on the installed backend.
+
+    Returns:
+        dict: Paths for 'exe', 'models' and the detected 'backend'.
+    """
     base_dir = Path(__file__).parent
+    
+    # Fetch user preference from database
+    db = SessionLocal()
+    settings = db.query(Settings).first()
+    preferred_backend = settings.local_backend if settings else "auto"
+    db.close()
+    
+    backend = "cpu" # Default fallback
+    
+    if preferred_backend != "auto":
+        # If user chose a specific one, try to use it
+        if downloader.check_engine_installed(preferred_backend):
+            backend = preferred_backend
+        else:
+            # If preferred is not installed, find the best available
+            install_info = downloader.get_installed_info()
+            backend = install_info.get("backend", "cpu")
+    else:
+        # Auto mode: find info on the best installed build
+        install_info = downloader.get_installed_info()
+        backend = install_info.get("backend", "cpu")
+    
+    exe_path = base_dir / "bin" / backend / "llama-server.exe"
+    
+    # Fallback if manifest points to a non-existent physical path
+    if not exe_path.exists():
+        for b in ["cuda", "vulkan", "cpu"]:
+            p = base_dir / "bin" / b / "llama-server.exe"
+            if p.exists():
+                exe_path = p
+                backend = b
+                break
+
     return {
-        "exe": base_dir / "bin" / "llama-server.exe",
-        "models": base_dir / "models"
+        "exe": exe_path,
+        "models": base_dir / "models",
+        "backend": backend
     }
 
 
 def stop_server():
-    """Para o servidor se estiver rodando"""
+    """Stops the llama-server if it is currently running."""
     global server_process
     if server_process:
-        logger.info("[local_model] Parando servidor Llama.cpp anterior...")
+        logger.info("[local_model] Stopping previous Llama.cpp server...")
         try:
-            # Tenta terminar graciosamente
+            # Try to terminate gracefully
             server_process.terminate()
-            # Dá 2 segs para ele limpar
+            # Give 2 seconds to clean up
             server_process.wait(timeout=2)
         except subprocess.TimeoutExpired:
-            logger.warning("[local_model] Forçando kill no servidor...")
-            # Mata forçado (se falhou terminate)
+            logger.warning("[local_model] Forcing server kill...")
+            # Force kill
             try:
-                # No windows, kill() é igual a TerminateProcess
                 server_process.kill()
                 server_process.wait(timeout=1)
             except:
                 pass
         except Exception as e:
-            logger.error(f"[local_model] Erro ao parar processo: {e}")
+            logger.error(f"[local_model] Error stopping process: {e}")
 
         server_process = None
 
 
-def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
+def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | None:
+    """
+    Downloads and starts the llama-server with the specified model.
+
+    Args:
+        repo_id (str): HuggingFace repository ID.
+        filename (str): Model filename (.gguf).
+        on_progress (callable, optional): Callback for progress reporting.
+
+    Returns:
+        ChatOpenAI | None: A LangChain ChatOpenAI instance pointing to local server.
+    """
     global server_process
+
+    def report(msg):
+        if on_progress:
+            on_progress(msg)
+        logger.info(f"[local_model] {msg}")
 
     stop_server()
 
     try:
         paths = get_paths()
 
-        logger.info(
-            f"[local_model] Verificando modelo em {paths['models']}...")
+        report(f"Checking model {filename}...")
         model_path = hf_hub_download(
             repo_id=repo_id,
             filename=filename,
             local_dir=paths['models'],
             local_dir_use_symlinks=False
         )
-        # Caminho absoluto para evitar problemas com subprocess
+        
         abs_model_path = str(Path(model_path).resolve())
         abs_exe_path = str(paths['exe'].resolve())
 
         if not paths['exe'].exists():
-            logger.error(
-                "[local_model] ERRO: llama-server.exe não encontrado!")
-            return None
+            report("ERROR: llama-server.exe not found!")
+            raise FileNotFoundError("Local engine (llama-server) not found. Please install it in settings.")
 
         cmd = [
             abs_exe_path,
@@ -141,16 +197,19 @@ def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
             "--no-mmap"
         ]
 
-        logger.info(f"[local_model] Iniciando servidor...")
+        report("Starting server process...")
+        
+        # Log llama-server output for debugging
+        llama_log_path = Path(__file__).parent / "llama_server.log"
+        llama_log_file = open(llama_log_path, "w", encoding="utf-8")
 
-        # Criação do processo
         server_process = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=llama_log_file,
+            stderr=llama_log_file,
             encoding="utf-8",
             errors="replace",
-            creationflags=0  # Flags padrão
+            creationflags=0
         )
 
         # Assign to Job Object (Windows Magic)
@@ -161,29 +220,27 @@ def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
                     ctypes.c_void_p(server_process._handle)
                 )
                 if not perm:
-                    logger.warning(
-                        "[local_model] Falha no AssignProcessToJobObject (Processo pode não morrer com o pai)")
+                    logger.warning("[local_model] Failed AssignProcessToJobObject")
             except Exception as e:
-                logger.warning(f"[local_model] Erro ao assignar Job: {e}")
+                logger.warning(f"[local_model] Error assigning Job: {e}")
 
-        # Verifica morte na largada (Rápido)
-        time.sleep(0.2)
-        if server_process.poll() is not None:
-            stdout, stderr = server_process.communicate()
-            logger.error(
-                f"[local_model] ERRO: Servidor morreu! STDERR: {stderr}")
-            return None
-
-        # Healthcheck Loop (Otimizado)
-        logger.info("[local_model] Aguardando healthcheck...")
+        # Healthcheck Loop
+        report("Waiting for network initialization (Healthcheck)...")
         for i in range(120): # 120 * 0.5 = 60s
             if server_process.poll() is not None:
+                # Server died, check log
+                try:
+                    with open(llama_log_path, "r", encoding="utf-8") as f:
+                        log_content = f.read()[-500:] 
+                    report(f"Server died unexpectedly! Log:\n{log_content}")
+                except:
+                    report("Server died unexpectedly and log could not be read.")
                 return None
             try:
-                if requests.get("http://localhost:8080/health", timeout=0.5).status_code == 200:
-                    logger.info("[local_model] Servidor PRONTO!")
+                if requests.get("http://127.0.0.1:8080/health", timeout=0.5).status_code == 200:
+                    report("Local server ready and connected!")
                     return ChatOpenAI(
-                        base_url="http://localhost:8080/v1",
+                        base_url="http://127.0.0.1:8080/v1",
                         api_key="sk-none",
                         model="local-model",
                         temperature=0.7,
@@ -192,15 +249,16 @@ def load_model(repo_id: str, filename: str) -> ChatOpenAI | None:
             except:
                 pass
 
-            if i % 10 == 0:
-                logger.info("[local_model] ...")
+            if i % 10 == 0 and i > 0:
+                report(f"Loading... ({i//2}s elapsed)")
             time.sleep(0.5)
 
-        logger.error("[local_model] Timeout!")
+        report("Startup timeout reached.")
         stop_server()
         return None
 
     except Exception as e:
-        logger.error(f"[local_model] Exception: {e}")
+        report(f"Critical error: {str(e)}")
         stop_server()
         return None
+

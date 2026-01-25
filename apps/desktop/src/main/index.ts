@@ -105,7 +105,7 @@ function createWindow(): void {
       mainWindow.maximize()
     }
   })
-  ipcMain.on('window-close', () => mainWindow.hide())
+  ipcMain.on('window-close', () => app.quit())
 
   // Tray configuration
   if (!tray) {
@@ -181,11 +181,15 @@ app.whenReady().then(() => {
       if (win.isVisible() && win.isFocused()) {
         win.hide()
       } else {
-        // Mini Mode on toggle
-        win.setSize(500, 600)
-        win.center()
         win.show()
         win.focus()
+        
+        // Refined Mini Size for Spotlight effect
+        win.setSize(500, 650)
+        win.center()
+        
+        // Garante que o input receba foco
+        win.webContents.send('focus-input')
       }
     } else {
       createWindow()

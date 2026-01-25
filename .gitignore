@@ -1,13 +1,13 @@
 # ====================
 # IDEs e Editores
 # ====================
-GEMINI.md
 .vscode/
 .idea/
 *.swp
 *.swo
 *.sublime-project
 *.sublime-workspace
+GEMINI.md
 
 # ====================
 # Sistema Operacional
@@ -18,7 +18,7 @@ desktop.ini
 *.lnk
 
 # ====================
-# Logs
+# Logs e Temporários
 # ====================
 *.log
 *.log.*
@@ -27,6 +27,8 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+tmp/
+temp/
 
 # ====================
 # Variáveis de Ambiente
@@ -77,6 +79,14 @@ ENV/
 .ruff_cache/
 
 # ====================
+# Bancos de Dados (SQLite)
+# ====================
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# ====================
 # Electron / Build
 # ====================
 out/
@@ -96,7 +106,6 @@ dist-electron/
 apps/core/bin/
 apps/core/models/
 apps/core/vosk-model-*/
-
 
 # ====================
 # Outros

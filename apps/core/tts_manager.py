@@ -24,12 +24,13 @@ class TTSManager:
 
         self.initialized = True
         self.voice = "pt-BR-FranciscaNeural"
+        self.enabled = True
         self.text_queue = queue.Queue()
         self.audio_queue = queue.Queue()
         self.stop_event = threading.Event()
         self.has_tts = False
 
-        # Controle de Sessão para evitar Race Conditions
+        # Session control to avoid race conditions
         self.session_id = 0
         self.state_lock = threading.Lock()
 
@@ -43,33 +44,35 @@ class TTSManager:
             self.edge_tts = edge_tts
             self.pygame = pygame
 
-            # Inicializa mixer com buffer otimizado para latência e qualidade
+            # Initialize mixer with buffer optimized for latency and quality
             self.pygame.mixer.init(frequency=24000, buffer=2048)
             self.has_tts = True
             logger.info(
-                "[TTS] Módulo inicializado (v2 - In-Memory + SessionSafe).")
+                "[TTS] Module initialized (v2 - In-Memory + SessionSafe).")
         except ImportError as e:
-            logger.warning(f"[TTS] Bibliotecas faltando: {e}")
+            logger.warning(f"[TTS] Missing libraries: {e}")
             self.has_tts = False
 
     async def _generate_audio_task(self):
-        """Consome texto da fila e gera áudio em memória."""
+        """
+        Consumes text from the queue and generates audio in memory.
+        """
         while not self.stop_event.is_set():
             try:
-                # Timeout permite checar o stop_event periodicamente
+                # Timeout allows checking stop_event periodically
                 text = self.text_queue.get(timeout=0.5)
 
                 if text is None:
                     break  # Poison pill
 
-                # Captura o ID da sessão atual antes de começar o trabalho pesado
+                # Capture current session ID before starting heavy work
                 with self.state_lock:
                     current_session_id = self.session_id
 
                 logger.debug(
-                    f"[TTS Gen] Processando: {text[:30]}... (Sessão {current_session_id})")
+                    f"[TTS Gen] Processing: {text[:30]}... (Session {current_session_id})")
 
-                # Gera áudio em memória (BytesIO)
+                # Generate audio in memory (BytesIO)
                 communicate = self.edge_tts.Communicate(text, voice=self.voice)
                 audio_data = b""
 
@@ -77,20 +80,20 @@ class TTSManager:
                     if chunk["type"] == "audio":
                         audio_data += chunk["data"]
 
-                    # Opcional: Checagem rápida durante geração longa
+                    # Optional: quick check during long generation
                     if self.stop_event.is_set():
                         break
 
-                # Checagem Crítica: A sessão mudou enquanto gerávamos?
-                # Se sim, descarta este áudio pois pertence a uma conversa cancelada.
+                # Critical Check: Did the session change while we were generating?
+                # If so, discard this audio as it belongs to a canceled conversation.
                 with self.state_lock:
                     if self.session_id != current_session_id:
                         logger.debug(
-                            f"[TTS Gen] Descartando áudio da sessão {current_session_id} (Atual: {self.session_id})")
+                            f"[TTS Gen] Discarding audio from session {current_session_id} (Current: {self.session_id})")
                         self.text_queue.task_done()
                         continue
 
-                # Se chegamos aqui e temos dados, envia para reprodução
+                # If we reached here and have data, send to playback
                 if audio_data and not self.stop_event.is_set():
                     audio_fp = io.BytesIO(audio_data)
                     audio_fp.seek(0)
@@ -101,10 +104,14 @@ class TTSManager:
             except queue.Empty:
                 continue
             except Exception as e:
-                logger.error(f"[TTS Gen Error] {e}")
+                # Silence connection errors if offline
+                if "Cannot connect to host" in str(e) or "getaddrinfo failed" in str(e):
+                    logger.debug(f"[TTS Offline] Connection failure: {e}")
+                else:
+                    logger.error(f"[TTS Gen Error] {e}")
 
     def _run_async_gen(self):
-        """Wrapper para rodar o loop async em uma thread."""
+        """Wrapper to run the async loop in a thread."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
@@ -113,7 +120,7 @@ class TTSManager:
             loop.close()
 
     def _playback_worker(self):
-        """Consome objetos de áudio da memória e toca."""
+        """Consumes audio objects from memory and plays them."""
         if not self.has_tts:
             return
 
@@ -125,17 +132,17 @@ class TTSManager:
                 if audio_fp is None:
                     break
 
-                # Verifica se deve cancelar antes de começar
+                # Check if it should cancel before starting
                 if self.stop_event.is_set():
                     audio_fp.close()
                     break
 
                 try:
-                    logger.debug(f"[TTS Play] Reproduzindo chunk de áudio.")
+                    logger.debug(f"[TTS Play] Playing audio chunk.")
                     sound = self.pygame.mixer.Sound(audio_fp)
                     voice_channel.play(sound)
 
-                    # Espera terminar ou sinal de parada
+                    # Wait for it to finish or stop signal
                     while voice_channel.get_busy():
                         if self.stop_event.is_set():
                             voice_channel.stop()
@@ -145,7 +152,7 @@ class TTSManager:
                 except Exception as e:
                     logger.error(f"[TTS Play Error] {e}")
                 finally:
-                    # Fecha o buffer de memória
+                    # Close memory buffer
                     audio_fp.close()
                     self.audio_queue.task_done()
 
@@ -153,7 +160,7 @@ class TTSManager:
                 continue
 
     def start(self):
-        """Inicia os workers se necessário."""
+        """Starts the workers if necessary."""
         if not self.has_tts:
             return
 
@@ -164,21 +171,21 @@ class TTSManager:
 
         self.stop_event.clear()
 
-        # Inicia Thread de Geração (Async wrapper)
+        # Start Generation Thread (Async wrapper)
         if not self.gen_thread or not self.gen_thread.is_alive():
             self.gen_thread = threading.Thread(
                 target=self._run_async_gen, daemon=True, name="TTS-Gen")
             self.gen_thread.start()
 
-        # Inicia Thread de Playback
+        # Start Playback Thread
         if not self.play_thread or not self.play_thread.is_alive():
             self.play_thread = threading.Thread(
                 target=self._playback_worker, daemon=True, name="TTS-Play")
             self.play_thread.start()
 
     def stop(self):
-        """Para a reprodução e limpa as filas."""
-        # Incrementa sessão para invalidar quaisquer gerações em andamento
+        """Stops playback and clears the queues."""
+        # Increment session to invalidate any ongoing generations
         with self.state_lock:
             self.session_id += 1
 
@@ -190,48 +197,62 @@ class TTSManager:
             except:
                 pass
 
-        # Limpa filas
+        # Clear queues
         with self.text_queue.mutex:
             self.text_queue.queue.clear()
         with self.audio_queue.mutex:
             self.audio_queue.queue.clear()
 
+    def set_voice(self, voice_name: str):
+        """Sets the voice for TTS."""
+        self.voice = voice_name
+
+    def set_enabled(self, enabled: bool):
+        """Enables or disables TTS."""
+        self.enabled = enabled
+        if not enabled:
+            self.stop()
+
     def speak(self, text: str):
-        """Enfileira uma frase para ser falada."""
-        if not self.has_tts or not text.strip():
+        """
+        Enqueues a phrase to be spoken.
+
+        Args:
+            text (str): The text to speak.
+        """
+        if not self.has_tts or not self.enabled or not text.strip():
             return
 
-        # Auto-start se necessário
+        # Auto-start if necessary
         self.start()
 
         self.text_queue.put(text)
 
-    def set_voice(self, voice_name: str):
-        self.voice = voice_name
 
-
-# Instância Global para manter compatibilidade e padrão Singleton
+# Global instance for compatibility and Singleton pattern
 tts = TTSManager()
 
-# --- Funções de Compatibilidade (facade) ---
-# Mantém a mesma interface que AI_core.py já utiliza
-
+# --- Compatibility Functions (facade) ---
 
 def start_workers():
+    """Starts the TTS workers."""
     tts.start()
 
 
 def stop_all():
+    """Stops all TTS activity."""
     tts.stop()
 
 
 def speak_sentence(text: str):
+    """Speaks a single sentence."""
     tts.speak(text)
 
 
 async def speak_stream(text_stream):
     """
-    Legado/Compatibilidade: Recebe um iterador de texto.
+    Legacy/Compatibility: Receives a text iterator.
     """
     tts.start()
     tts.speak(text_stream)
+

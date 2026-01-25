@@ -1,14 +1,32 @@
+import axios from 'axios'
+
 const API_URL = 'http://localhost:8000'
+
+export const api = axios.create({
+  baseURL: API_URL
+})
 
 export interface Message {
   role: 'user' | 'assistant'
   content: string
+  isGraph?: boolean
+  graphData?: {
+    view: 'center' | 'side' | null
+    content: string
+    options: string[]
+    uiSchema?: any
+  }
 }
 
 export interface StatusData {
   status: string
   version: string
   mode: string
+  setup: {
+    local_installed: boolean
+    groq_ready: boolean
+    gemini_ready: boolean
+  }
 }
 
 export interface ChatStreamCallbacks {
@@ -38,21 +56,32 @@ export async function sendChatMessage(
     if (done) break
 
     const chunk = decoder.decode(value)
-    const lines = chunk.split('\n').filter((line) => line.startsWith('data: '))
 
-    for (const line of lines) {
-      const data = JSON.parse(line.slice(6))
+    // Divide por "data: " mas mantém o resto da linha
+    // O backend envia no formato SSE: "data: {...}\n\n"
+    const dataParts = chunk.split('data: ').filter((p) => p.trim() !== '')
 
-      if (data.token) {
-        callbacks.onToken(data.token)
-      }
+    for (const part of dataParts) {
+      try {
+        // Limpa espaços
+        const cleanPart = part.trim()
+        if (!cleanPart) continue
 
-      if (data.error) {
-        callbacks.onError(data.error)
-      }
+        const data = JSON.parse(cleanPart)
 
-      if (data.done) {
-        callbacks.onDone()
+        if (data.token) {
+          callbacks.onToken(data.token)
+        }
+
+        if (data.error) {
+          callbacks.onError(data.error)
+        }
+
+        if (data.done) {
+          callbacks.onDone()
+        }
+      } catch (e) {
+        console.error('Erro ao processar part JSON:', e, 'Part:', part)
       }
     }
   }
@@ -73,4 +102,17 @@ export async function updateMode(mode: string): Promise<void> {
     body: JSON.stringify({ mode })
   })
   if (!response.ok) throw new Error('Erro ao atualizar modo')
+}
+
+export async function fetchChatHistory(threadId: string = 'default'): Promise<Message[]> {
+  const response = await fetch(`${API_URL}/chat/history?thread_id=${threadId}`)
+  if (!response.ok) throw new Error('Erro ao buscar histórico')
+  return response.json()
+}
+
+export async function clearChatHistory(threadId: string = 'default'): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/history?thread_id=${threadId}`, {
+    method: 'DELETE'
+  })
+  if (!response.ok) throw new Error('Erro ao limpar histórico')
 }

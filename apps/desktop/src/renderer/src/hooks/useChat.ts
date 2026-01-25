@@ -1,19 +1,41 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Message, sendChatMessage } from '../services/api'
+import { Message, sendChatMessage, fetchChatHistory, clearChatHistory } from '../services/api'
 
 export function useChat() {
   const [text, setText] = useState('')
-  const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = localStorage.getItem('chat_history')
-    return saved ? JSON.parse(saved) : []
-  })
+  const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [threadId] = useState(() => `thread_${Date.now()}`)
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null)
+  const [threadId] = useState('default') // Usando default para persistência global por enquanto
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Graph State
+  const [graphState, setGraphState] = useState<{
+    view: 'center' | 'side' | null
+    content: string
+    options: string[]
+    uiSchema?: any
+    bypass_wake_word?: boolean
+  }>({ view: null, content: '', options: [], bypass_wake_word: false })
+
+  // Ref para as opções atuais do gráfico para o listener de voz não precisar de dependência
+  const currentGraphOptionsRef = useRef<string[]>([])
+  const isGraphOpenRef = useRef<boolean>(false)
+
+  // Atualiza refs quando o graphState muda
   useEffect(() => {
-    localStorage.setItem('chat_history', JSON.stringify(messages))
-  }, [messages])
+    currentGraphOptionsRef.current = graphState.options
+    isGraphOpenRef.current = graphState.view !== null
+  }, [graphState])
+
+  // Carrega histórico inicial do SQLite
+  useEffect(() => {
+    fetchChatHistory(threadId)
+      .then((history) => {
+        setMessages(history)
+      })
+      .catch((err) => console.error('Erro ao carregar histórico:', err))
+  }, [threadId])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -23,59 +45,28 @@ export function useChat() {
     scrollToBottom()
   }, [messages, scrollToBottom])
 
-  const AUTO_SIDE_PANEL_THRESHOLD = 600
+  const clearHistory = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      await clearChatHistory(threadId)
+      setMessages([])
+    } catch (err) {
+      console.error('Erro ao limpar histórico:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [threadId])
 
-  // Graph State
-  const [graphState, setGraphState] = useState<{
-    view: 'center' | 'side' | null
-    content: string
-    options: string[]
-    uiSchema?: any
-    isAutoOverflow?: boolean
-  }>({ view: null, content: '', options: [] })
-
-  const openDetails = useCallback((content: string) => {
-      setGraphState({
-          view: 'side',
-          content: content,
-          options: [],
-          isAutoOverflow: false // Manual open
-      })
+  const reopenGraph = useCallback((data: any) => {
+    setGraphState(data)
   }, [])
 
-  // Heurística de Auto-Overflow (Texto Longo -> Painel Lateral)
-  useEffect(() => {
-    if (!isLoading || messages.length === 0) return
-
-    const lastMsg = messages[messages.length - 1]
-    if (lastMsg.role !== 'assistant') return
-
-    // Se exceder o limite
-    if (lastMsg.content.length > AUTO_SIDE_PANEL_THRESHOLD) {
-      setGraphState(prev => {
-        // Se já estiver aberto em modo overflow ou side manual, apenas atualiza o conteúdo
-        if (prev.view === 'side') {
-           return { ...prev, content: lastMsg.content }
-        }
-        
-        // Se não estiver aberto e não for um modal bloqueante (center), abre agora
-        if (prev.view !== 'center') {
-            return {
-                view: 'side',
-                content: lastMsg.content,
-                options: [],
-                isAutoOverflow: true
-            }
-        }
-        return prev
-      })
-    }
-  }, [messages, isLoading])
-
   const handleGraphOption = (option: string) => {
-    // Fecha o gráfico (exceto se for 'side' informativo persistente? 
-    // Por enquanto fecha se for ação de escolha/botão)
-    setGraphState(prev => ({ ...prev, view: null }))
+    // Fecha o gráfico
+    setGraphState((prev) => ({ ...prev, view: null }))
+
+    // Se for apenas um "OK" de confirmação de leitura, não envia para a IA
+    if (option.toUpperCase() === 'OK') return
 
     // Envia a escolha como mensagem do usuário para a IA processar
     const userMessage: Message = { role: 'user', content: option }
@@ -83,30 +74,30 @@ export function useChat() {
     setIsLoading(true)
 
     // Prepara a bolha de resposta da IA
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
+    setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
 
     // Envia para o backend
     sendChatMessage(option, threadId, {
-        onToken: (token) => {
-          setMessages((prev) => {
-            const updated = [...prev]
-            const lastIdx = updated.length - 1
-            updated[lastIdx] = {
-              ...updated[lastIdx],
-              content: updated[lastIdx].content + token
-            }
-            return updated
-          })
-        },
-        onError: (error) => {
-           console.error("Erro ao enviar escolha:", error)
-        },
-        onDone: () => {}
+      onToken: (token) => {
+        setMessages((prev) => {
+          const updated = [...prev]
+          const lastIdx = updated.length - 1
+          updated[lastIdx] = {
+            ...updated[lastIdx],
+            content: updated[lastIdx].content + token
+          }
+          return updated
+        })
+      },
+      onError: (error) => {
+        console.error('Erro ao enviar escolha:', error)
+      },
+      onDone: () => {}
     })
   }
 
   const closeGraph = useCallback(() => {
-    setGraphState(prev => ({ ...prev, view: null }))
+    setGraphState((prev) => ({ ...prev, view: null }))
   }, [])
 
   // Fecha gráfico com ESC
@@ -118,13 +109,91 @@ export function useChat() {
     return () => window.removeEventListener('keydown', handleEsc)
   }, [closeGraph])
 
-
   useEffect(() => {
     let ws: WebSocket | null = null
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
     let reconnectAttempts = 0
     const maxReconnectAttempts = 10
     let isUnmounting = false
+
+    const handleRemoteChange = (e: any) => {
+      const { detail } = e
+      console.log('[useChat] IA confirmou troca de modelo:', detail)
+
+      const modelNames: Record<string, string> = {
+        local: 'MomLocal',
+        genai: 'Gemini (Cloud)',
+        groq: 'Groq (Cloud)'
+      }
+
+      const modelName = modelNames[detail] || detail
+      const contentPrefix = 'Cérebro alterado para:'
+      const finalContent = `${contentPrefix} **${modelName}** ✅`
+
+      setMessages((prev) => {
+        const lastIdx = prev.length - 1
+        if (lastIdx < 0) return prev
+
+        const lastMsg = prev[lastIdx]
+
+        // 1. Se a última mensagem for uma bolha vazia (comum em trocas via voz/grafo)
+        // ou se for o carregamento (⏳), atualizamos ela para check (✅)
+        const isWaiting =
+          lastMsg.role === 'assistant' &&
+          (lastMsg.content === '' ||
+            (lastMsg.content.includes(contentPrefix) && lastMsg.content.includes('⏳')))
+
+        if (isWaiting) {
+          const updated = [...prev]
+          updated[lastIdx] = { ...lastMsg, content: finalContent }
+          return updated
+        }
+
+        // 2. Se a última mensagem já for EXATAMENTE o que queremos adicionar, ignoramos (evita duplicidade de eventos)
+        if (lastMsg.role === 'assistant' && lastMsg.content === finalContent) {
+          return prev
+        }
+
+        // 3. Caso contrário (mudança via comando de voz que não passou pelo dropdown), adicionamos o card finalizado
+        return [...prev, { role: 'assistant', content: finalContent }]
+      })
+    }
+
+    // Listener para o INÍCIO da troca (vindo do useStatus/Dropdown ou Tool)
+    const handleModelStartChange = (e: any) => {
+      const { detail } = e
+      const modelNames: Record<string, string> = {
+        local: 'MomLocal',
+        genai: 'Gemini (Cloud)',
+        groq: 'Groq (Cloud)'
+      }
+      const modelName = modelNames[detail] || detail
+      const loadingContent = `Cérebro alterado para: **${modelName}** ⏳`
+
+      setMessages((prev) => {
+        if (prev.length === 0) return [{ role: 'assistant', content: loadingContent }]
+
+        const updated = [...prev]
+        const lastMsg = updated[updated.length - 1]
+
+        // Se a última mensagem for do assistente e estiver vazia ou já for o loading, atualizamos ela
+        if (
+          lastMsg.role === 'assistant' &&
+          (lastMsg.content === '' ||
+            lastMsg.content === '...' ||
+            lastMsg.content.includes('Cérebro alterado'))
+        ) {
+          updated[updated.length - 1] = { ...lastMsg, content: loadingContent }
+          return updated
+        }
+
+        // Caso contrário, adicionamos uma nova bolha
+        return [...updated, { role: 'assistant', content: loadingContent }]
+      })
+    }
+
+    window.addEventListener('ai_model_changed', handleRemoteChange)
+    window.addEventListener('ai_model_change_start', handleModelStartChange)
 
     const connect = () => {
       if (isUnmounting) return
@@ -143,68 +212,164 @@ export function useChat() {
       }
 
       ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data)
+        // Tenta processar múltiplos JSONs se vierem colados (comum em alto tráfego)
+        const rawData = event.data
+        const jsonObjects = rawData.match(/\{.*?\}(?=\{|$)/g) || [rawData]
 
+        for (const jsonStr of jsonObjects) {
+          try {
+            const msg = JSON.parse(jsonStr)
+            handleWsMessage(msg)
+          } catch (e) {
+            console.error('Erro ao processar JSON via WS:', e, jsonStr)
+          }
+        }
+      }
+
+      const handleWsMessage = (msg: any) => {
         if (msg.type === 'graph_open') {
           // Abre interface gráfica (Centro ou Lateral)
-          setGraphState({
+          const newGraphState = {
             view: msg.data.view,
             content: msg.data.content,
             options: msg.data.options || [],
             uiSchema: msg.data.ui_schema
+          }
+          setGraphState(newGraphState)
+
+          // Adiciona ou mescla o card interativo no chat
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            const lastMsg = updated[lastIdx]
+
+            // Se a última mensagem for do assistente e não for um gráfico ainda, mesclamos
+            if (lastIdx >= 0 && lastMsg.role === 'assistant' && !lastMsg.isGraph) {
+              updated[lastIdx] = {
+                ...lastMsg,
+                isGraph: true,
+                graphData: newGraphState
+              }
+              return updated
+            }
+
+            // Se já for um gráfico igual, ignoramos
+            if (
+              lastMsg?.role === 'assistant' &&
+              lastMsg.isGraph &&
+              lastMsg.content === msg.data.content
+            ) {
+              return prev
+            }
+
+            // Caso contrário, adicionamos novo
+            return [
+              ...prev,
+              {
+                role: 'assistant',
+                content: msg.data.content,
+                isGraph: true,
+                graphData: newGraphState
+              }
+            ]
           })
         } else if (msg.type === 'graph_close') {
-          setGraphState(prev => ({ ...prev, view: null }))
+          setGraphState((prev) => ({ ...prev, view: null }))
         } else if (msg.type === 'model_changed') {
-           window.dispatchEvent(new CustomEvent('ai_model_changed', { detail: msg.data.new_mode }))
+          window.dispatchEvent(new CustomEvent('ai_model_changed', { detail: msg.data.new_mode }))
+        } else if (msg.type === 'model_change_start') {
+          window.dispatchEvent(new CustomEvent('ai_model_change_start', { detail: msg.data.mode }))
+        } else if (msg.type === 'model_change_progress') {
+          setCurrentStatus(msg.data.status)
+        } else if (msg.type === 'reminder_trigger') {
+          // Alerta visual de lembrete
+          setGraphState({
+            view: 'center',
+            content: `### 🔔 Lembrete: ${msg.data.title}\n\n${msg.data.content || ''}`,
+            options: ['OK'],
+            bypass_wake_word: false
+          })
         } else if (msg.type === 'user') {
           // Alguém falou via voice command
           const content = msg.content.toLowerCase()
-          
-          // Verifica se bate com alguma opção do gráfico aberto
-          // Lógica fuzzy simples: se a opção estiver contida na fala ou vice-versa
-          if (graphState.view && graphState.options.length > 0) {
-             const matchedOption = graphState.options.find(opt => 
-                content.includes(opt.toLowerCase()) || opt.toLowerCase().includes(content)
-             )
-             
-             if (matchedOption) {
-                handleGraphOption(matchedOption)
+
+          // Verifica se bate com alguma opção do gráfico aberto usando REFS
+          if (isGraphOpenRef.current && currentGraphOptionsRef.current.length > 0) {
+            const matchedOption = currentGraphOptionsRef.current.find(
+              (opt) => content.includes(opt.toLowerCase()) || opt.toLowerCase().includes(content)
+            )
+
+            if (matchedOption) {
+              handleGraphOption(matchedOption)
+              return
+            }
+
+            // Suporte a Sim/Não genérico se botões forem esses
+            if (content.includes('sim') || content.includes('confirmar')) {
+              const yesOpt = currentGraphOptionsRef.current.find(
+                (o) => o.toLowerCase() === 'sim' || o.toLowerCase() === 'confirmar'
+              )
+              if (yesOpt) {
+                handleGraphOption(yesOpt)
                 return
-             }
-             
-             // Suporte a Sim/Não genérico se botões forem esses
-             if (content.includes('sim') || content.includes('confirmar')) {
-                 const yesOpt = graphState.options.find(o => o.toLowerCase() === 'sim' || o.toLowerCase() === 'confirmar')
-                 if (yesOpt) { handleGraphOption(yesOpt); return }
-             }
+              }
+            }
           }
 
           setMessages((prev) => [...prev, { role: 'user', content: msg.content }])
-          setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
+          setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
           setIsLoading(true)
         } else if (msg.type === 'assistant') {
           const { data } = msg
 
+          if (data.status) {
+            if (data.status === 'thinking') setCurrentStatus('Pensando...')
+            else if (data.status === 'responding') setCurrentStatus(null)
+            else setCurrentStatus(data.status)
+          }
+
           if (data.token) {
+            setCurrentStatus(null)
             setMessages((prev) => {
               const updated = [...prev]
               const lastIdx = updated.length - 1
-              if (updated[lastIdx]?.role === 'assistant') {
+
+              if (
+                lastIdx >= 0 &&
+                updated[lastIdx]?.role === 'assistant' &&
+                !updated[lastIdx].content.startsWith('Cérebro alterado')
+              ) {
+                const currentContent = updated[lastIdx].content
+                const newBase = currentContent === '...' ? '' : currentContent
+
+                // Evita repetir o nome da assistente se o modelo enviar no token
+                let cleanToken = data.token
+                if (
+                  newBase === '' &&
+                  (cleanToken.toLowerCase().startsWith('momai:') ||
+                    cleanToken.toLowerCase().startsWith('assistente:'))
+                ) {
+                  cleanToken = cleanToken.split(':')[1]?.trim() || ''
+                }
+
                 updated[lastIdx] = {
                   ...updated[lastIdx],
-                  content: updated[lastIdx].content + data.token
+                  content: newBase + cleanToken
                 }
+                return updated
+              } else {
+                return [...prev, { role: 'assistant', content: data.token }]
               }
-              return updated
             })
           }
 
           if (data.done) {
             setIsLoading(false)
+            setCurrentStatus(null)
           }
 
           if (data.error) {
+            setCurrentStatus(null)
             setMessages((prev) => {
               const updated = [...prev]
               if (updated[updated.length - 1]?.role === 'assistant') {
@@ -243,57 +408,78 @@ export function useChat() {
     return () => {
       isUnmounting = true
       if (reconnectTimeout) clearTimeout(reconnectTimeout)
-      ws?.close()
+      if (ws) ws.close()
+      window.removeEventListener('ai_model_changed', handleRemoteChange)
+      window.removeEventListener('ai_model_change_start', handleModelStartChange)
     }
-  }, [graphState]) // Dependência graphState para o listener de voz ter acesso ao estado atual
+  }, []) // Removida dependência graphState para estabilidade
 
-  const sendMessage = useCallback(async () => {
-    if (!text.trim() || isLoading) return
+  const sendMessage = useCallback(
+    async (overrideText?: string) => {
+      const messageText = overrideText ?? text
+      if (!messageText.trim() || isLoading) return
 
-    const userMessage: Message = { role: 'user', content: text }
-    setMessages((prev) => [...prev, userMessage])
-    const currentText = text
-    setText('')
-    setIsLoading(true)
+      const userMessage: Message = { role: 'user', content: messageText }
+      setMessages((prev) => [...prev, userMessage])
 
-    // Adiciona mensagem vazia do assistente para streaming
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
+      if (!overrideText) setText('')
 
-    try {
-      await sendChatMessage(currentText, threadId, {
-        onToken: (token) => {
-          setMessages((prev) => {
-            const updated = [...prev]
-            const lastIdx = updated.length - 1
-            updated[lastIdx] = {
-              ...updated[lastIdx],
-              content: updated[lastIdx].content + token
-            }
-            return updated
-          })
-        },
-        onError: (error) => {
-          setMessages((prev) => {
-            const updated = [...prev]
-            updated[updated.length - 1].content = `Erro: ${error}`
-            return updated
-          })
-        },
-        onDone: () => {
-          // Stream finalizado
-        }
-      })
-    } catch (error) {
-      setMessages((prev) => {
-        const updated = [...prev]
-        updated[updated.length - 1].content =
-          error instanceof Error ? error.message : 'Erro ao processar mensagem'
-        return updated
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }, [text, isLoading, threadId])
+      setIsLoading(true)
+
+      // Adiciona mensagem de expectativa do assistente para streaming
+      setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
+
+      try {
+        await sendChatMessage(messageText, threadId, {
+          onToken: (token) => {
+            setCurrentStatus(null)
+            setMessages((prev) => {
+              const updated = [...prev]
+              const lastIdx = updated.length - 1
+              if (
+                updated[lastIdx]?.role === 'assistant' &&
+                !updated[lastIdx].content.startsWith('Cérebro alterado')
+              ) {
+                const currentContent = updated[lastIdx].content
+                const newBase = currentContent === '...' ? '' : currentContent
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  content: newBase + token
+                }
+                return updated
+              } else {
+                return [...prev, { role: 'assistant', content: token }]
+              }
+            })
+          },
+          onError: (error) => {
+            setMessages((prev) => {
+              const updated = [...prev]
+              if (updated[updated.length - 1]) {
+                updated[updated.length - 1].content = `Erro: ${error}`
+              }
+              return updated
+            })
+          },
+          onDone: () => {
+            // Stream finalizado
+          }
+        })
+      } catch (error) {
+        setMessages((prev) => {
+          const updated = [...prev]
+          if (updated[updated.length - 1]) {
+            updated[updated.length - 1].content =
+              error instanceof Error ? error.message : 'Erro ao processar mensagem'
+          }
+          return updated
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [text, isLoading, threadId]
+  )
 
   return {
     text,
@@ -303,9 +489,10 @@ export function useChat() {
     sendMessage,
     messagesEndRef,
     graphState,
+    currentStatus,
     handleGraphOption,
     closeGraph,
-    openDetails,
-    AUTO_SIDE_PANEL_THRESHOLD
+    reopenGraph,
+    clearHistory
   }
 }

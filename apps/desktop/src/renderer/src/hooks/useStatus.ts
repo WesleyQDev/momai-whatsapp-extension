@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { StatusData, fetchStatus, updateMode } from '../services/api'
 
-const POLLING_INTERVAL = 5000
-
 export function useStatus() {
   const [statusInfo, setStatusInfo] = useState<StatusData | null>(null)
   const [localMode, setLocalMode] = useState<string>('groq')
@@ -23,46 +21,44 @@ export function useStatus() {
   }, [])
 
   const changeMode = async (mode: string) => {
-    console.log('[useStatus] Mudando modo para:', mode)
-    const previousStatus = statusInfo
-    
+    if (mode === localMode) return
+
+    console.log('[useStatus] Mudando modo instantaneamente para:', mode)
+    const previousMode = localMode
+
+    // Dispara evento para o histórico criar o card com "⏳"
+    window.dispatchEvent(new CustomEvent('ai_model_change_start', { detail: mode }))
+
+    // Atualização Otimista (Instantânea no UI)
     setLocalMode(mode)
     if (statusInfo) {
       setStatusInfo({ ...statusInfo, mode })
     }
-    
+
     setIsUpdating(true)
     try {
       await updateMode(mode)
-      await checkStatus()
+      // Não precisamos rodar checkStatus aqui, pois já atualizamos o estado localmente.
+      // Isso evita o delay do polling do backend.
+      setIsOnline(true)
     } catch (error) {
-      console.error('Erro ao trocar modo:', error)
-      setStatusInfo(previousStatus)
-      if (previousStatus) setLocalMode(previousStatus.mode)
+      console.error('Erro ao trocar modo, revertendo:', error)
+      setLocalMode(previousMode)
+      if (statusInfo) setStatusInfo({ ...statusInfo, mode: previousMode })
     } finally {
       setIsUpdating(false)
     }
   }
 
   useEffect(() => {
-    // Busca inicial apenas
+    // Busca inicial
     checkStatus()
 
-    const handleRemoteChange = (e: any) => {
-      const { detail } = e
-      console.log('[useStatus] IA trocou modelo remotamente:', detail)
-      setLocalMode(detail)
-      if (statusInfo) {
-        setStatusInfo({ ...statusInfo, mode: detail })
-      }
-    }
+    // Polling de status a cada 3 segundos para atualizar ícones de configuração
+    const interval = setInterval(checkStatus, 3000)
 
-    window.addEventListener('ai_model_changed', handleRemoteChange)
-
-    return () => {
-      window.removeEventListener('ai_model_changed', handleRemoteChange)
-    }
-  }, [checkStatus, statusInfo])
+    return () => clearInterval(interval)
+  }, [checkStatus])
 
   return {
     statusInfo,

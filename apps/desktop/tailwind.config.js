@@ -12,6 +12,14 @@ module.exports = {
         accent: '#8b5cf6',
         'user-bg': 'rgba(139, 92, 246, 0.15)'
       },
+      backdropBlur: {
+        xs: '2px',
+      },
+      boxShadow: {
+        'glass-sm': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'glass-md': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        'accent-glow': '0 0 20px rgba(139, 92, 246, 0.3)',
+      },
       keyframes: {
         fadeIn: {
           '0%': { opacity: '0' },
@@ -38,5 +46,8 @@ module.exports = {
       }
     }
   },
-  plugins: [require('tailwind-scrollbar')]
+  plugins: [
+    require('tailwind-scrollbar'),
+    require('@tailwindcss/typography')
+  ]
 }

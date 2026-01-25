@@ -1,42 +1,50 @@
-import { RefObject, JSX } from 'react'
+import { RefObject, JSX, memo } from 'react'
 import MessageItem from './MessageItem'
 import { Message } from '../../services/api'
 
 interface MessageListProps {
   messages: Message[]
   isLoading: boolean
+  currentStatus: string | null
   messagesEndRef: RefObject<HTMLDivElement | null>
-  isModeChanging?: boolean
-  onViewDetails: (content: string) => void
+  onReopenGraph: (data: any) => void
 }
 
-export default function MessageList({
+const MessageList = memo(function MessageList({
   messages,
   isLoading,
+  currentStatus,
   messagesEndRef,
-  isModeChanging = false,
-  onViewDetails
+  onReopenGraph
 }: MessageListProps): JSX.Element {
   return (
-    <main className="flex-1 flex flex-col gap-4 p-2.5 overflow-y-auto scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent">
-      {messages.length === 0 && <div className="mx-auto text-center">Olá senhor, comece a digitar</div>}
+    <main className="flex-1 flex flex-col gap-5 p-4 overflow-y-auto overflow-x-hidden">
+      {messages.length === 0 && (
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 animate-fade-in opacity-40">
+          <div className="w-16 h-16 rounded-3xl bg-accent/10 flex items-center justify-center mb-4 border border-accent/20">
+             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+             </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-text mb-2">Bem-vindo ao MomAI</h2>
+          <p className="text-sm text-text-muted max-w-xs">
+            Sua assistente virtual inteligente. Como posso ajudar você hoje?
+          </p>
+        </div>
+      )}
       {messages.map((msg, i) => (
         <MessageItem
           key={i}
           message={msg}
           isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
-          onViewDetails={onViewDetails}
+          currentStatus={isLoading && i === messages.length - 1 ? currentStatus : null}
+          onReopenGraph={onReopenGraph}
         />
       ))}
       
-      {isModeChanging && (
-        <div className="self-center bg-accent/10 text-text-muted px-4 py-2 rounded-[20px] text-xs my-2.5 border border-border flex items-center gap-2 animate-[fadeIn_0.3s_ease]">
-          <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse"></span>
-          <span>Alterando modelo de IA...</span>
-        </div>
-      )}
-
       <div ref={messagesEndRef} />
     </main>
   )
-}
+})
+
+export default MessageList

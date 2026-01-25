@@ -6,28 +6,45 @@
   html,
   body,
   #root {
-    @apply h-full overflow-hidden;
+    @apply h-full overflow-hidden w-full max-w-full;
   }
 
   body {
-    @apply font-sans bg-bg text-text;
+    @apply font-sans bg-bg text-text antialiased;
   }
 
   * {
     @apply m-0 p-0 box-border;
   }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full transition-colors hover:bg-white/20;
+  }
 }
 
 @layer components {
+  .glass-card {
+    @apply bg-surface backdrop-blur-md border border-border shadow-glass-md;
+  }
+
   /* ===========================
      MARKDOWN STYLES (Scoped to .message)
   =========================== */
   .message strong {
-    @apply font-bold text-white;
+    @apply font-bold text-accent;
   }
 
   .message p {
-    @apply mb-2 leading-relaxed;
+    @apply mb-3 leading-relaxed text-[0.95rem];
   }
 
   .message p:last-child {
@@ -35,20 +52,20 @@
   }
 
   .message code {
-    @apply font-mono text-[0.85em] bg-black/20 px-1.5 py-0.5 rounded text-slate-200;
+    @apply font-mono text-[0.85em] bg-white/10 px-1.5 py-0.5 rounded text-accent;
   }
 
   .message pre {
-    @apply bg-[#0f131a] p-4 rounded-lg overflow-x-auto my-3 border border-white/10;
+    @apply bg-black/40 p-4 rounded-xl overflow-x-auto max-w-full my-4 border border-white/5 shadow-inner;
   }
 
   .message pre code {
-    @apply bg-transparent p-0 text-inherit text-[0.9em];
+    @apply bg-transparent p-0 text-slate-300 text-[0.9em] whitespace-pre-wrap break-all border-none;
   }
 
   .message ul,
   .message ol {
-    @apply ml-6 mb-2;
+    @apply ml-6 mb-3 space-y-1.5;
   }
 
   .message li {
@@ -56,23 +73,45 @@
   }
 
   .message a {
-    @apply text-accent no-underline hover:underline;
+    @apply text-accent no-underline hover:underline decoration-accent/30 underline-offset-4 transition-all;
   }
 
   .message blockquote {
-    @apply border-l-4 border-text-muted my-2 pl-4 text-text-muted italic;
+    @apply border-l-4 border-accent/40 my-3 pl-4 text-text-muted italic bg-accent/5 py-1 rounded-r;
   }
 
   .message table {
-    @apply border-collapse w-full my-3;
+    @apply border-collapse w-full my-4 rounded-lg overflow-hidden;
   }
 
   .message th,
   .message td {
-    @apply border border-white/10 p-2 text-left;
+    @apply border border-white/5 p-3 text-left text-sm;
   }
 
   .message th {
-    @apply bg-white/5;
+    @apply bg-white/5 font-semibold text-text;
   }
+
+  .message h1, .message h2, .message h3 {
+    @apply font-bold text-white mb-3 mt-4 first:mt-0;
+  }
+
+  .message h1 { @apply text-2xl; }
+  .message h2 { @apply text-xl; }
+  .message h3 { @apply text-lg; }
+}
+
+/* Animations */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
 }
