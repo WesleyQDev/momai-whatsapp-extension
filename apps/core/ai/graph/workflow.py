@@ -4,7 +4,7 @@ from typing import Annotated, Sequence, TypedDict, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from agents import get_agents, MOM_PROMPT
+from ai.graph.nodes import get_agents, MOM_PROMPT
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, Field
 
@@ -202,7 +202,7 @@ def create_momai_graph(llm, user_name="Senhor", assistant_persona=None, checkpoi
 
     # Tools
     from langgraph.prebuilt import ToolNode
-    from tools import TOOLS
+    from tools.system_actions import TOOLS
     workflow.add_node("tools", ToolNode(TOOLS))
 
     # --- EDGES ---

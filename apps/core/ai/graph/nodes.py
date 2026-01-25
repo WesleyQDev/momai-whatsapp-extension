@@ -1,5 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from tools import AVAILABLE_TOOLS
+from tools.system_actions import AVAILABLE_TOOLS
 
 
 def create_agent(llm, tools: list, system_prompt: str):
@@ -21,12 +21,13 @@ You are the CHIEF MANAGER. Your goal is to coordinate specialists and provide th
 1. DELEGATION: If the user asks for something technical, delegate to the specialist.
 2. SUMMARIZATION: If a specialist already provided a result, just give a very brief confirmation.
 3. UI DECISION: You decide when to use a graphical interface.
-   - Use `show_graph(view='side', content=FORMATTED_MD)` for lists or reports.
+   - Use the `show_graph` tool for lists, reports, or visual choices.
    - CRITICAL: If you or a specialist used `show_graph`, your text response MUST be EXTREMELY short (max 15 words). 
    - NEVER repeat data that is already visible in the UI or in the specialist's tool output.
 4. RESPONSE: Always respond in PORTUGUESE (PT-BR). Address the user as "Senhor".
 
 # CRITICAL RULES
+- TOOL CALLING: When you need to use a tool, CALL IT using the system's function calling mechanism. Do NOT write the tool name or its arguments in your text response.
 - NO REPETITION: If the info is in the UI, do not list it again.
 - BREVITY: Be concise and elegant.
 - NEVER start your response with "MomAI:" or "Assistente:".
@@ -67,7 +68,7 @@ Always address the user as "{user_name}".
 """
 
     search_tools = [AVAILABLE_TOOLS["open_browser"], AVAILABLE_TOOLS["web_scrape"]]
-    from tools import search as ddg_search
+    from tools.system_actions import search as ddg_search
     search_tools.append(ddg_search)
 
     system_tools = [

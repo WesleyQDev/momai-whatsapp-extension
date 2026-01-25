@@ -70,8 +70,8 @@ else:
     job_handle = None
 
 
-import downloader
-from models import SessionLocal, Settings
+import utils.downloader as downloader
+from database.models import SessionLocal, Settings
 
 def get_paths():
     """
@@ -80,7 +80,8 @@ def get_paths():
     Returns:
         dict: Paths for 'exe', 'models' and the detected 'backend'.
     """
-    base_dir = Path(__file__).parent
+    # Aponta para apps/core (dois níveis acima de ai/providers/)
+    base_dir = Path(__file__).parent.parent.parent
     
     # Fetch user preference from database
     db = SessionLocal()
@@ -242,7 +243,7 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
                     return ChatOpenAI(
                         base_url="http://127.0.0.1:8080/v1",
                         api_key="sk-none",
-                        model="local-model",
+                        model="gpt-4o",
                         temperature=0.7,
                         streaming=True
                     )

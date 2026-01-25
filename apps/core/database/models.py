@@ -49,7 +49,8 @@ class Message(Base):
     created_at = Column(DateTime, default=lambda: datetime.now())
 
 # Database setup
-DB_PATH = os.path.join(os.path.dirname(__file__), "momai.db")
+# Aponta para a pasta core (um nível acima de database/)
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "momai.db")
 engine = create_engine(f"sqlite:///{DB_PATH}")
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

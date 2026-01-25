@@ -484,9 +484,9 @@ def switch_ai_model(mode: Literal['local', 'groq', 'gemini']):
     Returns:
         str: Confirmation or error message.
     """
-    import AI_core
+    import ai.orchestrator as orchestrator
     try:
-        AI_core.initialize_llm(mode)
+        orchestrator.initialize_llm(mode)
         return f"OK: Switching to {mode}"
     except Exception as e:
         return f"Error: {str(e)}"

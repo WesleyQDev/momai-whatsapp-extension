@@ -13,7 +13,8 @@ LLAMA_VERSION = "b7819" # Default base version
 BASE_URL_TEMPLATE = "https://github.com/ggerganov/llama.cpp/releases/download/{version}"
 
 # Absolute path to apps/core/bin
-BIN_PATH = Path(__file__).parent / "bin"
+# Aponta para a pasta core (um nível acima de utils/)
+BIN_PATH = Path(__file__).parent.parent / "bin"
 
 def get_bin_dir(backend: str) -> Path:
     """

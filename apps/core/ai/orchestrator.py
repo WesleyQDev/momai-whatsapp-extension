@@ -2,21 +2,22 @@ import re
 import asyncio
 import threading
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, trim_messages
-from local_model import load_model, stop_server
-import tools
+from ai.providers.local_llama import load_model, stop_server
+import tools.system_actions as tools
 import os
-from tools import TOOLS
+from tools.system_actions import TOOLS
 import json
 from pydantic import BaseModel
 from langchain.chat_models import init_chat_model
 from dotenv import load_dotenv
-from graph import create_momai_graph
+from ai.graph.workflow import create_momai_graph
 load_dotenv()
 
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 # Caminho para o banco de dados de checkpoints (independente do momai.db para evitar lock)
-CHECKPOINT_PATH = os.path.join(os.path.dirname(__file__), "checkpoints.db")
+# Aponta para a pasta core (um nível acima de ai/)
+CHECKPOINT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "checkpoints.db")
 
 # O checkpointer será inicializado pelo main.py no lifespan
 checkpointer = None
@@ -40,7 +41,7 @@ def save_message_to_db(thread_id: str, role: str, content: str):
         role (str): 'user' or 'assistant'.
         content (str): Message content.
     """
-    from models import SessionLocal, Message
+    from database.models import SessionLocal, Message
     db = SessionLocal()
     try:
         msg = Message(thread_id=thread_id, role=role, content=content)
@@ -62,7 +63,7 @@ def load_history_from_db(thread_id: str, limit: int = 10):
     Returns:
         list: List of HumanMessage and AIMessage objects.
     """
-    from models import SessionLocal, Message
+    from database.models import SessionLocal, Message
     from langchain_core.messages import HumanMessage, AIMessage
     db = SessionLocal()
     messages = []
@@ -113,7 +114,7 @@ async def clear_history_db(thread_id: str = None):
     Args:
         thread_id (str, optional): The thread ID to clear. If None, clears all.
     """
-    from models import SessionLocal, Message
+    from database.models import SessionLocal, Message
     import aiosqlite
     
     # 1. Clear visual history (momai.db)
@@ -174,7 +175,7 @@ def get_api_key(provider: str) -> str | None:
     Returns:
         str | None: The API key if found.
     """
-    from models import SessionLocal, Settings
+    from database.models import SessionLocal, Settings
     db = SessionLocal()
     try:
         s = db.query(Settings).first()
@@ -236,7 +237,7 @@ def _initialize_llm_task(mode: str):
         report_progress("Starting transition...")
 
         # Fetch current settings for the Graph
-        from models import SessionLocal, Settings
+        from database.models import SessionLocal, Settings
         db = SessionLocal()
         s = db.query(Settings).first()
         u_name = str(s.user_name) if s else "Senhor"
@@ -343,6 +344,8 @@ def clean_text_for_tts(text: str) -> str:
     text = re.sub(r'#+\s?', '', text)
     # Remove code blocks
     text = re.sub(r'`+', '', text)
+    # Remove function tags (fallback XML)
+    text = re.sub(r'<function=.*?>.*?</function>', '', text, flags=re.DOTALL)
     # Remove bullet markers
     text = re.sub(r'^\s*[-*]\s+', '', text, flags=re.MULTILINE)
 
@@ -361,6 +364,7 @@ def clean_response(text: str) -> str:
     """
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
     text = re.sub(r'<\|.*?\|>', '', text).strip()
+    text = re.sub(r'<function=.*?>.*?</function>', '', text, flags=re.DOTALL).strip()
     text = re.sub(r'^(MomAI|Assistant|Assistente)\s* : \s*', 
                   '', text, flags=re.IGNORECASE).strip()
     # Remove non-BMP emojis for Windows terminal compatibility
@@ -377,11 +381,11 @@ async def generate(message: ChatMessage):
     Args:
         message (ChatMessage): The user message object.
     """
-    import tts_manager
+    import services.voice.tts as tts
 
     # Stop previous speech
-    tts_manager.stop_all()
-    tts_manager.start_workers()
+    tts.stop_all()
+    tts.start_workers()
 
     if is_loading or llm is None:
         status_mode = llm_mode if llm_mode != "waiting" else "initial"
@@ -460,7 +464,7 @@ async def generate(message: ChatMessage):
                                 if len(sentence) > 2:
                                     clean_sentence = clean_text_for_tts(sentence)
                                     if clean_sentence:
-                                        tts_manager.speak_sentence(clean_sentence)
+                                        tts.speak_sentence(clean_sentence)
                                 tts_buffer = remaining
                             elif len(tts_buffer) > 150:
                                 last_space = tts_buffer.rfind(" ")
@@ -469,7 +473,7 @@ async def generate(message: ChatMessage):
                                     tts_buffer = tts_buffer[last_space:].strip()
                                     clean_sentence = clean_text_for_tts(sentence)
                                     if clean_sentence:
-                                        tts_manager.speak_sentence(clean_sentence)
+                                        tts.speak_sentence(clean_sentence)
                                 else:
                                     break
                             else:
@@ -485,7 +489,7 @@ async def generate(message: ChatMessage):
         if tts_buffer.strip():
             clean_phrase = clean_text_for_tts(clean_response(tts_buffer)).strip()
             if len(clean_phrase) > 1:
-                tts_manager.speak_sentence(clean_phrase)
+                tts.speak_sentence(clean_phrase)
 
     except Exception as e:
         error_msg = str(e)
@@ -496,14 +500,14 @@ async def generate(message: ChatMessage):
         if "429" in error_msg or "rate_limit" in error_msg.lower():
             friendly_error = "Sir, I have reached the Groq processing limit for this minute. Please wait a few seconds before trying again."
             yield f"data: {json.dumps({'error': friendly_error})}\n\n"
-            tts_manager.speak_sentence("Sorry, Sir. I need a short break due to rate limits.")
+            tts.speak_sentence("Sorry, Sir. I need a short break due to rate limits.")
         else:
             yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
         if tts_buffer.strip():
             clean_phrase = clean_text_for_tts(clean_response(tts_buffer)).strip()
             if len(clean_phrase) > 1:
-                tts_manager.speak_sentence(clean_phrase)
+                tts.speak_sentence(clean_phrase)
 
     finally:
         # Save final response to visual history

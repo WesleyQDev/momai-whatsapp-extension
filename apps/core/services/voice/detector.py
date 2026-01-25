@@ -116,8 +116,8 @@ class WakeWordDetector:
             self.last_trigger_time = now
             # Stop TTS if speaking
             try:
-                import tts_manager
-                tts_manager.stop_all()
+                import services.voice.tts as tts
+                tts.stop_all()
             except:
                 pass
 
@@ -141,8 +141,8 @@ class WakeWordDetector:
 
             # 1. Stop TTS if speaking
             try:
-                import tts_manager
-                tts_manager.stop_all()
+                import services.voice.tts as tts
+                tts.stop_all()
             except:
                 pass
 

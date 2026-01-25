@@ -1,7 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from datetime import datetime, timedelta
-from models import SessionLocal, Reminder, DB_PATH
+from database.models import SessionLocal, Reminder, DB_PATH
 import asyncio
 import logging
 

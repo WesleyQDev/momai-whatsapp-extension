@@ -10,17 +10,17 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
-from AI_core import generate
+from ai.orchestrator import generate
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from dotenv import load_dotenv
 from pydantic import BaseModel
 import tomllib
 from pathlib import Path
 from sqlalchemy import text
-from AI_core import initialize_llm
-import AI_core
-import tools
-from wake_word import WakeWordDetector
+from ai.orchestrator import initialize_llm
+import ai.orchestrator as orchestrator
+import tools.system_actions as tools
+from services.voice.detector import WakeWordDetector
 import threading
 import os
 import psutil
@@ -28,9 +28,9 @@ import json
 import asyncio
 import logging
 from datetime import datetime
-from models import init_db, SessionLocal, Reminder, Settings
-from reminders_manager import ReminderManager
-import tts_manager
+from database.models import init_db, SessionLocal, Reminder, Settings
+from services.reminders.manager import ReminderManager
+import services.voice.tts as tts
 import json
 
 # Silencia logs de acesso do uvicorn especificamente para o endpoint /status
@@ -134,9 +134,9 @@ async def lifespan(app: FastAPI):
         db.refresh(settings)
     
     # Apply Settings
-    tts_manager.tts.set_voice(settings.tts_voice)
-    tts_manager.tts.set_enabled(settings.tts_enabled)
-    AI_core.SYSTEM_PROMPT = settings.assistant_persona
+    tts.tts.set_voice(settings.tts_voice)
+    tts.tts.set_enabled(settings.tts_enabled)
+    orchestrator.SYSTEM_PROMPT = settings.assistant_persona
     
     global main_loop, reminder_manager, ww
     main_loop = asyncio.get_running_loop()
@@ -144,19 +144,19 @@ async def lifespan(app: FastAPI):
     # Start resource usage broadcaster
     asyncio.create_task(broadcast_resource_usage())
 
-    from AI_core import AsyncSqliteSaver, CHECKPOINT_PATH
+    from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
     
     print(f"[Main] Connecting to checkpointer: {CHECKPOINT_PATH}")
     async with AsyncSqliteSaver.from_conn_string(CHECKPOINT_PATH) as saver:
-        AI_core.checkpointer = saver
+        orchestrator.checkpointer = saver
 
         # Initialize LLM with default provider
         print(f"[Main] Initializing with default provider: {settings.ai_provider}")
-        AI_core.initialize_llm(settings.ai_provider)
+        orchestrator.initialize_llm(settings.ai_provider)
         
         reminder_manager = ReminderManager(
             broadcast_callback=broadcast_to_sockets,
-            tts_callback=tts_manager.speak_sentence
+            tts_callback=tts.speak_sentence
         )
         reminder_manager.start()
 
@@ -195,11 +195,11 @@ async def lifespan(app: FastAPI):
     if reminder_manager: reminder_manager.stop()
     if ww: ww.stop()
     try:
-        from local_model import stop_server
+        from ai.providers.local_llama import stop_server
         stop_server()
     except: pass
     try:
-        tts_manager.stop_all()
+        tts.stop_all()
     except: pass
 
 
@@ -249,12 +249,12 @@ async def handle_chat_stream(message: ChatMessage):
 
 @app.get("/chat/history")
 async def get_chat_history(thread_id: str = "default"):
-    from AI_core import get_graph_history
+    from ai.orchestrator import get_graph_history
     history = await get_graph_history(thread_id)
     
     # Se o grafo estiver vazio (ex: novo banco de checkpoints), tenta o fallback do DB relacional
     if not history:
-        from AI_core import load_history_from_db
+        from ai.orchestrator import load_history_from_db
         history = load_history_from_db(thread_id, limit=50)
 
     return [
@@ -264,7 +264,7 @@ async def get_chat_history(thread_id: str = "default"):
 
 @app.delete("/chat/history")
 async def delete_chat_history(thread_id: str = "default"):
-    from AI_core import clear_history_db
+    from ai.orchestrator import clear_history_db
     await clear_history_db(thread_id)
     return {"status": "ok"}
 
@@ -285,7 +285,7 @@ def get_status():
     return {
         "status": "ok", 
         "version": tools.version, 
-        "mode": AI_core.llm_mode,
+        "mode": orchestrator.llm_mode,
         "setup": {
             "local_installed": engine_ok,
             "groq_ready": bool(api_keys.get("groq")),
@@ -398,11 +398,11 @@ async def update_settings(data: SettingsUpdate):
         
     if data.tts_voice is not None:
         settings.tts_voice = data.tts_voice
-        tts_manager.tts.set_voice(data.tts_voice) # Apply immediately
+        tts.tts.set_voice(data.tts_voice) # Apply immediately
 
     if data.tts_enabled is not None:
         settings.tts_enabled = data.tts_enabled
-        tts_manager.tts.set_enabled(settings.tts_enabled)
+        tts.tts.set_enabled(settings.tts_enabled)
         
     if data.wake_word_enabled is not None:
         settings.wake_word_enabled = data.wake_word_enabled
@@ -427,7 +427,7 @@ async def update_settings(data: SettingsUpdate):
     db.close()
     return {"status": "updated", "changes": changes}
 
-import downloader
+import utils.downloader as downloader
 
 # ... (código existente)
 
@@ -499,7 +499,7 @@ async def uninstall_engine(backend: str | None = None):
     """Remove o motor local."""
     # Para o servidor se estiver rodando
     try:
-        from local_model import stop_server
+        from ai.providers.local_llama import stop_server
         stop_server()
     except:
         pass
