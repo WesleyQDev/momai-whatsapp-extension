@@ -280,6 +280,8 @@ def get_status():
         pass
         
     engine_ok = downloader.check_engine_installed()
+    install_info = downloader.get_installed_info()
+    latest_v = downloader.get_latest_llama_version()
     db.close()
     
     return {
@@ -288,6 +290,8 @@ def get_status():
         "mode": orchestrator.llm_mode,
         "setup": {
             "local_installed": engine_ok,
+            "installed_version": install_info.get("version") if install_info else None,
+            "latest_version": latest_v,
             "groq_ready": bool(api_keys.get("groq")),
             "gemini_ready": bool(api_keys.get("gemini"))
         }

@@ -15,8 +15,7 @@ load_dotenv()
 
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-# Caminho para o banco de dados de checkpoints (independente do momai.db para evitar lock)
-# Aponta para a pasta core (um nível acima de ai/)
+
 CHECKPOINT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "checkpoints.db")
 
 # O checkpointer será inicializado pelo main.py no lifespan
@@ -24,9 +23,6 @@ checkpointer = None
 
 SYSTEM_PROMPT = """You are MomAI, a helpful and professional virtual assistant.  
 You always address the user as "Senhor." Your main characteristics are politeness and efficiency.
-
-Always respond in Brazilian Portuguese (PT-BR).  
-Keep a natural and direct tone of voice.
 """
 MAX_MESSAGES = 6 # Reduced from 8 to 6 to save tokens in Cloud models
 llm_mode = "waiting"
@@ -214,6 +210,12 @@ def initialize_llm(mode: str):
     thread.daemon = True
     thread.start()
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
+console = Console()
+
 def _initialize_llm_task(mode: str):
     """Internal task to initialize the LLM and rebuild the graph."""
     global llm, llm_with_tools, llm_mode, momai_graph, is_loading, init_error
@@ -222,6 +224,7 @@ def _initialize_llm_task(mode: str):
     import asyncio
 
     def report_progress(status: str):
+        console.print(f"[dim][AI_core][/dim] {status}")
         if main.main_loop:
             asyncio.run_coroutine_threadsafe(
                 main.broadcast_to_sockets({
@@ -233,7 +236,7 @@ def _initialize_llm_task(mode: str):
 
     try:
         mode = mode.lower()
-        print(f"[AI_core] Starting model load: {mode}")
+        console.print(Panel(f"[bold cyan]Initializing AI Engine: {mode.upper()}[/bold cyan]", expand=False))
         report_progress("Starting transition...")
 
         # Fetch current settings for the Graph
@@ -249,7 +252,7 @@ def _initialize_llm_task(mode: str):
             report_progress("Configuring Llama.cpp engine...")
             new_llm = load_model(
                 repo_id="unsloth/Qwen3-4B-Instruct-2507-GGUF",
-                filename="Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+                filename="Qwen3-4B-Instruct-2507-Q6_K.gguf",
                 on_progress=report_progress
             )
         elif mode == "groq":
@@ -272,14 +275,13 @@ def _initialize_llm_task(mode: str):
             raise ValueError(f"Unknown AI provider: {mode}")
 
         if new_llm:
-            print(f"[AI_core] Model {mode} instantiated. Rebuilding Graph...")
+            console.print(f"[green]✔[/green] Model {mode} instantiated. Rebuilding Graph...")
             report_progress("Rebuilding Agent Graph...")
             
             try:
                 # Rebuild Graph with new LLM and settings
                 new_graph = create_momai_graph(new_llm, user_name=u_name, assistant_persona=u_persona, checkpointer=checkpointer)
                 
-                print(f"[AI_core] Graph rebuilt for {mode}. Updating globals...")
                 # ATOMIC UPDATE
                 with _init_lock:
                     llm = new_llm 
@@ -290,9 +292,9 @@ def _initialize_llm_task(mode: str):
                     init_error = None
                 
                 report_progress("All ready, Sir!")
-                print(f"[AI_core] Model {mode} ready!")
+                console.print(f"[bold green]✔ AI Engine {mode} is ready![/bold green]")
             except Exception as graph_err:
-                print(f"[AI_core] Error rebuilding Graph: {graph_err}")
+                console.print(f"[bold red]✘ Graph Rebuild Error:[/bold red] {graph_err}")
                 raise graph_err
             
             # Notify frontend that switch is complete
@@ -300,13 +302,12 @@ def _initialize_llm_task(mode: str):
                 asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": mode}}), main.main_loop)
                 main.set_graph_state(None, False)
             
-            print(f"[AI_core] Initialization of {mode} successful.")
         else:
             raise Exception(f"Provider {mode} did not return a valid instance.")
 
     except Exception as e:
         err_msg = str(e)
-        print(f"[AI_core] Critical error loading {mode}: {err_msg}")
+        console.print(f"[bold red]✘ Critical Initialization Error:[/bold red] {err_msg}")
         init_error = err_msg
         is_loading = False
         
@@ -377,43 +378,35 @@ import traceback
 async def generate(message: ChatMessage):
     """
     Main stream generator for chat responses.
-
-    Args:
-        message (ChatMessage): The user message object.
     """
     import services.voice.tts as tts
+    from rich.live import Live
 
     # Stop previous speech
     tts.stop_all()
     tts.start_workers()
 
-    if is_loading or llm is None:
+    console.print(f"[bold magenta]New Request:[/bold magenta] [italic]{message.content}[/italic]")
+
+    if is_loading or llm is None or momai_graph is None:
         status_mode = llm_mode if llm_mode != "waiting" else "initial"
-        if init_error and not is_loading:
-            yield f"data: {json.dumps({'error': 'Initialization error (' + status_mode + '): ' + init_error + '. Check settings or try switching modes.'})}\n\n"
-        else:
-            yield f"data: {json.dumps({'error': 'Please wait, Sir. I am configuring my brain for ' + status_mode + ' mode.'})}\n\n"
+        msg = f"Please wait, Sir. I am configuring my brain for {status_mode} mode."
+        yield f"data: {json.dumps({'error': msg})}\n\n"
         return
 
     try:
-        # Configuration for persistence
-        config = {"configurable": {"thread_id": message.thread_id}}
-        
-        # Save user message for UI history
+        config = {"configurable": {"thread_id": message.thread_id}, "recursion_limit": 50}
         save_message_to_db(message.thread_id, "user", message.content)
 
         tts_buffer = ""
         sentence_end_pattern = re.compile(r'(.*?[.?!;])(?:\s+|$)|(.*\n\n)', re.DOTALL)
-        
         full_content = ""
         is_thinking = False
 
-        # Send only NEW message in persistent LangGraph
         input_data = {"messages": [HumanMessage(content=message.content)]}
 
         async for event in momai_graph.astream_events(input_data, config=config, version="v2"):
-            if is_loading:
-                break
+            if is_loading: break
 
             kind = event["event"]
             name = event["name"]
@@ -422,79 +415,57 @@ async def generate(message: ChatMessage):
                 metadata = event.get("metadata", {})
                 node = metadata.get("langgraph_node", "")
                 
-                # ONLY 'responder' node should send tokens to user
-                if node != "responder":
-                    continue
+                if node == "responder":
+                    content = event["data"]["chunk"].content
+                    if not content: continue
 
-                content = event["data"]["chunk"].content
-                if content:
-                    # Thought Logic (Think tags)
-                    if "<think>" in content:
-                        is_thinking = True
-                        continue
-                    if "</think>" in content:
-                        is_thinking = False
-                        continue
-
-                    if is_thinking:
-                        continue
+                    if "<think>" in content: is_thinking = True; continue
+                    if "</think>" in content: is_thinking = False; continue
+                    if is_thinking: continue
 
                     filtered_content = "".join(c for c in content if ord(c) <= 0xFFFF)
-
                     if filtered_content:
                         if not full_content:
+                            # Clean potential assistant prefixes
                             potential_label = filtered_content.strip().lower()
-                            if any(label in potential_label for label in ["momai:", "assistente:", "assistant:", "momai\n", "momai :"]):
-                                if ":" in filtered_content:
-                                    filtered_content = filtered_content.split(":", 1)[1].lstrip()
-                                else:
-                                    continue
-                            
-                        if filtered_content:
-                            full_content += filtered_content
-                            yield f"data: {json.dumps({'token': filtered_content})}\n\n"
-
+                            if any(label in potential_label for label in ["momai:", "assistente:"]):
+                                if ":" in filtered_content: filtered_content = filtered_content.split(":", 1)[1].lstrip()
+                                else: continue
+                        
+                        full_content += filtered_content
+                        yield f"data: {json.dumps({'token': filtered_content})}\n\n"
                         tts_buffer += filtered_content
                         
+                        # Process TTS sentences
                         while True:
                             match = sentence_end_pattern.search(tts_buffer)
                             if match:
-                                sentence = (match.group(1) or match.group(3)).strip()
-                                remaining = tts_buffer[match.end():]
+                                sentence = (match.group(1) or match.group(2)).strip()
+                                tts_buffer = tts_buffer[match.end():]
                                 if len(sentence) > 2:
-                                    clean_sentence = clean_text_for_tts(sentence)
-                                    if clean_sentence:
-                                        tts.speak_sentence(clean_sentence)
-                                tts_buffer = remaining
+                                    clean_sent = clean_text_for_tts(sentence)
+                                    if clean_sent: tts.speak_sentence(clean_sent)
                             elif len(tts_buffer) > 150:
                                 last_space = tts_buffer.rfind(" ")
                                 if last_space != -1:
                                     sentence = tts_buffer[:last_space].strip()
                                     tts_buffer = tts_buffer[last_space:].strip()
-                                    clean_sentence = clean_text_for_tts(sentence)
-                                    if clean_sentence:
-                                        tts.speak_sentence(clean_sentence)
-                                else:
-                                    break
-                            else:
-                                break
+                                    clean_sent = clean_text_for_tts(sentence)
+                                    if clean_sent: tts.speak_sentence(clean_sent)
+                                else: break
+                            else: break
+
             elif kind == "on_chain_end" and name == "mom_orchestrator":
                 output = event["data"].get("output")
-                if output and hasattr(output, "next"):
-                    next_agent = output.next
-                    if next_agent != "responder":
-                         yield f"data: {json.dumps({'status': f'Consulting {next_agent}...'})}\n\n"
-
-        # Final TTS residue
-        if tts_buffer.strip():
-            clean_phrase = clean_text_for_tts(clean_response(tts_buffer)).strip()
-            if len(clean_phrase) > 1:
-                tts.speak_sentence(clean_phrase)
+                if output and isinstance(output, dict):
+                    next_agent = output.get("next")
+                    if next_agent and next_agent != "responder":
+                         console.print(f"[dim]Routing context to:[/dim] [yellow]{next_agent}[/yellow]")
+                         yield f"data: {json.dumps({'status': f'Consultando {next_agent}...'})}\n\n"
 
     except Exception as e:
         error_msg = str(e)
-        print(f"[AI_core] Stream error: {error_msg}")
-        traceback.print_exc()
+        console.print(f"[bold red]Stream Error:[/bold red] {error_msg}")
         
         # Friendly handling for Rate Limit (Error 429)
         if "429" in error_msg or "rate_limit" in error_msg.lower():
@@ -504,15 +475,16 @@ async def generate(message: ChatMessage):
         else:
             yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
+    finally:
+        # Final response cleanup
+        final_reply = clean_response(full_content)
+        if final_reply.strip():
+            save_message_to_db(message.thread_id, "assistant", final_reply)
+
+        # Final TTS residue
         if tts_buffer.strip():
             clean_phrase = clean_text_for_tts(clean_response(tts_buffer)).strip()
             if len(clean_phrase) > 1:
                 tts.speak_sentence(clean_phrase)
-
-    finally:
-        # Save final response to visual history
-        final_reply = clean_response(full_content)
-        if final_reply.strip():
-            save_message_to_db(message.thread_id, "assistant", final_reply)
 
         yield f"data: {json.dumps({'done': True})}\n\n"
