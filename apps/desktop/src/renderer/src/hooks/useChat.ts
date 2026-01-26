@@ -61,40 +61,43 @@ export function useChat() {
     setGraphState(data)
   }, [])
 
-  const handleGraphOption = (option: string) => {
-    // Fecha o gráfico
-    setGraphState((prev) => ({ ...prev, view: null }))
+  const handleGraphOption = useCallback(
+    (option: string) => {
+      // Fecha o gráfico
+      setGraphState((prev) => ({ ...prev, view: null }))
 
-    // Se for apenas um "OK" de confirmação de leitura, não envia para a IA
-    if (option.toUpperCase() === 'OK') return
+      // Se for apenas um "OK" de confirmação de leitura, não envia para a IA
+      if (option.toUpperCase() === 'OK') return
 
-    // Envia a escolha como mensagem do usuário para a IA processar
-    const userMessage: Message = { role: 'user', content: option }
-    setMessages((prev) => [...prev, userMessage])
-    setIsLoading(true)
+      // Envia a escolha como mensagem do usuário para a IA processar
+      const userMessage: Message = { role: 'user', content: option }
+      setMessages((prev) => [...prev, userMessage])
+      setIsLoading(true)
 
-    // Prepara a bolha de resposta da IA
-    setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
+      // Prepara a bolha de resposta da IA
+      setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
 
-    // Envia para o backend
-    sendChatMessage(option, threadId, {
-      onToken: (token) => {
-        setMessages((prev) => {
-          const updated = [...prev]
-          const lastIdx = updated.length - 1
-          updated[lastIdx] = {
-            ...updated[lastIdx],
-            content: updated[lastIdx].content + token
-          }
-          return updated
-        })
-      },
-      onError: (error) => {
-        console.error('Erro ao enviar escolha:', error)
-      },
-      onDone: () => {}
-    })
-  }
+      // Envia para o backend
+      sendChatMessage(option, threadId, {
+        onToken: (token) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            updated[lastIdx] = {
+              ...updated[lastIdx],
+              content: updated[lastIdx].content + token
+            }
+            return updated
+          })
+        },
+        onError: (error) => {
+          console.error('Erro ao enviar escolha:', error)
+        },
+        onDone: () => {}
+      })
+    },
+    [threadId]
+  )
 
   const closeGraph = useCallback(() => {
     setGraphState((prev) => ({ ...prev, view: null }))

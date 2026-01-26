@@ -6,6 +6,7 @@ export function useStatus() {
   const [localMode, setLocalMode] = useState<string>('groq')
   const [isOnline, setIsOnline] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [hasUpdate, setHasUpdate] = useState(false)
 
   const checkStatus = useCallback(async () => {
     try {
@@ -13,6 +14,15 @@ export function useStatus() {
       setStatusInfo(data)
       setLocalMode(data.mode)
       setIsOnline(data.status === 'ok')
+
+      // Verificar atualização do motor local
+      if (data.setup.local_installed && data.setup.installed_version && data.setup.latest_version) {
+        if (data.setup.installed_version !== data.setup.latest_version) {
+          setHasUpdate(true)
+        } else {
+          setHasUpdate(false)
+        }
+      }
     } catch (error) {
       console.error('Erro ao buscar status:', error)
       setStatusInfo(null)
@@ -26,10 +36,8 @@ export function useStatus() {
     console.log('[useStatus] Mudando modo instantaneamente para:', mode)
     const previousMode = localMode
 
-    // Dispara evento para o histórico criar o card com "⏳"
     window.dispatchEvent(new CustomEvent('ai_model_change_start', { detail: mode }))
 
-    // Atualização Otimista (Instantânea no UI)
     setLocalMode(mode)
     if (statusInfo) {
       setStatusInfo({ ...statusInfo, mode })
@@ -38,8 +46,6 @@ export function useStatus() {
     setIsUpdating(true)
     try {
       await updateMode(mode)
-      // Não precisamos rodar checkStatus aqui, pois já atualizamos o estado localmente.
-      // Isso evita o delay do polling do backend.
       setIsOnline(true)
     } catch (error) {
       console.error('Erro ao trocar modo, revertendo:', error)
@@ -51,12 +57,8 @@ export function useStatus() {
   }
 
   useEffect(() => {
-    // Busca inicial
     checkStatus()
-
-    // Polling de status a cada 3 segundos para atualizar ícones de configuração
-    const interval = setInterval(checkStatus, 3000)
-
+    const interval = setInterval(checkStatus, 5000)
     return () => clearInterval(interval)
   }, [checkStatus])
 
@@ -65,6 +67,7 @@ export function useStatus() {
     localMode,
     isOnline,
     isUpdating,
+    hasUpdate,
     refreshStatus: checkStatus,
     changeMode
   }

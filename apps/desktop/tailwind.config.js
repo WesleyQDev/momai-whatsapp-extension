@@ -4,21 +4,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        bg: '#060a15',
-        surface: 'rgba(30, 41, 59, 0.5)',
-        border: 'rgba(255, 255, 255, 0.08)',
-        text: '#f1f5f9',
-        'text-muted': '#64748b',
-        accent: '#8b5cf6',
-        'user-bg': 'rgba(139, 92, 246, 0.15)'
+        bg: 'rgb(var(--bg-main) / <alpha-value>)',
+        card: 'rgb(var(--bg-card) / <alpha-value>)',
+        sidebar: 'rgb(var(--bg-sidebar) / <alpha-value>)',
+        input: 'rgb(var(--bg-input) / <alpha-value>)',
+        border: 'rgb(var(--border) / <alpha-value>)',
+        text: 'rgb(var(--text-primary) / <alpha-value>)',
+        'text-muted': 'rgb(var(--text-muted) / <alpha-value>)',
+        accent: 'rgb(var(--accent) / <alpha-value>)',
+        'accent-muted': 'rgb(var(--accent-muted) / <alpha-value>)'
       },
       backdropBlur: {
-        xs: '2px',
+        xs: '2px'
       },
       boxShadow: {
         'glass-sm': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'glass-md': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        'accent-glow': '0 0 20px rgba(139, 92, 246, 0.3)',
+        'accent-glow': '0 0 20px rgba(139, 92, 246, 0.3)'
       },
       keyframes: {
         fadeIn: {
@@ -46,8 +48,5 @@ module.exports = {
       }
     }
   },
-  plugins: [
-    require('tailwind-scrollbar'),
-    require('@tailwindcss/typography')
-  ]
+  plugins: [require('tailwind-scrollbar'), require('@tailwindcss/typography')]
 }

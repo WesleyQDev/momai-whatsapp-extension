@@ -40,7 +40,7 @@ export default function SplashScreen({ isReady, status }: SplashScreenProps) {
         {/* Glow Effects */}
         <div className="absolute inset-0 bg-accent/20 blur-[60px] rounded-full animate-pulse"></div>
         <div className="absolute inset-0 bg-accent/10 blur-[120px] rounded-full"></div>
-        
+
         {/* Main Icon */}
         <div className="relative z-10 w-32 h-32 rounded-3xl bg-white/[0.03] border border-white/10 flex items-center justify-center p-6 shadow-2xl backdrop-blur-xl animate-in zoom-in-75 duration-700">
           <img
@@ -60,13 +60,15 @@ export default function SplashScreen({ isReady, status }: SplashScreenProps) {
         </div>
 
         <div className="flex flex-col items-center gap-4 w-full px-8">
-            <span className="text-[10px] font-black text-accent uppercase tracking-[0.3em] text-center animate-pulse">
-              {displayStatus}
-            </span>
-            
-            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                <div className={`h-full bg-accent transition-all duration-1000 ease-out ${isReady ? 'w-full' : 'w-1/2 animate-[loading_2s_infinite]'}`}></div>
-            </div>
+          <span className="text-[10px] font-black text-accent uppercase tracking-[0.3em] text-center animate-pulse">
+            {displayStatus}
+          </span>
+
+          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
+            <div
+              className={`h-full bg-accent transition-all duration-1000 ease-out ${isReady ? 'w-full' : 'w-1/2 animate-[loading_2s_infinite]'}`}
+            ></div>
+          </div>
         </div>
       </div>
 

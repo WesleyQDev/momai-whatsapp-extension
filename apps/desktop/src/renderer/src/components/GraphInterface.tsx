@@ -35,28 +35,28 @@ export default function GraphInterface({
   ) : (
     <div className="flex flex-col gap-6">
       {/* Markdown Content */}
-      <div className="prose prose-invert prose-sm max-w-none leading-relaxed text-slate-300">
+      <div className="prose prose-sm max-w-none leading-relaxed text-text">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
             h1: ({ node, ...props }) => (
-              <h1 className="text-xl font-semibold text-white mb-4" {...props} />
+              <h1 className="text-xl font-semibold text-text mb-4" {...props} />
             ),
             h2: ({ node, ...props }) => (
-              <h2 className="text-lg font-medium text-white/90 mb-3 mt-4" {...props} />
+              <h2 className="text-lg font-medium text-text/90 mb-3 mt-4" {...props} />
             ),
             h3: ({ node, ...props }) => (
-              <h3 className="text-md font-medium text-white/90 mb-2 mt-3" {...props} />
+              <h3 className="text-md font-medium text-text/90 mb-2 mt-3" {...props} />
             ),
             p: ({ node, ...props }) => <p className="mb-3" {...props} />,
             ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-4 space-y-1" {...props} />,
-            li: ({ node, ...props }) => <li className="text-slate-300" {...props} />,
+            li: ({ node, ...props }) => <li className="text-text/80" {...props} />,
             strong: ({ node, ...props }) => (
-              <strong className="text-white font-semibold" {...props} />
+              <strong className="text-text font-semibold" {...props} />
             ),
             code: ({ node, ...props }) => (
               <code
-                className="bg-white/10 px-1 py-0.5 rounded text-xs font-mono text-accent"
+                className="bg-accent/10 px-1 py-0.5 rounded text-xs font-mono text-accent"
                 {...props}
               />
             ),
@@ -66,7 +66,7 @@ export default function GraphInterface({
               </div>
             ),
             thead: ({ node, ...props }) => (
-              <thead className="border-b border-white/10" {...props} />
+              <thead className="border-b border-border/20" {...props} />
             ),
             th: ({ node, ...props }) => (
               <th
@@ -75,10 +75,10 @@ export default function GraphInterface({
               />
             ),
             td: ({ node, ...props }) => (
-              <td className="px-3 py-2 text-sm text-slate-400 border-b border-white/5" {...props} />
+              <td className="px-3 py-2 text-sm text-text-muted border-b border-border/10" {...props} />
             ),
             tr: ({ node, ...props }) => (
-              <tr className="hover:bg-white/[0.01] transition-colors" {...props} />
+              <tr className="hover:bg-text/5 transition-colors" {...props} />
             )
           }}
         >
@@ -93,7 +93,7 @@ export default function GraphInterface({
             <button
               key={option}
               onClick={() => onOptionSelect(option)}
-              className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all active:scale-95 shadow-lg ${
+              className={`flex-1 min-w-[120px] px-4 py-3 rounded-lg font-medium transition-all active:scale-95 shadow-lg ${
                 option.toLowerCase() === 'sim' ||
                 option.toLowerCase() === 'confirmar' ||
                 option.toLowerCase() === 'yes'
@@ -101,8 +101,8 @@ export default function GraphInterface({
                   : option.toLowerCase() === 'não' ||
                       option.toLowerCase() === 'cancelar' ||
                       option.toLowerCase() === 'no'
-                    ? 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-200'
-                    : 'border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white hover:border-white/20'
+                    ? 'bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20'
+                    : 'border border-border/20 bg-card text-text-muted hover:bg-accent/5 hover:text-accent hover:border-accent/30'
               }`}
             >
               {option}
@@ -120,18 +120,18 @@ export default function GraphInterface({
 
   if (view === 'side') {
     return (
-      <div className="w-full sm:w-[400px] md:w-[450px] h-full bg-[#080c14] border-l border-white/5 flex flex-col overflow-hidden animate-slide-in-right shadow-[0_0_50px_rgba(0,0,0,0.5)] z-50">
+      <div className="w-full sm:w-[400px] md:w-[450px] h-full bg-card flex flex-col overflow-hidden animate-slide-in-right shadow-2xl z-50">
         {/* Header de Relatório */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-[#0a0f1d]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border/10 bg-bg">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-bold text-accent uppercase tracking-[0.2em]">
               SISTEMA MOMAI
             </span>
-            <span className="text-sm font-semibold text-white/90">Análise e Relatório</span>
+            <span className="text-sm font-semibold text-text/90">Análise e Relatório</span>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-all border border-transparent hover:border-white/10"
+            className="p-2 rounded-lg hover:bg-text/5 text-text-muted hover:text-text transition-all border border-transparent hover:border-border/10"
           >
             <svg
               width="18"
@@ -147,13 +147,13 @@ export default function GraphInterface({
         </div>
 
         {/* Scrollable Content com Estilo Paper/Report */}
-        <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent bg-gradient-to-b from-[#080c14] to-[#05080f]">
-          <div className="max-w-none prose prose-invert prose-slate prose-headings:text-white prose-p:text-slate-300 prose-strong:text-accent prose-code:text-accent prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/5">
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-card">
+          <div className="max-w-none prose prose-slate prose-headings:text-text prose-p:text-text/80 prose-strong:text-accent prose-code:text-accent prose-pre:bg-bg prose-pre:border prose-pre:border-border/10">
             {Content}
           </div>
 
           {/* Footer do Relatório */}
-          <div className="mt-12 pt-6 border-t border-white/5 flex items-center justify-between opacity-30 italic text-[10px] text-slate-500">
+          <div className="mt-12 pt-6 border-t border-border/10 flex items-center justify-between opacity-30 italic text-[10px] text-text-muted">
             <span>Gerado automaticamente por MomAI</span>
             <span>{new Date().toLocaleDateString()}</span>
           </div>

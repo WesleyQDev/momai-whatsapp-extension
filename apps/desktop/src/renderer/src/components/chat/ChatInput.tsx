@@ -95,7 +95,7 @@ export default function ChatInput({
 
   return (
     <footer className="p-3 sm:p-4 bg-transparent relative">
-      <div className="max-w-4xl mx-auto flex flex-col gap-1.5 p-1.5 bg-white/[0.03] border border-white/10 rounded-3xl focus-within:border-accent/30 focus-within:bg-white/[0.05] transition-all duration-300 relative z-50 shadow-lg">
+      <div className="max-w-4xl mx-auto flex flex-col gap-1.5 p-1.5 bg-input border border-border/10 rounded-xl focus-within:border-accent/30 focus-within:bg-input transition-all duration-300 relative z-50 shadow-lg">
         <input
           ref={inputRef}
           type="text"
@@ -112,7 +112,7 @@ export default function ChatInput({
               type="button"
               disabled={isLoading || isModeChanging}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all disabled:opacity-50 ${!isSelectedModeReady ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-white/5 border-white/10 text-text-muted hover:text-text hover:bg-white/10'}`}
+              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all disabled:opacity-50 ${!isSelectedModeReady ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-bg/40 border-border/20 text-text-muted hover:text-text hover:bg-bg/60'}`}
             >
               <img
                 src={selectedMode.icon}
@@ -139,7 +139,7 @@ export default function ChatInput({
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute bottom-full left-0 mb-2 w-56 bg-[#0f1629] border border-white/10 rounded-2xl shadow-2xl p-1.5 animate-zoom-in overflow-hidden backdrop-blur-xl">
+              <div className="absolute bottom-full left-0 mb-2 w-56 bg-card border border-border/30 rounded-2xl shadow-2xl p-1.5 animate-zoom-in overflow-hidden backdrop-blur-xl">
                 {MODES.map((mode) => {
                   // @ts-ignore
                   const isReady = statusInfo?.setup?.[mode.setupKey] ?? true
@@ -153,7 +153,7 @@ export default function ChatInput({
                           }
                         }}
                         disabled={!isReady}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${currentMode === mode.id ? 'bg-accent/10 text-accent' : isReady ? 'text-text-muted hover:bg-white/5 hover:text-text' : 'text-text-muted/30 cursor-not-allowed'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${currentMode === mode.id ? 'bg-accent/10 text-accent' : isReady ? 'text-text-muted hover:bg-text/5 hover:text-text' : 'text-text-muted/30 cursor-not-allowed'}`}
                       >
                         <img
                           src={mode.icon}

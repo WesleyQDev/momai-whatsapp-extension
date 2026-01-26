@@ -98,8 +98,8 @@ export default function ModelSelectorCard({ onSelect }: ModelSelectorCardProps) 
             Escolha meu Cérebro, Senhor
           </h3>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Selecione o motor de processamento para esta sessão. Se nada for escolhido,
-            iniciarei com <span className="text-accent font-bold uppercase">Groq</span>.
+            Selecione o motor de processamento para esta sessão. Se nada for escolhido, iniciarei
+            com <span className="text-accent font-bold uppercase">Groq</span>.
           </p>
         </div>
 

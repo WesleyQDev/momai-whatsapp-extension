@@ -183,11 +183,11 @@ app.whenReady().then(() => {
       } else {
         win.show()
         win.focus()
-        
+
         // Refined Mini Size for Spotlight effect
         win.setSize(500, 650)
         win.center()
-        
+
         // Garante que o input receba foco
         win.webContents.send('focus-input')
       }

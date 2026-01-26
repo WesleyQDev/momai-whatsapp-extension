@@ -14,27 +14,29 @@ export default function FloatingCard({
   width = 'max-w-md'
 }: FloatingCardProps) {
   return (
-    <div className="fixed top-10 inset-x-0 bottom-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
       <div
-        className={`w-full ${width} bg-[#0f172a]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-zoom-in`}
+        className={`w-full ${width} bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-zoom-in`}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || onClose) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-            {title && <h3 className="text-lg font-semibold text-white/90">{title}</h3>}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-sidebar/50">
+            {title && (
+              <h3 className="text-xs font-black text-text/80 uppercase tracking-widest">{title}</h3>
+            )}
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-1 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                className="p-1 rounded-md hover:bg-text/10 text-text-muted hover:text-text transition-colors"
                 aria-label="Close"
               >
                 <svg
-                  width="20"
-                  height="20"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                 >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>

@@ -31,16 +31,21 @@ export default function NextReminders() {
     <div className="px-4 py-2 border-b border-border bg-black/10">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse"></div>
-        <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Próximos Agendamentos</span>
+        <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+          Próximos Agendamentos
+        </span>
       </div>
       <div className="flex flex-col gap-1.5">
-        {reminders.map(r => (
+        {reminders.map((r) => (
           <div key={r.id} className="flex justify-between items-center text-xs group">
             <span className="text-text-muted truncate max-w-[180px] group-hover:text-text transition-colors">
               {r.title}
             </span>
             <span className="text-accent/70 font-mono text-[10px]">
-              {new Date(r.scheduled_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(r.scheduled_time).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
             </span>
           </div>
         ))}

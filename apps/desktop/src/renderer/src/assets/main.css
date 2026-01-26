@@ -3,18 +3,42 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg-main: 10 10 10;
+    --bg-card: 18 18 18;
+    --bg-sidebar: 10 10 10;
+    --bg-input: 25 25 25;
+    --border: 40 40 40;
+    --text-primary: 241 245 249;
+    --text-muted: 148 163 184;
+    --accent: 139 92 246;
+    --accent-muted: 139 92 246;
+  }
+
+  [data-theme='light'] {
+    --bg-main: 245 247 250;
+    --bg-card: 255 255 255;
+    --bg-sidebar: 235 238 242;
+    --bg-input: 240 242 245;
+    --border: 220 225 232;
+    --text-primary: 15 23 42;
+    --text-muted: 71 85 105;
+    --accent: 124 58 237;
+    --accent-muted: 124 58 237;
+  }
+
   html,
   body,
   #root {
-    @apply h-full overflow-hidden w-full max-w-full;
+    @apply h-full overflow-hidden w-full max-w-full transition-colors duration-300;
   }
 
   body {
-    @apply font-sans bg-bg text-text antialiased;
+    @apply font-sans antialiased bg-bg text-text;
   }
 
   * {
-    @apply m-0 p-0 box-border;
+    @apply m-0 p-0 box-border border-border/10;
   }
 
   /* Custom Scrollbar */
@@ -27,13 +51,13 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full transition-colors hover:bg-white/20;
+    @apply bg-accent/20 rounded-full transition-colors hover:bg-accent/40;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-surface backdrop-blur-md border border-border shadow-glass-md;
+    @apply bg-card backdrop-blur-md border border-border/10 shadow-sm;
   }
 
   /* ===========================
@@ -56,7 +80,7 @@
   }
 
   .message pre {
-    @apply bg-black/40 p-4 rounded-xl overflow-x-auto max-w-full my-4 border border-white/5 shadow-inner;
+    @apply bg-black/40 p-4 rounded-xl overflow-x-auto max-w-full my-4 border border-border/10 shadow-inner;
   }
 
   .message pre code {
@@ -86,20 +110,28 @@
 
   .message th,
   .message td {
-    @apply border border-white/5 p-3 text-left text-sm;
+    @apply border border-border/10 p-3 text-left text-sm;
   }
 
   .message th {
     @apply bg-white/5 font-semibold text-text;
   }
 
-  .message h1, .message h2, .message h3 {
-    @apply font-bold text-white mb-3 mt-4 first:mt-0;
+  .message h1,
+  .message h2,
+  .message h3 {
+    @apply font-bold text-text mb-3 mt-4 first:mt-0;
   }
 
-  .message h1 { @apply text-2xl; }
-  .message h2 { @apply text-xl; }
-  .message h3 { @apply text-lg; }
+  .message h1 {
+    @apply text-2xl;
+  }
+  .message h2 {
+    @apply text-xl;
+  }
+  .message h3 {
+    @apply text-lg;
+  }
 }
 
 /* Animations */

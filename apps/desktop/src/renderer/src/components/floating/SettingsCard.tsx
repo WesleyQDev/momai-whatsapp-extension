@@ -7,11 +7,15 @@ interface SettingsCardProps {
   initialTab?: Tab
 }
 
-type Tab = 'general' | 'brain' | 'voice'
+type Tab = 'general' | 'brain' | 'voice' | 'updates'
+type Theme = 'dark' | 'light'
 
 export default function SettingsCard({ onClose, initialTab = 'general' }: SettingsCardProps) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [isLoading, setIsLoading] = useState(true)
+  const [theme, setTheme] = useState<Theme>(
+    (document.documentElement.getAttribute('data-theme') as Theme) || 'dark'
+  )
 
   // State for form fields
   const [settings, setSettings] = useState({
@@ -36,7 +40,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
     cpu_name?: string
     detected_hardware?: string
     recommended_build?: string
-    available_builds?: Record<string, { label: string, version: string, size_mb: number, description: string }>
+    available_builds?: Record<
+      string,
+      { label: string; version: string; size_mb: number; description: string }
+    >
     latest_version?: string
     installed_version?: string
     installed_build?: string
@@ -55,7 +62,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
       }
     }
 
-    // WebSocket Listener for installation progress
     const ws = new WebSocket('ws://127.0.0.1:8000/ws')
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data)
@@ -65,7 +71,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
         setInstallStatus('installed')
         setInstallProgress(100)
         setInstallingId(null)
-        checkLocalStatus() // Refresh details
+        checkLocalStatus()
       }
     }
 
@@ -75,6 +81,12 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
       ws.close()
     }
   }, [])
+
+  const changeTheme = (newTheme: Theme) => {
+    setTheme(newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme)
+    localStorage.setItem('momai_theme', newTheme)
+  }
 
   const checkLocalStatus = async () => {
     try {
@@ -110,7 +122,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
   const handleUninstallEngine = async (backend?: string) => {
     if (!confirm('Deseja realmente remover os binários deste motor local?')) return
-    
+
     try {
       await api.delete('/setup/uninstall-engine', { params: { backend } })
       checkLocalStatus()
@@ -145,11 +157,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
       if (saveNow) saveSettings(newState)
       return newState
     })
-
-    if (saveNow) {
-      const newState = { ...settings, [field]: value }
-      return saveSettings(newState)
-    }
     return Promise.resolve()
   }
 
@@ -168,115 +175,192 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
   if (isLoading)
     return (
-      <FloatingCard title="Configurações" onClose={onClose}>
-        <div className="p-4 text-center text-text-muted">Carregando...</div>
+      <FloatingCard title="Configurações" onClose={onClose} width="max-w-2xl">
+        <div className="p-10 text-center text-text-muted text-sm font-medium">
+          Carregando painel de controle...
+        </div>
       </FloatingCard>
     )
 
-  // Ícones para o Menu Lateral
   const icons = {
     general: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
     ),
     brain: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
         <path d="M12 2a10 10 0 0 1 10 10"></path>
         <path d="M12 12 2.1 12.1"></path>
       </svg>
     ),
     voice: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
         <line x1="12" y1="19" x2="12" y2="23"></line>
         <line x1="8" y1="23" x2="16" y2="23"></line>
       </svg>
+    ),
+    updates: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
     )
   }
 
   return (
-    <FloatingCard title="Painel de Controle" onClose={onClose} width="max-w-7xl">
-      <div className="flex h-[600px] -mx-6 -my-6">
+    <FloatingCard title="Painel de Controle" onClose={onClose} width="max-w-4xl">
+      <div className="flex h-[520px] -mx-6 -my-6 bg-card">
         {/* SIDEBAR */}
-        <div className="w-48 border-r border-white/5 bg-white/[0.01] p-4 flex flex-col gap-1.5">
-          <div className="px-3 mb-4">
-            <span className="text-[10px] font-black text-text-muted/40 uppercase tracking-[0.2em]">
-              Configurações
-            </span>
-          </div>
-
+        <div className="w-44 border-r border-border bg-sidebar p-4 flex flex-col gap-1">
           {[
             { id: 'general', label: 'Geral', icon: icons.general },
             { id: 'brain', label: 'Inteligência', icon: icons.brain },
-            { id: 'voice', label: 'Voz e Fala', icon: icons.voice }
-          ].map(tab => (
+            { id: 'voice', label: 'Voz e Fala', icon: icons.voice },
+            { id: 'updates', label: 'Atualizações', icon: icons.updates }
+          ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as Tab)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === tab.id ? 'bg-accent/10 text-accent shadow-sm' : 'text-text-muted hover:bg-white/5 hover:text-text'}`}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-bold transition-all duration-200 ${activeTab === tab.id ? 'bg-accent/10 text-accent shadow-sm' : 'text-text-muted hover:bg-text/5 hover:text-text'}`}
             >
               {tab.icon}
               {tab.label}
+              {tab.id === 'updates' && localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              )}
             </button>
           ))}
         </div>
 
-        {/* CONTENT AREA - Desktop Density */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-10 bg-bg">
-          {/* GERAL */}
+        {/* CONTENT AREA */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
           {activeTab === 'general' && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="space-y-1 border-b border-white/5 pb-6">
-                <h2 className="text-xl font-black text-white tracking-tight uppercase">Configurações Gerais</h2>
-                <p className="text-xs text-text-muted font-medium">Gerencie sua identidade e a personalidade base da assistente.</p>
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-text tracking-tight uppercase">
+                  Configurações Gerais
+                </h2>
+                <p className="text-[11px] text-text-muted font-medium">
+                  Gerencie o comportamento e a aparência do sistema.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                <div className="space-y-6">
-                  <div className="space-y-2.5">
-                    <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Identidade do Usuário</label>
-                    <div className="relative group">
-                      <input
-                        type="text"
-                        value={settings.user_name}
-                        onChange={(e) => updateField('user_name', e.target.value)}
-                        onBlur={() => saveSettings(settings)}
-                        className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-sm text-text focus:border-accent/40 focus:bg-white/[0.04] outline-none transition-all"
-                        placeholder="Como devo chamar você?"
-                      />
-                    </div>
+              <div className="grid grid-cols-1 gap-8">
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                      Identidade do Usuário
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.user_name}
+                      onChange={(e) => updateField('user_name', e.target.value)}
+                      onBlur={() => saveSettings(settings)}
+                      className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:border-accent/40 outline-none transition-all"
+                      placeholder="Seu nome..."
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between p-5 rounded-2xl bg-white/[0.01] border border-white/5 group">
-                    <div className="flex gap-4 items-center">
-                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-white tracking-tight">Ativação por Voz</span>
-                        <span className="text-[10px] text-text-muted font-medium">Diga "Sistema" para ouvir.</span>
-                      </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                      Tema da Interface
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => changeTheme('dark')}
+                        className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg border text-xs font-bold transition-all ${theme === 'dark' ? 'bg-accent/10 border-accent/40 text-accent' : 'bg-input border-border text-text-muted hover:text-text'}`}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                        Escuro
+                      </button>
+                      <button
+                        onClick={() => changeTheme('light')}
+                        className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg border text-xs font-bold transition-all ${theme === 'light' ? 'bg-accent/10 border-accent/40 text-accent' : 'bg-input border-border text-text-muted hover:text-text'}`}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <circle cx="12" cy="12" r="5" />
+                          <line x1="12" y1="1" x2="12" y2="3" />
+                          <line x1="12" y1="21" x2="12" y2="23" />
+                          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                          <line x1="1" y1="12" x2="3" y2="12" />
+                          <line x1="21" y1="12" x2="23" y2="12" />
+                          <line x1="4.22" y1="19.07" x2="5.64" y2="17.66" />
+                          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                        Claro
+                      </button>
                     </div>
-                    <button
-                      onClick={() => updateField('wake_word_enabled', !settings.wake_word_enabled, true)}
-                      className={`w-11 h-5.5 rounded-full flex items-center px-1 transition-all duration-500 ${settings.wake_word_enabled ? 'bg-accent' : 'bg-white/10'}`}
-                    >
-                      <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-lg transition-transform duration-500 ${settings.wake_word_enabled ? 'translate-x-5.5' : 'translate-x-0'}`} />
-                    </button>
                   </div>
                 </div>
 
-                <div className="space-y-2.5">
-                  <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Personalidade (Persona)</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                    Personalidade da Assistente
+                  </label>
                   <textarea
                     value={settings.assistant_persona}
                     onChange={(e) => updateField('assistant_persona', e.target.value)}
                     onBlur={() => saveSettings(settings)}
-                    className="w-full h-48 bg-white/[0.02] border border-white/10 rounded-xl px-4 py-4 text-sm text-text focus:border-accent/40 focus:bg-white/[0.04] outline-none resize-none transition-all leading-relaxed font-medium"
+                    className="w-full h-32 bg-input border border-border/60 rounded-lg px-4 py-3 text-sm text-text focus:border-accent/40 outline-none resize-none transition-all leading-relaxed placeholder:text-text-muted/30"
                     placeholder="Instruções de comportamento..."
                   />
                 </div>
@@ -284,239 +368,357 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
             </div>
           )}
 
-          {/* BRAIN */}
           {activeTab === 'brain' && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-8">
-              <div className="space-y-1 border-b border-white/5 pb-6">
-                <h2 className="text-xl font-black text-white tracking-tight uppercase">Motores de Inteligência</h2>
-                <p className="text-xs text-text-muted font-medium">Configure processamento local ou chaves de nuvem.</p>
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-text tracking-tight uppercase">
+                  Motores de IA
+                </h2>
+                <p className="text-[11px] text-text-muted font-medium">
+                  Configure processamento local ou chaves de nuvem.
+                </p>
               </div>
 
-              {/* 1. MomLocal Core Section */}
-              <div className="p-8 rounded-3xl border bg-white/[0.01] border-white/5 flex flex-col gap-8">
+              <div className="p-5 rounded-xl border bg-input border-border flex flex-col gap-5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-                    </div>
-                    <div className="flex flex-col">
-                      <h4 className="text-lg font-black text-white uppercase tracking-wider">MomLocal Core</h4>
-                      <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em]">Offline Llama.cpp Inference</span>
-                    </div>
+                  <div className="flex flex-col">
+                    <h4 className="text-[13px] font-black text-text uppercase tracking-wider">
+                      MomLocal Core
+                    </h4>
+                    <span className="text-[9px] text-text-muted font-black uppercase tracking-widest opacity-60">
+                      Llama.cpp Inference
+                    </span>
                   </div>
                   {settings.ai_provider === 'local' ? (
-                    <div className="px-4 py-1.5 rounded-xl bg-accent/10 border border-accent/20 text-accent text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-accent animate-pulse" /> Startup Active
-                    </div>
+                    <span className="text-[9px] font-black text-accent uppercase border border-accent/20 px-2 py-0.5 rounded-md bg-accent/5">
+                      Ativo
+                    </span>
                   ) : (
-                    <button onClick={() => updateField('ai_provider', 'local', true)} className="px-4 py-1.5 rounded-xl bg-white/5 border border-white/10 text-text-muted hover:text-white text-[10px] font-bold uppercase transition-all">Set as Default</button>
+                    <button
+                      onClick={() => updateField('ai_provider', 'local', true)}
+                      className="text-[9px] font-bold text-text-muted hover:text-text uppercase"
+                    >
+                      Usar Local
+                    </button>
                   )}
                 </div>
 
-                <div className="flex flex-col gap-6">
-                  {/* Seletor de Performance Unificado */}
-                  <div className="flex flex-col gap-3 p-1.5 bg-black/40 border border-white/5 rounded-2xl">
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Modo de Processamento</span>
-                      <span className="text-[9px] font-bold text-accent/60 italic">Afeta a velocidade de resposta</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                      Hardware Detectado
+                    </label>
+                    <div className="p-3 rounded-lg bg-black/20 border border-border flex flex-col gap-1">
+                      <span className="text-[11px] font-bold text-text uppercase tracking-tight">
+                        {localDetails.detected_hardware || 'Buscando...'}
+                      </span>
+                      <span className="text-[9px] text-text-muted font-medium italic truncate">
+                        CPU: {localDetails.cpu_name || '...'}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {[
-                        { id: 'auto', label: 'Auto', sub: 'Smart', icon: <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/> },
-                        { id: 'cuda', label: 'NVIDIA', sub: 'GPU Boost', icon: <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/> },
-                        { id: 'vulkan', label: 'Vulkan', sub: 'AMD/Intel', icon: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/> },
-                        { id: 'cpu', label: 'CPU', sub: 'Eco Mode', icon: <path d="M4 4h16v16H4zM9 9h6v6H9zM15 2v2M9 2v2M15 20v2M9 20v2M20 15h2M20 9h2M2 15h2M2 9h2"/> }
-                      ].map(mode => {
-                        const isSelected = settings.local_backend === mode.id;
-                        const isRecommended = mode.id === 'auto';
-                        const isInstalled = mode.id === 'auto' || localDetails.installed_backends?.includes(mode.id);
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                      Aceleração
+                    </label>
+                    <select
+                      value={settings.local_backend}
+                      onChange={(e) =>
+                        updateField('local_backend', e.target.value, true).then(checkLocalStatus)
+                      }
+                      className="w-full bg-black/20 border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
+                    >
+                      <option value="auto">Automático (Recomendado)</option>
+                      <option value="cuda">NVIDIA CUDA</option>
+                      <option value="vulkan">AMD/Intel Vulkan</option>
+                      <option value="cpu">Apenas CPU</option>
+                    </select>
+                  </div>
+                </div>
 
-                        return (
-                          <button
-                            key={mode.id}
-                            onClick={() => updateField('local_backend', mode.id, true).then(checkLocalStatus)}
-                            className={`relative flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all duration-300 border ${
-                              isSelected 
-                                ? 'bg-accent/10 border-accent/40 text-accent shadow-[0_0_20px_rgba(139,92,246,0.1)]' 
-                                : 'bg-white/[0.02] border-transparent text-text-muted hover:bg-white/[0.05] hover:text-text'
-                            }`}
+                {/* Status de Instalação do Motor Local */}
+                <div className="mt-2 pt-4 border-t border-border/40">
+                  {installStatus === 'missing' && (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-bold text-text">
+                              Motor Llama.cpp não encontrado
+                            </span>
+                            <span className="text-[9px] text-text-muted font-medium">
+                              Versão: <span className="text-accent">{localDetails.latest_version || '...'}</span> 
+                              {' • '} 
+                              Download: <span className="text-text font-bold italic">
+                                {settings.local_backend === 'auto' 
+                                  ? `Auto (${localDetails.recommended_build?.toUpperCase()})` 
+                                  : settings.local_backend.toUpperCase()}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleInstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
+                          className="px-3 py-1.5 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all"
+                        >
+                          Instalar Agora
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-text-muted leading-relaxed">
+                        O motor local é necessário para processar IA de forma privada no seu computador. 
+                        O download tem aprox. 30MB.
+                      </p>
+                    </div>
+                  )}
+
+                  {installStatus === 'installing' && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                        <span className="text-accent animate-pulse">Baixando Motor Local...</span>
+                        <span className="text-text">{installProgress}%</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-accent transition-all duration-300 ease-out"
+                          style={{ width: `${installProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {installStatus === 'installed' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-accent/5 border border-accent/20">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            <span className="text-[11px] font-black text-text uppercase">Motor Pronto</span>
+                          </div>
+                          <span className="text-[9px] text-text-muted font-medium">
+                            v{localDetails.installed_version} • {localDetails.installed_build}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version && (
+                            <button
+                              onClick={() => handleInstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
+                              className="mr-2 px-2 py-1 bg-accent/20 text-accent text-[9px] font-black uppercase rounded hover:bg-accent hover:text-white transition-all"
+                            >
+                              Atualizar para {localDetails.latest_version}
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleUninstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
+                            className="p-2 text-text-muted hover:text-red-500 transition-colors"
+                            title="Remover motor"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">{mode.icon}</svg>
-                            <div className="flex flex-col items-center">
-                              <span className="text-[10px] font-black uppercase tracking-tight">{mode.label}</span>
-                              <span className="text-[7px] font-bold opacity-50 uppercase tracking-widest">{mode.sub}</span>
-                            </div>
-                            {isRecommended && !isSelected && <div className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full animate-pulse" />}
-                            {!isInstalled && mode.id !== 'auto' && <div className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center backdrop-blur-[1px]"><span className="text-[7px] font-black text-white/40 uppercase tracking-widest -rotate-12">Not Ready</span></div>}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
                           </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Hardware Column */}
-                    <div className="lg:col-span-5 space-y-4">
-                      <span className="text-[10px] font-black text-text-muted/40 uppercase tracking-[0.3em] ml-1">Hardware System</span>
-                      <div className="grid gap-3">
-                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-black/20 border border-white/5">
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-text-muted/50 shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
-                          <div className="flex flex-col min-w-0"><span className="text-[8px] font-black text-text-muted/50 uppercase tracking-widest">CPU</span><span className="text-[12px] font-bold text-text/90 truncate">{localDetails.cpu_name || 'Detecting...'}</span></div>
-                        </div>
-                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-black/20 border border-white/5">
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-text-muted/50 shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="8" rx="2"/></svg></div>
-                          <div className="flex flex-col min-w-0"><span className="text-[8px] font-black text-text-muted/50 uppercase tracking-widest">GPU</span><span className="text-[12px] font-bold text-text/90 truncate">{localDetails.detected_hardware || 'Not Detected'}</span></div>
                         </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Engines Column */}
-                    <div className="lg:col-span-7 space-y-4">
-                      <span className="text-[10px] font-black text-text-muted/40 uppercase tracking-[0.3em] ml-1">Build Storage</span>
-                      <div className="grid gap-3">
-                        {localDetails.available_builds ? Object.entries(localDetails.available_builds)
-                          .map(([id, build]) => {
-                            const isInstalled = localDetails.installed_backends?.includes(id);
-                            const isUpdate = isInstalled && localDetails.latest_version && localDetails.installed_version !== localDetails.latest_version;
-                            const isActiveInUse = (settings.local_backend === id) || (settings.local_backend === 'auto' && localDetails.recommended_build === id);
-                            const isRec = localDetails.recommended_build === id;
-                            const isInc = (id === 'cuda' && localDetails.recommended_build !== 'cuda') || (id === 'vulkan' && localDetails.recommended_build === 'cpu');
-
-                            return (
-                              <div key={id} className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-4 relative ${isActiveInUse ? 'bg-accent/[0.05] border-accent/40 shadow-[0_0_15px_rgba(139,92,246,0.05)]' : isInc ? 'opacity-30 grayscale border-white/5' : 'bg-black/20 border-white/5'}`}>
-                                <div className="flex flex-col min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-[12px] font-bold tracking-tight ${isActiveInUse ? 'text-white' : 'text-text-muted'}`}>{build.label}</span>
-                                    {isActiveInUse && <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />}
-                                    {isRec && !isActiveInUse && !isInc && <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-white/5 text-text-muted/40 border border-white/5">Auto Choice</span>}
-                                  </div>
-                                  <span className="text-[9px] text-text-muted/40 font-mono uppercase">Build {build.version} • {build.size_mb}MB</span>
-                                </div>
-
-                                <div className="flex items-center gap-3 shrink-0">
-                                  {isInstalled ? (
-                                    <div className="flex items-center gap-4">
-                                      {isUpdate && <button onClick={() => handleInstallEngine(id)} className="text-[8px] font-black uppercase tracking-widest text-amber-400 animate-pulse">Update</button>}
-                                      <button onClick={() => handleUninstallEngine(id)} className="text-[18px] opacity-20 hover:opacity-100 hover:text-red-400 transition-all">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                      </button>
-                                    </div>
-                                  ) : installStatus === 'installing' && installingId === id ? (
-                                    <div className="flex flex-col items-end gap-1.5 w-16">
-                                      <span className="text-[9px] font-mono text-accent font-black">{installProgress}%</span>
-                                      <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-accent transition-all" style={{width: `${installProgress}%`}} /></div>
-                                    </div>
-                                  ) : (
-                                    <button disabled={isInc} onClick={() => handleInstallEngine(id)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isInc ? 'hidden' : 'bg-white/5 border border-white/10 text-text-muted hover:text-white hover:bg-white/10'}`}>
-                                      Download
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          }) : <div className="p-4 text-center text-xs text-text-muted italic opacity-50">Loading builds...</div>}
-                      </div>
+                  {installStatus === 'error' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-red-500">Erro na instalação. Verifique sua conexão.</span>
+                      <button 
+                        onClick={() => checkLocalStatus()}
+                        className="text-[10px] font-black uppercase text-accent"
+                      >
+                        Tentar Novamente
+                      </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              {/* 2. Cloud Providers Section */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pt-6 border-t border-white/5">
-                {[
-                  { id: 'groq', label: 'Groq Cloud', icon: <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />, color: 'orange', sub: 'Extreme Performance' },
-                  { id: 'genai', label: 'Google AI Studio', icon: <><circle cx="12" cy="12" r="10" /><path d="M12 8l4 4-4 4M8 12h7" /></>, color: 'blue', sub: 'Superior Intelligence' }
-                ].map(p => (
-                  <div key={p.id} className={`p-6 rounded-3xl border transition-all flex flex-col gap-6 ${settings.ai_provider === p.id ? `bg-${p.color}-500/[0.02] border-${p.color}-500/20 shadow-lg` : 'bg-white/[0.01] border-white/5 hover:border-white/10'}`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${settings.ai_provider === p.id ? `bg-${p.color}-500 text-white` : `bg-${p.color}-500/10 text-${p.color}-400`}`}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">{p.icon}</svg>
-                        </div>
-                        <div className="flex flex-col">
-                          <h4 className="text-sm font-black text-white uppercase tracking-wider">{p.label}</h4>
-                          <span className="text-[9px] text-text-muted font-bold uppercase tracking-widest">{p.sub}</span>
-                        </div>
-                      </div>
-                      {settings.ai_provider === p.id ? (
-                        <span className={`px-2 py-1 rounded-lg bg-${p.color}-500/10 text-${p.color}-500 text-[8px] font-black uppercase tracking-widest border border-${p.color}-500/20`}>Active</span>
-                      ) : (
-                        <button onClick={() => updateField('ai_provider', p.id, true)} className="text-[8px] font-black uppercase tracking-widest text-text-muted/40 hover:text-white transition-colors">Set Default</button>
-                      )}
+              <div className="grid grid-cols-2 gap-4">
+                {['groq', 'genai'].map((p) => (
+                  <div key={p} className="p-4 rounded-xl border border-border bg-input space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-black uppercase text-text">
+                        {p === 'groq' ? 'Groq' : 'Gemini'}
+                      </span>
+                      <button
+                        onClick={() => updateField('ai_provider', p, true)}
+                        className={`text-[9px] font-black uppercase ${settings.ai_provider === p ? 'text-accent' : 'text-text-muted opacity-40'}`}
+                      >
+                        {settings.ai_provider === p ? 'Ativo' : 'Selecionar'}
+                      </button>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em] ml-1 opacity-60">API Key</label>
-                      <input
-                        type="password"
-                        value={settings.api_keys?.[p.id === 'genai' ? 'gemini' : p.id] || ''}
-                        onChange={(e) => updateApiKey(p.id === 'genai' ? 'gemini' : p.id, e.target.value)}
-                        onBlur={() => saveSettings(settings)}
-                        className={`w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-xs text-text font-mono focus:border-${p.color}-500/40 outline-none transition-all`}
-                        placeholder={p.id === 'groq' ? 'gsk_...' : 'AIza...'}
-                      />
-                    </div>
+                    <input
+                      type="password"
+                      value={settings.api_keys?.[p === 'genai' ? 'gemini' : p] || ''}
+                      onChange={(e) => updateApiKey(p === 'genai' ? 'gemini' : p, e.target.value)}
+                      onBlur={() => saveSettings(settings)}
+                      className="w-full bg-black/20 border border-border rounded-lg px-3 py-1.5 text-[11px] font-mono text-text outline-none focus:border-accent/40"
+                      placeholder="API Key..."
+                    />
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* VOICE */}
           {activeTab === 'voice' && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-8">
-              <div className="space-y-1 border-b border-white/5 pb-6">
-                <h2 className="text-xl font-black text-white tracking-tight uppercase">Sintese Neural de Voz</h2>
-                <p className="text-xs text-text-muted font-medium">Configure a voz e as capacidades de fala da assistente.</p>
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-text tracking-tight uppercase">
+                  Sintese Neural
+                </h2>
+                <p className="text-[11px] text-text-muted font-medium">
+                  Configure as capacidades de fala.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-                <div className="xl:col-span-5 space-y-6">
-                  <div className="p-6 rounded-3xl bg-white/[0.01] border border-white/5 flex items-center justify-between group transition-all hover:border-white/10">
-                    <div className="flex gap-4 items-center">
-                      <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[15px] font-black text-white tracking-wide uppercase">TTS Output</span>
-                        <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest">Ativar Fala</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => updateField('tts_enabled', !settings.tts_enabled, true)}
-                      className={`w-11 h-5.5 rounded-full flex items-center px-1 transition-all duration-500 ${settings.tts_enabled ? 'bg-accent' : 'bg-white/10'}`}
-                    >
-                      <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-lg transition-transform duration-500 ${settings.tts_enabled ? 'translate-x-5.5' : 'translate-x-0'}`} />
-                    </button>
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[13px] font-bold text-text uppercase tracking-tight">Ativação por Voz</span>
+                    <span className="text-[10px] text-text-muted font-medium italic">
+                      Diga "Sistema"
+                    </span>
                   </div>
-
-                  <div className="p-5 rounded-2xl bg-amber-500/[0.02] border border-amber-500/10 flex gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Privacy Note</span>
-                      <p className="text-[11px] text-amber-200/50 leading-relaxed font-medium">A síntese de voz utiliza processamento em nuvem da Microsoft para maior realismo.</p>
-                    </div>
-                  </div>
+                  <button
+                    onClick={() =>
+                      updateField('wake_word_enabled', !settings.wake_word_enabled, true)
+                    }
+                    className={`w-10 h-5 rounded-full flex items-center px-1 transition-all ${settings.wake_word_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${settings.wake_word_enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </button>
                 </div>
 
-                <div className={`xl:col-span-7 space-y-4 transition-opacity duration-500 ${!settings.tts_enabled ? 'opacity-20 pointer-events-none' : ''}`}>
-                  <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.3em] ml-1 opacity-60">Catálogo de Vozes</label>
-                  <div className="grid gap-2">
+                <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
+                  <span className="text-[13px] font-bold text-text uppercase tracking-tight">
+                    Saída de Áudio (TTS)
+                  </span>
+                  <button
+                    onClick={() => updateField('tts_enabled', !settings.tts_enabled, true)}
+                    className={`w-10 h-5 rounded-full flex items-center px-1 transition-all ${settings.tts_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
+                  >
+                    <div
+                      className={`w-3 h-3 bg-white rounded-full transition-transform ${settings.tts_enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </button>
+                </div>
+
+                <div
+                  className={`space-y-2 transition-opacity ${!settings.tts_enabled ? 'opacity-30 pointer-events-none' : ''}`}
+                >
+                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                    Catálogo de Vozes
+                  </label>
+                  <div className="grid gap-1.5">
                     {voices.map((v) => (
                       <button
                         key={v.id}
                         onClick={() => updateField('tts_voice', v.id, true)}
-                        className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${settings.tts_voice === v.id ? 'bg-accent/[0.03] border-accent/30' : 'bg-black/20 border-white/5 hover:bg-white/[0.02]'}`}
+                        className={`flex items-center justify-between p-3 rounded-lg border text-xs font-bold transition-all ${settings.tts_voice === v.id ? 'bg-accent/10 border-accent/40 text-accent' : 'bg-input border-border text-text-muted'}`}
                       >
-                        <div className="flex items-center gap-4">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black ${settings.tts_voice === v.id ? 'bg-accent text-white' : 'bg-white/5 text-text-muted'}`}>{v.name[0]}</div>
-                          <span className={`text-sm font-bold tracking-tight ${settings.tts_voice === v.id ? 'text-accent' : 'text-text-muted'}`}>{v.name}</span>
-                        </div>
-                        {settings.tts_voice === v.id && <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_rgba(139,92,246,0.8)]" />}
+                        {v.name}
+                        {settings.tts_voice === v.id && (
+                          <div className="w-1 h-1 rounded-full bg-accent" />
+                        )}
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {activeTab === 'updates' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-text tracking-tight uppercase">
+                  Central de Atualizações
+                </h2>
+                <p className="text-[11px] text-text-muted font-medium">
+                  Mantenha o sistema e o motor local sempre em dia.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Sistema Version */}
+                <div className="p-5 rounded-xl border bg-input border-border flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-black text-text uppercase tracking-tight">MomAI Core</span>
+                      <span className="text-[10px] text-text-muted font-medium">Versão do Sistema: v0.1.0</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">
+                    Sistema Atualizado
+                  </span>
+                </div>
+
+                {/* Motor Llama.cpp Version */}
+                <div className="p-5 rounded-xl border bg-input border-border space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? 'bg-accent/20 text-accent animate-pulse' : 'bg-black/20 text-text-muted'}`}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-black text-text uppercase tracking-tight">Motor Llama.cpp</span>
+                        <span className="text-[10px] text-text-muted font-medium">
+                          {localDetails.installed_version ? `Instalado: v${localDetails.installed_version}` : 'Não Instalado'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {installStatus === 'installing' ? (
+                      <span className="text-[10px] font-black text-accent uppercase tracking-widest animate-pulse">
+                        Atualizando... {installProgress}%
+                      </span>
+                    ) : localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? (
+                      <button
+                        onClick={() => handleInstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
+                        className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20"
+                      >
+                        Atualizar para {localDetails.latest_version}
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">
+                        Motor em Dia
+                      </span>
+                    )}
+                  </div>
+
+                  {installStatus === 'installing' && (
+                    <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-accent transition-all duration-300 ease-out"
+                        style={{ width: `${installProgress}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {localDetails.latest_version && localDetails.installed_version !== localDetails.latest_version && (
+                    <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                      <p className="text-[10px] text-text-muted leading-relaxed italic">
+                        Uma nova versão do motor Llama.cpp (v{localDetails.latest_version}) está disponível. 
+                        A atualização inclui otimizações para {localDetails.recommended_build?.toUpperCase()} e correções de estabilidade.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -76,7 +76,7 @@ const MessageItem = memo(function MessageItem({
             >
               {isDone ? 'Cérebro Ativo' : 'Sincronizando'}
             </span>
-            <span className="text-sm font-bold text-white/90 break-all truncate sm:whitespace-normal">
+            <span className="text-sm font-bold text-text break-all truncate sm:whitespace-normal">
               {modelName}
             </span>
           </div>
@@ -98,11 +98,11 @@ const MessageItem = memo(function MessageItem({
             <img
               src={icon}
               alt="MomAI"
-              className="relative z-10 w-8 h-8 rounded-lg object-cover border border-white/10 bg-[#0a0f1e]"
+              className="relative z-10 w-8 h-8 rounded-lg object-cover border border-border/20 bg-card"
             />
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-text-muted border border-white/5">
+          <div className="w-8 h-8 rounded-full bg-accent/5 flex items-center justify-center text-[10px] font-bold text-text-muted border border-border/20">
             EU
           </div>
         )}
@@ -111,10 +111,11 @@ const MessageItem = memo(function MessageItem({
       <div
         className={`relative break-words overflow-hidden min-w-0 max-w-full transition-all duration-300 ${
           message.role === 'assistant'
-            ? 'flex-1 pt-0.5 text-slate-200 text-[15px] sm:text-[16px] leading-relaxed message'
-            : 'bg-white/[0.03] border border-white/5 p-3 px-4 rounded-2xl rounded-tr-none text-slate-100 text-[14px] sm:text-[15px] message'
+            ? 'flex-1 pt-0.5 text-text text-[15px] sm:text-[16px] leading-relaxed message'
+            : 'bg-accent/5 border border-border/30 p-3 px-4 rounded-xl rounded-tr-none text-text text-[14px] sm:text-[15px] message'
         }`}
       >
+        {' '}
         {message.role === 'assistant' && (
           <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mb-2 opacity-50">
             MomAI
@@ -123,7 +124,7 @@ const MessageItem = memo(function MessageItem({
         <div className="flex flex-col gap-1.5">
           {displayContent && (
             <div className="transition-opacity duration-500 opacity-100">
-              <ReactMarkdown 
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   table: ({ node, ...props }) => (
@@ -131,14 +132,24 @@ const MessageItem = memo(function MessageItem({
                       <table className="min-w-full border-collapse" {...props} />
                     </div>
                   ),
-                  thead: ({ node, ...props }) => <thead className="border-b border-white/10" {...props} />,
+                  thead: ({ node, ...props }) => (
+                    <thead className="border-b border-border/20" {...props} />
+                  ),
                   th: ({ node, ...props }) => (
-                    <th className="px-3 py-2 text-left text-[10px] font-black text-accent/70 uppercase tracking-widest" {...props} />
+                    <th
+                      className="px-3 py-2 text-left text-[10px] font-black text-accent/70 uppercase tracking-widest"
+                      {...props}
+                    />
                   ),
                   td: ({ node, ...props }) => (
-                    <td className="px-3 py-2 text-sm text-text-muted border-b border-white/5" {...props} />
+                    <td
+                      className="px-3 py-2 text-sm text-text-muted border-b border-border/10"
+                      {...props}
+                    />
                   ),
-                  tr: ({ node, ...props }) => <tr className="hover:bg-white/[0.01] transition-colors" {...props} />,
+                  tr: ({ node, ...props }) => (
+                    <tr className="hover:bg-text/5 transition-colors" {...props} />
+                  )
                 }}
               >
                 {displayContent}
@@ -149,7 +160,7 @@ const MessageItem = memo(function MessageItem({
           {message.role === 'assistant' && message.graphData && (
             <button
               onClick={() => onReopenGraph(message.graphData)}
-              className="flex items-center gap-3 w-full p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:border-accent/30 transition-all group text-left cursor-pointer mt-1"
+              className="flex items-center gap-3 w-full p-3 bg-accent/5 border border-border/20 rounded-lg hover:bg-accent/10 hover:border-accent/30 transition-all group text-left cursor-pointer mt-1"
             >
               <div className="w-8 h-8 rounded bg-accent/20 flex items-center justify-center text-accent group-hover:scale-110 transition-transform flex-shrink-0">
                 <svg
@@ -165,7 +176,7 @@ const MessageItem = memo(function MessageItem({
                 </svg>
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-white group-hover:text-accent transition-colors truncate">
+                <span className="text-sm font-medium text-text group-hover:text-accent transition-colors truncate">
                   Interface Gerada
                 </span>
                 <span className="text-xs text-text-muted truncate">

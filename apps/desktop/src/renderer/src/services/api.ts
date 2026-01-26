@@ -26,6 +26,8 @@ export interface StatusData {
     local_installed: boolean
     groq_ready: boolean
     gemini_ready: boolean
+    installed_version?: string
+    latest_version?: string
   }
 }
 
@@ -57,13 +59,10 @@ export async function sendChatMessage(
 
     const chunk = decoder.decode(value)
 
-    // Divide por "data: " mas mantém o resto da linha
-    // O backend envia no formato SSE: "data: {...}\n\n"
     const dataParts = chunk.split('data: ').filter((p) => p.trim() !== '')
 
     for (const part of dataParts) {
       try {
-        // Limpa espaços
         const cleanPart = part.trim()
         if (!cleanPart) continue
 
