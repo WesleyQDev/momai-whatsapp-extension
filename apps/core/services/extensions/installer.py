@@ -14,15 +14,29 @@ class ExtensionInstaller:
         self.user_dir = extension_manager._get_user_extensions_dir()
 
     def fetch_registry(self) -> List[Dict[str, Any]]:
-        """Busca a lista de extensões disponíveis no repositório oficial."""
+        """Busca a lista de extensões disponíveis. Tenta localmente primeiro (dev) depois nuvem."""
+        # 1. Tenta Registry Local (para testes e desenvolvimento)
+        local_registry = Path(__file__).parent.parent.parent.parent / "registry.json"
+        if local_registry.exists():
+            try:
+                print(f"[Installer] Usando registro local: {local_registry}")
+                with open(local_registry, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return data.get("extensions", [])
+            except Exception as e:
+                print(f"[Installer] Erro ao ler registro local: {e}")
+
+        # 2. Fallback para Nuvem (Oficial)
         try:
+            print(f"[Installer] Buscando registro na nuvem: {REGISTRY_URL}")
             response = requests.get(REGISTRY_URL, timeout=10)
             response.raise_for_status()
             data = response.json()
             return data.get("extensions", [])
         except Exception as e:
-            print(f"[Installer] Erro ao buscar registro: {e}")
+            print(f"[Installer] Erro ao buscar registro na nuvem: {e}")
             return []
+
 
     def install(self, download_url: str, extension_id: str) -> bool:
         """Baixa e instala uma extensão a partir de uma URL de ZIP."""

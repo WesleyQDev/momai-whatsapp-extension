@@ -23,11 +23,19 @@ const iconMap: Record<string, any> = {
   MessageSquare: <CommandLineIcon className="w-8 h-8 text-accent" />
 }
 
+import SecurityConfirm from '../components/floating/SecurityConfirm'
+
 export default function ExtensionsView() {
   const [installed, setInstalled] = useState<Extension[]>([])
   const [available, setAvailable] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<string | null>(null)
+  
+  // Security Modal State
+  const [securityModal, setSecurityModal] = useState<{
+    isOpen: boolean
+    ext?: Extension
+  }>({ isOpen: false })
 
   const loadData = async () => {
     setLoading(true)
@@ -65,14 +73,25 @@ export default function ExtensionsView() {
     const newStatus = !ext.enabled
     
     if (newStatus && ext.category !== 'builtin') {
-      const confirm = window.confirm(
-        `AVISO DE SEGURANÇA:\n\nEsta extensão (${ext.name}) executará código Python no seu computador. Ative apenas se confiar no autor.\n\nDeseja continuar?`
-      )
-      if (!confirm) return
+      setSecurityModal({ isOpen: true, ext })
+      return
     }
 
     try {
       await toggleExtension(ext.id, newStatus)
+      await loadData()
+    } catch (err) {
+      alert('Erro ao alterar status: ' + err)
+    }
+  }
+
+  const confirmToggle = async () => {
+    const ext = securityModal.ext
+    if (!ext) return
+
+    try {
+      await toggleExtension(ext.id, true)
+      setSecurityModal({ isOpen: false })
       await loadData()
     } catch (err) {
       alert('Erro ao alterar status: ' + err)
@@ -138,7 +157,13 @@ export default function ExtensionsView() {
                     {!ext.enabled && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-text-muted">Inativo</span>}
                   </h3>
                   <p className="text-sm text-text-muted line-clamp-2">{ext.description}</p>
+                  {ext.error && (
+                    <div className="mt-2 text-[10px] text-red-400 bg-red-400/5 p-2 rounded-lg border border-red-400/10">
+                      <strong>Erro de Inicialização:</strong> {ext.error}
+                    </div>
+                  )}
                 </div>
+
                 <div className="mt-auto pt-2 flex items-center justify-between">
                    <div className="flex flex-col">
                       <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest">{ext.category}</span>
@@ -203,6 +228,14 @@ export default function ExtensionsView() {
           </div>
         </section>
       </div>
+
+      <SecurityConfirm 
+        isOpen={securityModal.isOpen}
+        extensionName={securityModal.ext?.name || ''}
+        extensionAuthor={securityModal.ext?.author || ''}
+        onConfirm={confirmToggle}
+        onCancel={() => setSecurityModal({ isOpen: false })}
+      />
     </div>
   )
 }

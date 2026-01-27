@@ -19,11 +19,17 @@ interface ExtensionItem {
   id: string
   name: string
   icon?: string
+  enabled: boolean
   features: {
     sidebar?: boolean
     agent_name?: string
+    ui_view?: string
+    ui_schema?: any[]
   }
 }
+
+
+
 
 
 
@@ -46,8 +52,9 @@ export default function LateralBar({ activeRoute, onNavigate, onOpenSettings }: 
         if (b.id.includes('responder')) return 1;
         return 0;
       });
-      setExtensions(sorted.filter(e => e.features?.sidebar));
+      setExtensions(sorted.filter(e => e.features?.sidebar && e.enabled));
     });
+
 
     const handleSync = (e: any) => {
        const allExts = e.detail as ExtensionItem[]
@@ -56,7 +63,8 @@ export default function LateralBar({ activeRoute, onNavigate, onOpenSettings }: 
         if (b.id.includes('responder')) return 1;
         return 0;
       });
-       setExtensions(sorted.filter(e => e.features?.sidebar))
+       setExtensions(sorted.filter(e => e.features?.sidebar && (e as any).enabled))
+
     }
     window.addEventListener('momai_extensions_sync', handleSync)
     return () => window.removeEventListener('momai_extensions_sync', handleSync)

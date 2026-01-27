@@ -127,7 +127,15 @@ export interface Extension {
   icon?: string
   enabled: boolean
   category: 'builtin' | 'extensions' | 'user'
+  error?: string | null
+  features: {
+    sidebar?: boolean
+    agent_name?: string
+    ui_view?: string
+    ui_schema?: any[]
+  }
 }
+
 
 export async function fetchExtensions(): Promise<Extension[]> {
   const response = await fetch(`${API_URL}/extensions`)

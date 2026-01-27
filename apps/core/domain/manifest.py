@@ -17,7 +17,7 @@ class Manifest(BaseModel):
     description: str
     icon: Optional[str] = "Puzzle"
     entry: str = "plugin.py"
-    system_prompt: str
+    system_prompt: Optional[str] = "You are a specialized assistant."
     intents: List[str] = Field(default_factory=list)
     features: AgentFeatures
     permissions: Optional[Dict[str, List[str]]] = Field(default_factory=dict)

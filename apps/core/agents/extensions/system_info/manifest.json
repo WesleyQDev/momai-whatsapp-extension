@@ -1,32 +1,47 @@
 {
-  "id": "system-info",
-  "name": "Windows Agent",
+  "id": "system_info",
+  "name": "Dashboard do Sistema",
   "author": "WesleyQDev",
   "version": "1.0.0",
-  "description": "Controle total do Windows, hardware e processos.",
+  "description": "Veja o uso de recursos do seu computador em tempo real.",
   "icon": "Cpu",
   "entry": "plugin.py",
-  "intents": [
-    "Quais são os detalhes do meu hardware?",
-    "Me mostre informações técnicas do sistema",
-    "Status da CPU e RAM detalhado",
-    "Aumentar o volume",
-    "Diminuir o volume",
-    "Mudar o volume",
-    "Bloquear a tela do Windows",
-    "Desligar o pc",
-    "Quais são as estatísticas do sistema?",
-    "Como está o uso de CPU e RAM?",
-    "Fechar janela",
-    "Matar processo",
-    "Verificar processos"
-  ],
+  "system_prompt": "Você é um assistente técnico que monitora o desempenho do hardware do usuário.",
   "features": {
+
     "sidebar": true,
-    "agent": "SystemAgent"
-  },
-  "system_prompt": "You are the SystemAgent, the direct interface with the Windows OS. You have full authority over local system queries and file management. Handle: System stats (CPU/RAM), file searching, time/date, and process monitoring. Always prioritize using a tool over guessing. Be precise, objective, and technical in your internal report.",
-  "permissions": {
-    "system": ["hardware_read", "process_control", "os_control"]
+    "agent_name": "system_info",
+    "ui_view": "DynamicDashboard",
+    "ui_schema": [
+      {
+        "type": "text",
+        "label": "Status do Hardware",
+        "content": "Informações em tempo real sobre o consumo de recursos deste computador."
+      },
+      {
+        "type": "stat",
+        "label": "Processador",
+        "source": "cpu_usage",
+        "unit": "%"
+      },
+      {
+        "type": "stat",
+        "label": "Memória RAM",
+        "source": "ram_usage",
+        "unit": "%"
+      },
+      {
+        "type": "stat",
+        "label": "Processos Ativos",
+        "source": "active_processes",
+        "unit": ""
+      },
+      {
+        "type": "button",
+        "label": "Otimizar Performance",
+        "action": "optimize",
+        "icon": "rocket"
+      }
+    ]
   }
 }

@@ -1,0 +1,13 @@
+{
+  "extensions": [
+    {
+      "id": "system_info",
+      "name": "Dashboard do Sistema",
+      "description": "Veja o uso de recursos do seu computador em tempo real (Versão Remota).",
+      "author": "WesleyQDev",
+      "version": "1.1.0",
+      "download_url": "https://github.com/WesleyQDev/momai-system-info/archive/refs/tags/v0.1.zip",
+      "is_official": true
+    }
+  ]
+}

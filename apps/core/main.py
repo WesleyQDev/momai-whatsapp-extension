@@ -530,7 +530,9 @@ async def uninstall_engine(backend: str | None = None):
 @app.get("/extensions")
 def list_extensions():
     """Retorna a lista de extensões instaladas e ativas."""
+    extension_manager.load_all()
     return extension_manager.get_active_manifests()
+
 
 @app.get("/extensions/registry")
 def get_registry():
@@ -571,6 +573,17 @@ async def toggle_extension(req: ExtensionToggle):
     db.close()
     return {"status": "error", "message": "Extensão não encontrada"}
 
+
+@app.get("/extensions/hardware-stats")
+async def get_hardware_stats():
+    """Retorna dados reais de hardware para dashboards dinâmicos."""
+    import psutil
+    return {
+        "cpu_usage": psutil.cpu_percent(),
+        "ram_usage": psutil.virtual_memory().percent,
+        "active_processes": len(psutil.pids()),
+        "vram_usage": 0 # TODO: Implement GPU check
+    }
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

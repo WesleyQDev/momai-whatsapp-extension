@@ -103,7 +103,9 @@ function App(): React.JSX.Element {
                   viewName={uiView} 
                   isCompact={isCompact} 
                   onOpenSettings={openSettings} 
+                  extensionData={currentExtension}
                 />
+
 
                 {/* 2. Graph Panel (Middle Column - Conditional) */}
                 {graphState.view === 'side' && !isCompact && (

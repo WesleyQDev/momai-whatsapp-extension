@@ -2,7 +2,9 @@ import React from 'react'
 import ContainerChat from './ContainerChat'
 import RemindersView from '../views/RemindersView'
 import ExtensionsView from '../views/ExtensionsView'
+import DynamicDashboard from './DynamicDashboard'
 import { useChat } from '../hooks/useChat'
+
 
 import { useStatus } from '../hooks/useStatus'
 
@@ -10,7 +12,9 @@ interface MainViewRendererProps {
   viewName: string
   isCompact: boolean
   onOpenSettings: (tab?: any) => void
+  extensionData?: any
 }
+
 
 const VIEW_MAP: Record<string, React.ComponentType<any>> = {
   ChatDashboard: (props: any) => {
@@ -34,19 +38,34 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
     )
   },
   RemindersDashboard: RemindersView,
-  ExtensionsStore: ExtensionsView
+  ExtensionsStore: ExtensionsView,
+  DynamicDashboard: DynamicDashboard
 }
 
-
-export default function MainViewRenderer({ viewName, isCompact, onOpenSettings }: MainViewRendererProps) {
-  const Component = VIEW_MAP[viewName]
+export default function MainViewRenderer({ viewName, isCompact, onOpenSettings, extensionData }: MainViewRendererProps) {
+  const Component = VIEW_MAP[viewName] || (extensionData?.features?.ui_schema ? DynamicDashboard : null)
 
   const isChat = viewName === 'ChatDashboard'
 
+  if (!Component) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-text-muted">
+        View not found: {viewName}
+      </div>
+    )
+  }
+
   return (
     <div className={`flex-1 flex min-h-0 ${isChat && !isCompact ? 'max-w-[420px] rounded-xl bg-card border border-border/10 shadow-2xl relative overflow-hidden shrink-0' : 'w-full h-full'}`}>
-        <Component onOpenSettings={onOpenSettings} />
+        <Component 
+          onOpenSettings={onOpenSettings} 
+          schema={extensionData?.features?.ui_schema}
+          title={extensionData?.name}
+          description={extensionData?.description}
+          extensionId={extensionData?.id}
+        />
     </div>
   )
 }
+
 
