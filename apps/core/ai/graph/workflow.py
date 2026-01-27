@@ -93,8 +93,19 @@ def create_momai_graph(llm, user_name="Senhor", assistant_persona=None, checkpoi
             if t_name in all_registry:
                 active_tools.append(all_registry[t_name])
 
+        # Customização dinâmica do prompt via hooks
+        custom_prompts = extension_manager.pm.hook.on_agent_init(agent_name=agent_name)
+        system_prompt = manifest.system_prompt
+        
+        if custom_prompts:
+            # Usa o primeiro prompt customizado retornado por qualquer plugin
+            for cp in custom_prompts:
+                if cp:
+                    system_prompt = cp
+                    break
+
         prompt = ChatPromptTemplate.from_messages([
-            ("system", manifest.system_prompt),
+            ("system", system_prompt),
             MessagesPlaceholder(variable_name="messages"),
         ])
         

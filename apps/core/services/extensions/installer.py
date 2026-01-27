@@ -16,7 +16,8 @@ class ExtensionInstaller:
     def fetch_registry(self) -> List[Dict[str, Any]]:
         """Busca a lista de extensões disponíveis. Tenta localmente primeiro (dev) depois nuvem."""
         # 1. Tenta Registry Local (para testes e desenvolvimento)
-        local_registry = Path(__file__).parent.parent.parent.parent / "registry.json"
+        # Caminho: apps/core/services/extensions/installer.py -> ../../../../registry.json
+        local_registry = Path(__file__).parent.parent.parent.parent.parent / "registry.json"
         if local_registry.exists():
             try:
                 print(f"[Installer] Usando registro local: {local_registry}")
@@ -25,6 +26,7 @@ class ExtensionInstaller:
                 return data.get("extensions", [])
             except Exception as e:
                 print(f"[Installer] Erro ao ler registro local: {e}")
+
 
         # 2. Fallback para Nuvem (Oficial)
         try:
@@ -60,6 +62,16 @@ class ExtensionInstaller:
             with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
                 zip_ref.extractall(target_dir)
 
+            # Lógica para lidar com ZIPs do GitHub que vêm com uma pasta raiz (ex: repo-main/)
+            contents = list(target_dir.iterdir())
+            if len(contents) == 1 and contents[0].is_dir():
+                subfolder = contents[0]
+                print(f"[Installer] Movendo conteúdo de {subfolder.name} para a raiz...")
+                for item in subfolder.iterdir():
+                    shutil.move(str(item), str(target_dir))
+                subfolder.rmdir()
+
+
             # Remove o ZIP
             temp_zip.unlink()
 
@@ -77,13 +89,36 @@ class ExtensionInstaller:
             return False
 
     def _install_requirements(self, requirements_path: Path):
-        """Usa o uv para instalar dependências no ambiente atual."""
+        """Usa o módulo venv padrão para criar um ambiente isolado e instalar dependências."""
         import subprocess
+        import sys
+        
+        target_dir = requirements_path.parent
+        venv_dir = target_dir / ".venv"
+        
         try:
-            print(f"[Installer] Instalando dependências de {requirements_path}...")
-            subprocess.run(["uv", "pip", "install", "-r", str(requirements_path)], check=True)
+            # 1. Cria o VENV se não existir
+            if not venv_dir.exists():
+                print(f"[Installer] Criando ambiente virtual em {venv_dir}...")
+                subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+            
+            # 2. Determina o caminho do executável python dentro do VENV
+            if sys.platform == "win32":
+                python_exe = venv_dir / "Scripts" / "python.exe"
+            else:
+                python_exe = venv_dir / "bin" / "python"
+
+            if not python_exe.exists():
+                raise FileNotFoundError(f"Python não encontrado no VENV: {python_exe}")
+
+            # 3. Instala as dependências usando o pip do VENV
+            print(f"[Installer] Instalando dependências de {requirements_path} no VENV...")
+            subprocess.run([str(python_exe), "-m", "pip", "install", "-r", str(requirements_path)], check=True)
+            
+            print(f"[Installer] Dependências instaladas com sucesso no ambiente isolado.")
+            
         except Exception as e:
-            print(f"[Installer] Erro ao instalar dependências: {e}")
+            print(f"[Installer] Erro ao configurar ambiente isolado para {target_dir.name}: {e}")
 
 # Singleton
 extension_installer = ExtensionInstaller()

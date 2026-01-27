@@ -1,0 +1,18 @@
+{
+  "id": "com.momai.extension.env_test",
+  "name": "Env Test",
+  "author": "Your Name",
+  "version": "0.1.0",
+  "description": "Description for Env Test",
+  "icon": "Puzzle",
+  "entry": "plugin.py",
+  "system_prompt": "You are the Env Test specialist. Your goal is to help the user with specialized tasks.",
+  "intents": [
+    "Usar a extens\u00e3o Env Test",
+    "Pe\u00e7a ajuda ao Env Test"
+  ],
+  "features": {
+    "sidebar": false,
+    "agent_name": "env_test"
+  }
+}

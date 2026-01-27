@@ -134,6 +134,26 @@ class PluginRegistry:
             # 3. Load Module if enabled
             if is_enabled:
                 try:
+                    # 3.1. Add VENV site-packages to sys.path if it exists
+                    venv_dir = path / ".venv"
+                    if venv_dir.exists():
+                        if sys.platform == "win32":
+                            site_packages = venv_dir / "Lib" / "site-packages"
+                        else:
+                            # Tenta descobrir a pasta lib/python3.x/site-packages
+                            lib_dir = venv_dir / "lib"
+                            python_dirs = list(lib_dir.glob("python3.*"))
+                            if python_dirs:
+                                site_packages = python_dirs[0] / "site-packages"
+                            else:
+                                site_packages = None
+                        
+                        if site_packages and site_packages.exists():
+                            sp_str = str(site_packages)
+                            if sp_str not in sys.path:
+                                sys.path.append(sp_str)
+                                print(f"[Registry] Added isolated path: {sp_str}")
+
                     entry_path = path / manifest.entry
                     if entry_path.exists():
                         # Dynamic Import
