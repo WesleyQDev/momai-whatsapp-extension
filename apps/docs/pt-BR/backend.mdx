@@ -1,85 +1,34 @@
 ---
-title: "Ambiente de Desenvolvimento"
-sidebarTitle: "Backend"
-description: "Como colocar o núcleo Python para funcionar."
+title: 'Arquitetura do Backend'
+description: 'O núcleo de inteligência e execução da MomAI.'
 ---
 
-O backend é onde a "inteligência" do MomAI vive. É um servidor Python (FastAPI) que atua como orquestrador, gerenciando modelos locais, APIs externas e ferramentas do sistema.
+O backend da MomAI é uma aplicação **FastAPI** rodando em **Python 3.12**, que atua como o orquestrador entre o hardware local, provedores de nuvem e a interface do usuário.
 
-## Arquitetura Atual (Server Mode)
+## Pilares Técnicos
 
-Diferente de versões anteriores que rodavam o modelo diretamente na memória do Python, o MomAI agora utiliza uma arquitetura de **Server Mode** para modelos locais:
+### 1. Orquestração com LangGraph
+Diferente de fluxos lineares, usamos o **LangGraph** para criar um Grafo de Estados. Isso permite que a assistente "pense" em ciclos: ela pode usar uma ferramenta, observar o resultado e decidir se precisa de outra ferramenta antes de responder.
 
-1.  **Orquestrador (Python/FastAPI):** Gerencia a lógica de chat, ferramentas (Notion, OS) e TTS.
-2.  **Motor de Inferência (Llama.cpp Server):** Um processo independente (`llama-server.exe`) que roda o modelo GGUF com performance nativa (C++) e suporte a aceleração de hardware (Vulkan/CUDA).
+- **Checkpoints**: Utilizamos SQLite (`checkpoints.db`) para persistir o estado do grafo. Isso permite que a assistente lembre do que estava fazendo mesmo após reiniciar.
+- **Nós Dinâmicos**: O nó `agent_node` é genérico e injeta ferramentas em tempo real via Tool RAG.
 
-Isso garante que a interface nunca trave, mesmo se a IA estiver usando 100% da GPU.
+### 2. Memória Vetorial (LanceDB)
+O **LanceDB** é o nosso banco de dados vetorial local e serverless. Ele é usado para:
+- **Semantic Router**: Mapear a frase do usuário para o agente correto (confiança baseada em distância L2).
+- **Tool RAG**: Filtrar as ferramentas mais relevantes entre centenas de opções disponíveis em extensões.
 
-## O que você vai precisar
+### 3. Sistema de Extensões (`pluggy`)
+Utilizamos o `pluggy` (o mesmo motor do `pytest`) para gerenciar plugins. O `ExtensionManager` carrega módulos dinamicamente e consolida ferramentas e itens de UI.
 
-- **Python 3.12** ou superior
-- **Node.js 22** ou superior
-- **pnpm** para gerenciar pacotes
+## Fluxo de Inicialização (Lifespan)
+1. **Migrations**: Verifica e atualiza o esquema do banco de dados SQLite.
+2. **Extensions**: O `ExtensionManager` varre as pastas e registra os hooks.
+3. **Indexing**: O `indexer.py` atualiza os vetores de ferramentas e intenções no LanceDB.
+4. **Wake Word**: Inicia o detector **Vosk** em uma thread separada.
+5. **LLM**: Inicializa o provedor padrão (Local ou Cloud).
 
-## Passo a passo
-
-### 1. Preparação dos Binários (Local AI)
-
-Para rodar modelos locais (Offline), você precisa do executável do `llama.cpp`.
-
-1.  Baixe a versão mais recente do `llama-server` para Windows (recomenda-se a versão **Vulkan** para compatibilidade geral).
-2.  Extraia o conteúdo (executável e DLLs) para:
-    ```
-    apps/core/bin/
-    ```
-    O arquivo principal deve estar em `apps/core/bin/llama-server.exe`.
-
-### 2. Instale as dependências
-
-Na raiz do projeto, rode:
-
-```bash
-pnpm install
-```
-
-Isso instalará as dependências do Node e preparará o ambiente virtual Python (`.venv`) usando `uv`.
-
-### 3. Configure o modelo de IA
-
-O MomAI suporta múltiplos backends. Você pode alternar entre eles em tempo real na interface.
-
-**Modo Local (Offline):**
-Os modelos GGUF são armazenados em `apps/core/models`. O sistema tentará baixar automaticamente o modelo `Qwen3-4B` na primeira execução deste modo, ou você pode colocar seus próprios arquivos `.gguf` nesta pasta.
-
-**Modo Nuvem (Groq/Gemini):**
-Crie um arquivo `.env` na pasta `apps/core`:
-
-```bash
-# apps/core/.env
-GROQ_API_KEY="gsk_..."
-GOOGLE_API_KEY="AIza..."
-```
-
-### 4. Inicie o servidor
-
-Geralmente você inicia tudo junto via `pnpm run dev` na raiz. Mas para rodar apenas o backend:
-
-```bash
-cd apps/core
-pnpm run dev
-```
-
-## TTS (Text-to-Speech)
-
-O sistema de fala agora usa **Streaming Sentence-by-Sentence**:
-- O Python detecta o fim de frases em tempo real.
-- O áudio é gerado e reproduzido via `pygame` imediatamente, sem esperar o texto inteiro ser gerado.
-- Garanta que você tem drivers de áudio funcionais.
-
-## Verificando se funcionou
-
-Acesse `http://127.0.0.1:8000/status` no navegador. Você deve ver o status do servidor e o modo atual.
-
-<Note>
-  Se usar o modo local, verifique o terminal do Python. Você verá logs do `[local_model]` indicando se o servidor `llama-server.exe` subiu corretamente na porta 8080.
-</Note>
+## Endpoints Chave
+- `POST /chat/stream`: Stream de eventos (tokens, status, abertura de grafos).
+- `GET /extensions`: Lista manifestos das extensões ativas.
+- `WS /ws`: Canal bidirecional para telemetria de hardware e eventos em tempo real.

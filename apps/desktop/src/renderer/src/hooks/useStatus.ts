@@ -1,12 +1,25 @@
 import { useState, useEffect, useCallback } from 'react'
-import { StatusData, fetchStatus, updateMode } from '../services/api'
+import { StatusData, fetchStatus, updateMode, fetchExtensions } from '../services/api'
+
+export interface InitSteps {
+  api: 'pending' | 'ok' | 'error'
+  socket: 'pending' | 'ok' | 'error'
+  extensions: 'pending' | 'ok' | 'error'
+  brain: 'pending' | 'ok' | 'error'
+}
 
 export function useStatus() {
   const [statusInfo, setStatusInfo] = useState<StatusData | null>(null)
-  const [localMode, setLocalMode] = useState<string>('groq')
+  const [localMode, setLocalMode] = useState<string>('waiting')
   const [isOnline, setIsOnline] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [hasUpdate, setHasUpdate] = useState(false)
+  const [initSteps, setInitSteps] = useState<InitSteps>({
+    api: 'pending',
+    socket: 'pending',
+    extensions: 'pending',
+    brain: 'pending'
+  })
 
   const checkStatus = useCallback(async () => {
     try {
@@ -14,43 +27,46 @@ export function useStatus() {
       setStatusInfo(data)
       setLocalMode(data.mode)
       setIsOnline(data.status === 'ok')
+      
+      setInitSteps(prev => ({ 
+        ...prev, 
+        api: 'ok',
+        brain: (data.mode !== 'waiting' && data.mode !== 'initial') ? 'ok' : 'pending'
+      }))
 
-      // Verificar atualização do motor local
+      // Check extensions
+      if (initSteps.extensions === 'pending') {
+        const exts = await fetchExtensions()
+        if (exts) setInitSteps(prev => ({ ...prev, extensions: 'ok' }))
+      }
+
       if (data.setup.local_installed && data.setup.installed_version && data.setup.latest_version) {
-        if (data.setup.installed_version !== data.setup.latest_version) {
-          setHasUpdate(true)
-        } else {
-          setHasUpdate(false)
-        }
+        setHasUpdate(data.setup.installed_version !== data.setup.latest_version)
       }
     } catch (error) {
       console.error('Erro ao buscar status:', error)
       setStatusInfo(null)
       setIsOnline(false)
+      setInitSteps(prev => ({ ...prev, api: 'pending' }))
     }
+  }, [initSteps.extensions])
+
+  // Listener para o socket (disparado pelo useChat via Event)
+  useEffect(() => {
+    const handleSocket = () => setInitSteps(prev => ({ ...prev, socket: 'ok' }))
+    window.addEventListener('momai_socket_connected', handleSocket)
+    return () => window.removeEventListener('momai_socket_connected', handleSocket)
   }, [])
 
   const changeMode = async (mode: string) => {
     if (mode === localMode) return
-
-    console.log('[useStatus] Mudando modo instantaneamente para:', mode)
-    const previousMode = localMode
-
     window.dispatchEvent(new CustomEvent('ai_model_change_start', { detail: mode }))
-
     setLocalMode(mode)
-    if (statusInfo) {
-      setStatusInfo({ ...statusInfo, mode })
-    }
-
     setIsUpdating(true)
     try {
       await updateMode(mode)
-      setIsOnline(true)
     } catch (error) {
-      console.error('Erro ao trocar modo, revertendo:', error)
-      setLocalMode(previousMode)
-      if (statusInfo) setStatusInfo({ ...statusInfo, mode: previousMode })
+      console.error('Erro ao trocar modo:', error)
     } finally {
       setIsUpdating(false)
     }
@@ -68,6 +84,7 @@ export function useStatus() {
     isOnline,
     isUpdating,
     hasUpdate,
+    initSteps,
     refreshStatus: checkStatus,
     changeMode
   }

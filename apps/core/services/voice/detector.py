@@ -78,17 +78,21 @@ class WakeWordDetector:
                                 self._process_text(text)
 
                         else:
-                            # Partial recognition
-                            # Optional: check wake word here for faster response
+                            # Partial recognition for low-latency interruption
                             partial = json.loads(rec.PartialResult())
                             p_text = partial.get("partial", "").lower()
 
-                            # Variations of the keyword
-                            variations = [self.keyword, "o sistema",
-                                          "no sistema", "sistema", "e sistema"]
+                            # Variations of the keyword for quick stop
+                            variations = [self.keyword, "o sistema", "no sistema", "sistema", "e sistema", "cistema"]
                             if any(v in p_text for v in variations):
-                                # If keyword detected in partial, we wait for full phrase
-                                pass
+                                # If keyword detected in partial, STOP TTS IMMEDIATELY
+                                try:
+                                    import services.voice.tts as tts
+                                    if tts.tts.pygame.mixer.Channel(0).get_busy():
+                                        logger.info(f"[WakeWord] Interruption detected via partial: '{p_text}'")
+                                        tts.stop_all()
+                                except:
+                                    pass
 
                     except queue.Empty:
                         continue

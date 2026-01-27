@@ -28,10 +28,10 @@ import json
 import asyncio
 import logging
 from datetime import datetime
-from database.models import init_db, SessionLocal, Reminder, Settings
+from database.models import init_db, SessionLocal, Reminder, Settings, Extension
 from services.reminders.manager import ReminderManager
 import services.voice.tts as tts
-import json
+from services.extensions.manager import extension_manager
 
 # Silencia logs de acesso do uvicorn especificamente para o endpoint /status
 class EndpointFilter(logging.Filter):
@@ -116,6 +116,18 @@ async def broadcast_resource_usage():
 async def lifespan(app: FastAPI):
     # Startup: Database and Migrations
     init_db()
+    
+    # Microkernel Startup: Load all agents (Builtin + Extensions)
+    extension_manager.load_all()
+    
+    # Auto-Indexing Knowledge Base (LanceDB)
+    try:
+        from utils.indexer import index_all_system_tools, index_initial_intents
+        print("[Main] Updating Knowledge Base (LanceDB)...")
+        index_all_system_tools()
+        index_initial_intents()
+    except Exception as e:
+        print(f"[Main] Indexing error: {e}")
     
     # Simple migration: ensure new columns exist
     db = SessionLocal()
@@ -241,6 +253,10 @@ class SettingsUpdate(BaseModel):
     tts_enabled: bool | None = None
     wake_word_enabled: bool | None = None
     wake_word_sensitivity: int | None = None
+
+class ExtensionToggle(BaseModel):
+    id: str
+    enabled: bool
 
 # --- ROUTES ---
 @app.post("/chat/stream")
@@ -433,8 +449,6 @@ async def update_settings(data: SettingsUpdate):
 
 import utils.downloader as downloader
 
-# ... (código existente)
-
 @app.get("/setup/status")
 def get_setup_status():
     """Verifica status detalhado da instalação local."""
@@ -513,12 +527,61 @@ async def uninstall_engine(backend: str | None = None):
         return {"status": "ok"}
     return {"status": "error", "message": "Falha ao remover arquivos"}
 
+@app.get("/extensions")
+def list_extensions():
+    """Retorna a lista de extensões instaladas e ativas."""
+    return extension_manager.get_active_manifests()
+
+@app.get("/extensions/registry")
+def get_registry():
+    """Busca extensões disponíveis na nuvem."""
+    from services.extensions.installer import extension_installer
+    return extension_installer.fetch_registry()
+
+class InstallExtensionRequest(BaseModel):
+    id: str
+    download_url: str
+
+@app.post("/extensions/install")
+async def install_extension(req: InstallExtensionRequest):
+    """Instala uma nova extensão."""
+    from services.extensions.installer import extension_installer
+    success = extension_installer.install(req.download_url, req.id)
+    if success:
+        extension_manager.load_all()
+        return {"status": "ok"}
+    return {"status": "error", "message": "Falha na instalação"}
+
+@app.post("/extensions/toggle")
+async def toggle_extension(req: ExtensionToggle):
+    """Ativa ou desativa uma extensão."""
+    db = SessionLocal()
+    ext = db.query(Extension).filter(Extension.id == req.id).first()
+    if ext:
+        ext.is_enabled = req.enabled
+        db.commit()
+        db.close()
+        extension_manager.load_all()
+        # Broadcast the change
+        await broadcast_to_sockets({
+            "type": "extensions_sync",
+            "data": extension_manager.get_active_manifests()
+        })
+        return {"status": "ok"}
+    db.close()
+    return {"status": "error", "message": "Extensão não encontrada"}
+
+
 @app.websocket("/ws")
-# ... (resto do código)
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     active_websockets.append(websocket)
     try:
+        # Envia as extensões logo ao conectar para o frontend sincronizar itens de barra lateral
+        await websocket.send_json({
+            "type": "extensions_sync",
+            "data": extension_manager.get_active_manifests()
+        })
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
@@ -535,4 +598,3 @@ except:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
-        

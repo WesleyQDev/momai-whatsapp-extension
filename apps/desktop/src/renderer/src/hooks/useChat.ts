@@ -211,6 +211,7 @@ export function useChat() {
 
       ws.onopen = () => {
         console.log('Voice WebSocket conectado!')
+        window.dispatchEvent(new CustomEvent('momai_socket_connected'))
         reconnectAttempts = 0
       }
 
@@ -230,7 +231,9 @@ export function useChat() {
       }
 
       const handleWsMessage = (msg: any) => {
-        if (msg.type === 'graph_open') {
+        if (msg.type === 'extensions_sync') {
+          window.dispatchEvent(new CustomEvent('momai_extensions_sync', { detail: msg.data }))
+        } else if (msg.type === 'graph_open') {
           // Abre interface gráfica (Centro ou Lateral)
           const newGraphState = {
             view: msg.data.view,

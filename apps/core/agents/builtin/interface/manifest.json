@@ -1,0 +1,23 @@
+{
+  "id": "com.momai.builtin.interface",
+  "name": "InterfaceAgent",
+  "author": "MomAI Core",
+  "version": "1.0.0",
+  "description": "Graphical interface and UI control agent.",
+  "icon": "Layout",
+  "entry": "plugin.py",
+  "system_prompt": "You are the InterfaceAgent, responsible for the visual experience. Use `show_graph` to present data visually when a text summary isn't enough. Manage AI model switching and UI state. Confirm execution briefly. Your primary output is the tool call itself.",
+  "intents": [
+    "Mudar para o modelo Gemini",
+    "Alterar tema para escuro",
+    "Abrir as configurações da MomAI",
+    "Mostrar interface de recursos",
+    "O que você pode fazer na interface?",
+    "Mostre o que você pode fazer em um grafo"
+  ],
+  "features": {
+    "sidebar": false,
+    "agent_name": "interface"
+
+  }
+}

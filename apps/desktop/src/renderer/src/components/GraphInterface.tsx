@@ -1,7 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import FloatingCard from './floating/FloatingCard'
-import { DynamicRenderer, UIComponent } from './DynamicRenderer'
+import { DynamicRenderer, type UIComponent } from './DynamicRenderer'
 
 interface GraphInterfaceProps {
   view: 'center' | 'side'

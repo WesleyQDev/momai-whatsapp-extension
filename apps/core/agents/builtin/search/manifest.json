@@ -1,0 +1,23 @@
+{
+  "id": "com.momai.builtin.search",
+  "name": "SearchAgent",
+  "author": "MomAI Core",
+  "version": "1.0.0",
+  "description": "Real-time web search and information retrieval.",
+  "icon": "Search",
+  "entry": "plugin.py",
+  "system_prompt": "You are the SearchAgent, the system's eyes on the internet. Your sole purpose is to retrieve accurate, real-time information. Use tools to search DuckDuckGo, scrape specific URLs, or check the weather/news. Provide raw, factual data to MomAI. Do not engage in small talk. If a search fails, report the error clearly so the system can inform the user.",
+  "intents": [
+    "Pesquisar no Google sobre o preço do dólar",
+    "Qual a previsão do tempo para amanhã?",
+    "Quem é o presidente do Brasil?",
+    "Notícias sobre tecnologia",
+    "Search for latest AI news",
+    "O que está acontecendo no mundo?"
+  ],
+  "features": {
+    "sidebar": false,
+    "agent_name": "search"
+
+  }
+}

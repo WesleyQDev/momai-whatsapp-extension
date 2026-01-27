@@ -22,7 +22,7 @@ CHECKPOINT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chec
 checkpointer = None
 
 SYSTEM_PROMPT = """You are MomAI, a helpful and professional virtual assistant.  
-You always address the user as "Senhor." Your main characteristics are politeness and efficiency.
+You always address the user as "Senhor." Your main characteristics are politeness and efficiency. 
 """
 MAX_MESSAGES = 6 # Reduced from 8 to 6 to save tokens in Cloud models
 llm_mode = "waiting"
@@ -340,7 +340,7 @@ def clean_text_for_tts(text: str) -> str:
     # Remove bold/italic
     text = re.sub(r'[*_]{1,3}([^*_]+)[*_]{1,3}', r'\1', text)
     # Remove links
-    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1', text)
     # Remove headers
     text = re.sub(r'#+\s?', '', text)
     # Remove code blocks
@@ -369,7 +369,7 @@ def clean_response(text: str) -> str:
     text = re.sub(r'^(MomAI|Assistant|Assistente)\s* : \s*', 
                   '', text, flags=re.IGNORECASE).strip()
     # Remove non-BMP emojis for Windows terminal compatibility
-    text = "".join(c for c in text if c <= "\uFFFF")
+    text = "".join(c for c in text if ord(c) <= 0xFFFF)
     return text
 
 
@@ -399,6 +399,7 @@ async def generate(message: ChatMessage):
         save_message_to_db(message.thread_id, "user", message.content)
 
         tts_buffer = ""
+        # Padrão refinado: foca em terminadores de frase reais para manter a fluidez
         sentence_end_pattern = re.compile(r'(.*?[.?!;])(?:\s+|$)|(.*\n\n)', re.DOTALL)
         full_content = ""
         is_thinking = False
@@ -411,6 +412,8 @@ async def generate(message: ChatMessage):
             kind = event["event"]
             name = event["name"]
 
+            # ... (código intermediário mantido) ...
+            
             if kind == "on_chat_model_stream":
                 metadata = event.get("metadata", {})
                 node = metadata.get("langgraph_node", "")
@@ -425,18 +428,20 @@ async def generate(message: ChatMessage):
 
                     filtered_content = "".join(c for c in content if ord(c) <= 0xFFFF)
                     if filtered_content:
+                        # Se for o início da resposta, remove prefixos comuns que o modelo pode teimar em gerar
                         if not full_content:
-                            # Clean potential assistant prefixes
-                            potential_label = filtered_content.strip().lower()
-                            if any(label in potential_label for label in ["momai:", "assistente:"]):
-                                if ":" in filtered_content: filtered_content = filtered_content.split(":", 1)[1].lstrip()
-                                else: continue
+                            clean_chunk = re.sub(r'^(MomAI|Assistente|Assistant|MomAgent|IA)\s*:?\s*', '', filtered_content, flags=re.IGNORECASE)
+                            if not clean_chunk.strip() and len(filtered_content) < 15:
+                                # Era apenas o prefixo, ignoramos esse chunk e continuamos
+                                full_content += filtered_content 
+                                continue
+                            filtered_content = clean_chunk
                         
                         full_content += filtered_content
                         yield f"data: {json.dumps({'token': filtered_content})}\n\n"
                         tts_buffer += filtered_content
                         
-                        # Process TTS sentences
+                        # Processamento inteligente para TTS: fluidez vs latência
                         while True:
                             match = sentence_end_pattern.search(tts_buffer)
                             if match:
@@ -445,9 +450,10 @@ async def generate(message: ChatMessage):
                                 if len(sentence) > 2:
                                     clean_sent = clean_text_for_tts(sentence)
                                     if clean_sent: tts.speak_sentence(clean_sent)
-                            elif len(tts_buffer) > 150:
+                            # Fallback para frases muito longas sem pontuação (evita latência alta)
+                            elif len(tts_buffer) > 120: 
                                 last_space = tts_buffer.rfind(" ")
-                                if last_space != -1:
+                                if last_space != -1 and last_space > 60:
                                     sentence = tts_buffer[:last_space].strip()
                                     tts_buffer = tts_buffer[last_space:].strip()
                                     clean_sent = clean_text_for_tts(sentence)
@@ -467,7 +473,6 @@ async def generate(message: ChatMessage):
         error_msg = str(e)
         console.print(f"[bold red]Stream Error:[/bold red] {error_msg}")
         
-        # Friendly handling for Rate Limit (Error 429)
         if "429" in error_msg or "rate_limit" in error_msg.lower():
             friendly_error = "Sir, I have reached the Groq processing limit for this minute. Please wait a few seconds before trying again."
             yield f"data: {json.dumps({'error': friendly_error})}\n\n"
@@ -476,15 +481,15 @@ async def generate(message: ChatMessage):
             yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
     finally:
-        # Final response cleanup
         final_reply = clean_response(full_content)
         if final_reply.strip():
             save_message_to_db(message.thread_id, "assistant", final_reply)
 
-        # Final TTS residue
         if tts_buffer.strip():
             clean_phrase = clean_text_for_tts(clean_response(tts_buffer)).strip()
             if len(clean_phrase) > 1:
                 tts.speak_sentence(clean_phrase)
 
         yield f"data: {json.dumps({'done': True})}\n\n"
+        
+        

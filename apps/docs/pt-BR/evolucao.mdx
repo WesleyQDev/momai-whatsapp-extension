@@ -6,7 +6,10 @@ description: "MomAi passou por várias evoluções ao longo do tempo. Veja o que
 ## Contexto histórico / Changelog
 
 <Steps>
-<Step title="Janeiro de 2026: Nascimento da Identidade e Core">
+<Step title="Janeiro de 2026: Roteamento Inteligente e Tool RAG">
+  Implementamos o **Semantic Router** usando LanceDB, permitindo que a MomAI identifique intenções do usuário em milissegundos sem consultar o LLM. Introduzimos o **Tool RAG**, uma arquitetura que carrega dinamicamente apenas as ferramentas necessárias, permitindo escala ilimitada de extensões. O sistema de voz foi aprimorado com **Wake Word ("Sistema")** local e streaming de áudio por sentenças, reduzindo drasticamente a latência de resposta.
+</Step>
+<Step title="Dezembro de 2025: Nascimento da Identidade e Core">
   A MomAI ganha sua identidade visual oficial. No âmbito técnico, consolidamos a arquitetura híbrida Electron + Python, estabelecendo o processamento local via Qwen3-4B-GGUF (rodando nativamente através do llama-cpp-python) para garantir total soberania de dados. Integramos suporte multi-LLM com Groq e Gemini, e implementamos as primeiras ferramentas (tools) de automação, permitindo que a IA interaja diretamente com o sistema operacional.
 </Step>
   <Step title="06 de dezembro de 2025">

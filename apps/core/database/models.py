@@ -48,6 +48,14 @@ class Message(Base):
     content = Column(String)
     created_at = Column(DateTime, default=lambda: datetime.now())
 
+class Extension(Base):
+    __tablename__ = 'extensions'
+    
+    id = Column(String, primary_key=True)
+    is_enabled = Column(Boolean, default=True)
+    is_builtin = Column(Boolean, default=False)
+    installed_at = Column(DateTime, default=lambda: datetime.now())
+
 # Database setup
 # Aponta para a pasta core (um nível acima de database/)
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "momai.db")

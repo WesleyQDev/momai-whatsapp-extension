@@ -1,46 +1,80 @@
 ---
-title: "Extensões"
-sidebarTitle: "Extensões"
-description: "O coração da extensibilidade do MomAI."
+title: 'Guia de Extensões'
+description: 'Como criar novos agentes, ferramentas e itens de UI para a MomAI.'
 ---
 
-## A filosofia
+O sistema de extensões da MomAI segue a filosofia do Obsidian: pastas autocontidas com um manifesto e um ponto de entrada Python.
 
-O MomAI foi construído para ser **incompleto de propósito**.
+## Estrutura de uma Extensão
+Toda extensão deve residir em uma subpasta dentro de `apps/core/extensions/` (para oficiais) ou na pasta de dados do usuário (`%APPDATA%/MomAI/extensions/`).
 
-O núcleo faz o básico: conversar com você, manter contexto, conectar-se a modelos de IA. Mas o poder real vem das extensões que a comunidade cria.
+```text
+my-extension/
+├── manifest.json      # Metadados e permissões
+└── plugin.py          # Lógica Python e Hooks
+```
 
-Pense assim: o MomAI é o palco. As extensões são os artistas.
+## 1. O Manifesto (`manifest.json`)
+Define quem você é, o que sua extensão faz e quais permissões ela exige.
 
-## O que uma extensão pode fazer?
+```json
+{
+  "id": "my-extension-id",
+  "name": "Meu Plugin",
+  "author": "WesleyQDev",
+  "version": "1.0.0",
+  "description": "Faz algo incrível.",
+  "icon": "Cpu", // Nome do ícone no Heroicons
+  "intents": [
+    "Minha intenção secreta",
+    "Acione meu comando"
+  ],
+  "features": {
+    "sidebar": true,
+    "agent": "SystemAgent" // Para qual agente as intenções devem ir
+  },
+  "permissions": {
+    "network": ["api.meusite.com"],
+    "system": ["hardware_read"]
+  }
+}
+```
 
-Praticamente qualquer coisa:
+## 2. Implementação com Hooks (`plugin.py`)
+Utilizamos o `pluggy` para que a extensão se conecte ao núcleo.
 
-- **Novos Agentes**: Um agente que organiza seus downloads. Outro que monitora preços.
-- **Conectores**: Integrar com Notion, Obsidian, Google Calendar, Spotify.
-- **Automações**: Responder emails, mover arquivos, controlar dispositivos IoT.
-- **Interfaces**: Criar widgets visuais dentro do chat.
+```python
+from langchain_core.tools import tool
+from services.extensions.hooks import hookimpl
 
-## Status atual
+@tool
+def minha_ferramenta_nova(query: str):
+    """Descrição clara para o Tool RAG encontrar esta função."""
+    return f"Resultado para {query}"
 
-<Warning>
-  O sistema de extensões ainda está em desenvolvimento. A arquitetura está sendo desenhada para ser simples de usar, mas poderosa o suficiente para casos complexos.
-</Warning>
+@hookimpl
+def register_tools():
+    """Registra ferramentas no Tool RAG global."""
+    return [minha_ferramenta_nova]
 
-Quando estiver pronto, você poderá:
+@hookimpl
+def register_sidebar_items():
+    """Adiciona um ícone na barra lateral do React."""
+    return [{
+        "id": "minha-view",
+        "icon": "Cpu",
+        "label": "Minha Extensão",
+        "view": "MinhaViewCustomizada"
+    }]
+```
 
-1. Baixar extensões da comunidade com um comando
-2. Criar suas próprias extensões usando Python (para lógica) e React (para UI)
-3. Compartilhar suas criações via um registro público
+## Ciclo de Inteligência
+Ao criar uma extensão, você não precisa configurar o modelo de linguagem manualmente:
+1. O **Semantic Router** lê suas `intents` do manifesto e as indexa no LanceDB.
+2. O **Tool RAG** lê as descrições das suas ferramentas decoradas com `@tool`.
+3. Quando o usuário pede algo relacionado, a MomAI automaticamente direciona o fluxo para sua extensão e vincula suas ferramentas ao LLM.
 
-## Como contribuir agora?
-
-Mesmo em desenvolvimento, você pode ajudar:
-
-- **Testar o núcleo** e reportar bugs
-- **Sugerir ideias** de extensões que você gostaria de ver
-- **Acompanhar o progresso** no [repositório do GitHub](https://github.com/WesleyQDev/momai)
-
-<Card title="Guia de Contribuição" icon="hands" href="/pt-BR/como-colaborar">
-  Veja como participar do desenvolvimento.
-</Card>
+## Segurança e Transparência
+As extensões não rodam em sandbox, mas o `ExtensionManager` realiza uma auditoria estática:
+- Se seu código importar `requests` ou `socket`, mas você não declarou a permissão `network` no manifesto, o MomAI emitirá um alerta de segurança e poderá bloquear o carregamento.
+- Plugins oficiais (`author: "WesleyQDev"`) são carregados automaticamente. Plugins de terceiros exigem que o usuário desative o "Safe Mode".

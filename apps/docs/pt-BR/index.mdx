@@ -1,75 +1,53 @@
 ---
 title: "MomAI"
 sidebarTitle: "Introdução"
-description: "A assistente que automatiza o que você cansa de fazer todo dia."
+description: "Automação local e privada para quem cansou de fazer a mesma coisa todo dia."
+
 ---
-<img
-  className="block dark:hidden"
-  src="/images/example.png"
-  alt="MomAI Logo"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/example.png"
-  alt="MomAI Logo"
-/>
 
+<img className="block dark:hidden" src="/images/example.png" alt="MomAI Logo" />
+<img className="hidden dark:block" src="/images/example.png" alt="MomAI Logo" />
 
-## Por que esse projeto existe?
+## A realidade por trás do projeto
 
-Não foi por causa das big techs. Foi por causa das **pequenas coisas**.
+A maioria das IAs hoje vive na nuvem, consome seus dados e te entrega um chat. A MomAI não quer ser apenas mais um chat.
 
-Sabe aquela planilha que você precisa comparar com outra, célula por célula, porque ninguém fez uma ferramenta pra isso? Ou aquela mensagem no WhatsApp que você responde todo dia com "sim" ou "não", mas ainda assim precisa pegar o celular, abrir o app, digitar?
+O objetivo aqui é criar uma ponte entre a inteligência dos modelos modernos e o **seu sistema operacional**. É sobre o script que você esquece de rodar, a planilha que você odeia comparar e a privacidade de saber que nenhum arquivo pessoal saiu da sua máquina.
 
-**MomAI nasceu dessa frustração.**
+## O que diferencia a MomAI?
 
-A tecnologia já permite automatizar quase tudo. Existem MCPs, APIs, agentes de IA. Mas na prática? Você ainda faz as mesmas tarefas repetitivas todo dia. Porque ninguém juntou as peças de um jeito que funcione pra **você**.
+- **Local-First por Necessidade**: Privacidade não é um selo marketing, é a base. Processamos o máximo possível (Voz, Embeddings, LLM) no seu hardware.
+- **Ação sobre Texto**: Enquanto outros assistentes sugerem o que fazer, a MomAI tenta fazer. Ela tem acesso (controlado por você) aos seus arquivos e sistema.
+- **Ecossistema de Especialistas**: Em vez de uma IA que "acha que sabe tudo", usamos agentes que sabem fazer coisas específicas (pesquisar, agendar, manipular arquivos).
 
-## O que a MomAI quer ser
-
-Imagine seu computador ligando sozinho de manhã. Enquanto você toma café, ele já verificou:
-
-- O que você tem pra fazer hoje (Notion/Google Calendar)
-- Os prazos da faculdade que estão chegando
-- Se tem alguma notícia importante sobre os assuntos que você acompanha
-
-E quando você senta pra trabalhar, uma voz amigável te dá bom dia e te avisa das pendências.
-
-## O que já funciona hoje?
-
-- **Chat com IA**: Motor local otimizado (`llama-server`) que roda suave mesmo em GPUs de entrada como AMD RX 580.
-- **Streaming de Voz (TTS)**: Ela fala enquanto pensa. O sistema quebra as frases e envia para áudio em tempo real, sem pausas chatas.
-- **Memória de conversa**: Ela lembra do contexto e da sua rotina.
-- **Modo Híbrido**: Escolha entre privacidade total (Offline) ou velocidade de nuvem (Groq/Gemini).
-
-## Para quem é esse projeto?
+## O que você vai encontrar aqui?
 
 <CardGroup cols={2}>
-  <Card title="Pra quem tem rotina" icon="calendar-check">
-    Pessoas que fazem as mesmas coisas todo dia e gostariam de uma ajuda proativa.
+  <Card title="Assistente de Voz Real" icon="microphone">
+    Ativação por palavra-chave ("Sistema") e fala fluida, sem precisar olhar
+    para a tela.
   </Card>
-  <Card title="Pra quem gosta de criar" icon="screwdriver-wrench">
-    Desenvolvedores que querem construir extensões para suas necessidades específicas.
+  <Card title="Controle de Sistema" icon="computer">
+    Capacidade de interagir com arquivos, monitorar hardware e gerenciar
+    processos.
   </Card>
-  <Card title="Pra quem quer privacidade" icon="shield-halved">
-    Pessoas que querem usar IA sem mandar seus dados para servidores corporativos.
+  <Card title="Privacidade Radical" icon="user-shield">
+    Suporte a modelos locais (GGUF) para que você não precise de internet para
+    ser produtivo.
   </Card>
-  <Card title="Pra comunidade" icon="people-group">
-    Um projeto aberto que cresce com a contribuição de todos.
+  <Card title="Arquitetura de Agentes" icon="sitemap">
+    Um sistema baseado em LangGraph que permite que a IA tome decisões lógicas e
+    use ferramentas.
   </Card>
 </CardGroup>
 
-## Próximos Passos
+## Por onde começar?
 
 <CardGroup cols={2}>
-  <Card
-    title="Entenda a Visão Completa"
-    icon="lightbulb"
-    href="/pt-BR/por-que-momai"
-  >
-    Veja a arquitetura de agentes e tudo que está planejado.
+  <Card title="Entenda a Motivação" icon="question" href="/pt-BR/por-que-momai">
+    Por que não usar apenas o ChatGPT ou Copilot?
   </Card>
-  <Card title="Coloque pra Rodar" icon="terminal" href="/pt-BR/backend">
-    Configure o ambiente e teste você mesmo.
+  <Card title="Instalação e Setup" icon="terminal" href="/pt-BR/backend">
+    Prepare seu ambiente Python e coloque o motor pra rodar.
   </Card>
 </CardGroup>

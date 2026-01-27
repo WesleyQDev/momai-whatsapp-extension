@@ -1,62 +1,41 @@
 ---
-title: "Interface Desktop"
-sidebarTitle: "Frontend"
-description: "Como rodar a interface gráfica do MomAI."
+title: 'Desenvolvimento Frontend'
+description: 'Interface reativa construída com Electron, React 19 e Tailwind CSS.'
 ---
 
-O frontend é a janela onde você interage com a MomAI. Ele é construído com Electron, React e Vite.
+A interface da MomAI foi desenhada para ser leve, moderna e, acima de tudo, dinâmica. Ela não apenas exibe texto, mas reage a comandos do backend para abrir interfaces gráficas e monitorar o sistema.
 
-<Info>
-  O frontend precisa do backend rodando para funcionar. Se você ainda não configurou, veja o [guia do backend](/pt-BR/backend) primeiro.
-</Info>
+## Stack Tecnológica
+- **React 19**: Aproveitando as últimas melhorias de performance e hooks.
+- **Tailwind CSS**: Estilização baseada em variáveis globais para suporte a temas.
+- **Lucide & Heroicons**: Conjunto unificado de ícones.
+- **React Router 7**: Gerenciamento de rotas para views principais e de extensões.
 
-## Iniciando em modo de desenvolvimento
+## Comunicação em Tempo Real
+A maior parte da inteligência de UI vem do **WebSocket** (`ws://localhost:8000/ws`).
 
-Se você já rodou `pnpm install` na raiz do projeto, as dependências já estão instaladas.
+### Eventos do Sistema
+- `extensions_sync`: Enviado pelo backend ao conectar, sincroniza os ícones da barra lateral.
+- `graph_open`: Aciona o `GraphInterface` para exibir componentes visuais (Gráficos, Forms).
+- `resource_usage`: Telemetria de CPU/RAM/VRAM exibida no `ResourceFooter`.
 
+## Componentes Dinâmicos
+
+### LateralBar.tsx
+Este componente é inteligente. Além das rotas fixas (`/`, `/reminders`), ele mapeia o array de extensões ativas. Se uma extensão declarar `sidebar: true`, o ícone aparecerá automaticamente aqui.
+
+### GraphInterface.tsx
+É o "palco" para interações complexas. Ele pode ser exibido no centro (modal) ou na lateral.
+- **UI Schema**: Aceita um objeto JSON que define botões e ações, permitindo que o backend controle a UI sem precisar de código JS novo no frontend.
+
+## Gerenciamento de Estado
+Utilizamos Hooks customizados para isolar a lógica de negócio:
+- `useChat`: Gerencia o histórico, o streaming de tokens e o estado do Grafo.
+- `useStatus`: Monitora a saúde do backend e gerencia a troca de modelos de IA.
+
+## Como rodar em desenvolvimento
 ```bash
-# Na raiz ou em apps/desktop
+# Na raiz do projeto
 pnpm run dev
 ```
-
-Isso vai:
-1. Iniciar o servidor Vite (para hot-reload durante desenvolvimento)
-2. Abrir a janela do Electron automaticamente
-3. (Opcionalmente) Iniciar o backend Python se configurado no script principal
-
-## Funcionalidades da Interface
-
-### Troca de Modelo (Model Switching)
-No rodapé do chat, você pode alternar entre **Modo Nuvem** (Gemini/Groq) e **Modo Local** (Qwen/Llama).
-- Ao trocar para **Local**, o sistema pode levar alguns segundos para carregar o modelo na memória.
-- Um indicador visual ("Alterando modelo de IA...") aparecerá no chat e o campo de entrada ficará bloqueado para evitar erros.
-
-### Chat Streaming
-O chat suporta streaming de texto e Markdown. Blocos de código, tabelas e listas são renderizados automaticamente.
-
-## Gerando um executável
-
-Se você quiser usar o MomAI sem precisar de terminal:
-
-```bash
-pnpm run build
-```
-
-O instalador será gerado na pasta `apps/desktop/dist`.
-
-## Problemas comuns
-
-<AccordionGroup>
-  <Accordion title="A tela está em branco">
-    Verifique se o backend está rodando. O frontend tenta conectar em `localhost:8000`. Sem o servidor, o chat não funciona.
-  </Accordion>
-  <Accordion title="O chat não conecta no Local Mode">
-    Verifique se você baixou os binários do `llama-server` conforme explicado no guia do Backend.
-  </Accordion>
-</AccordionGroup>
-
-## Próximo passo
-
-<Card title="Entenda a arquitetura" icon="sitemap" href="/pt-BR/por-que-momai">
-  Veja como o sistema de agentes e extensões funciona.
-</Card>
+Isso iniciará o Vite e o Electron. O HMR (Hot Module Replacement) está ativo, então as mudanças no React refletirão instantaneamente.

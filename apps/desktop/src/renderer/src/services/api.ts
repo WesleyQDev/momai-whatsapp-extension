@@ -115,3 +115,47 @@ export async function clearChatHistory(threadId: string = 'default'): Promise<vo
   })
   if (!response.ok) throw new Error('Erro ao limpar histórico')
 }
+
+// --- EXTENSIONS ---
+
+export interface Extension {
+  id: string
+  name: string
+  author: string
+  version: string
+  description: string
+  icon?: string
+  enabled: boolean
+  category: 'builtin' | 'extensions' | 'user'
+}
+
+export async function fetchExtensions(): Promise<Extension[]> {
+  const response = await fetch(`${API_URL}/extensions`)
+  if (!response.ok) throw new Error('Erro ao buscar extensões instaladas')
+  return response.json()
+}
+
+export async function fetchExtensionRegistry(): Promise<any[]> {
+  const response = await fetch(`${API_URL}/extensions/registry`)
+  if (!response.ok) throw new Error('Erro ao buscar registro de extensões')
+  return response.json()
+}
+
+export async function installExtension(id: string, downloadUrl: string): Promise<void> {
+  const response = await fetch(`${API_URL}/extensions/install`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, download_url: downloadUrl })
+  })
+  if (!response.ok) throw new Error('Erro ao instalar extensão')
+}
+
+export async function toggleExtension(id: string, enabled: boolean): Promise<void> {
+  const response = await fetch(`${API_URL}/extensions/toggle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, enabled })
+  })
+  if (!response.ok) throw new Error('Erro ao alterar status da extensão')
+}
+

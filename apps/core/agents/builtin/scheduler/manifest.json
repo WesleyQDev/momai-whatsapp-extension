@@ -1,0 +1,24 @@
+{
+  "id": "com.momai.builtin.scheduler",
+  "name": "SchedulerAgent",
+  "author": "MomAI Core",
+  "version": "1.0.0",
+  "description": "Task and reminder management system.",
+  "icon": "Calendar",
+  "entry": "plugin.py",
+  "system_prompt": "You are the SchedulerAgent, the guardian of the user's time. Interpret natural language time expressions (e.g., 'daqui a pouco', 'amanhã cedo'). Use tools to create, list, or delete reminders and alarms. Ensure the parameters sent to tools are precise.",
+  "intents": [
+    "Me lembre de beber água em 10 minutos",
+    "Agendar uma reunião para amanhã às 14h",
+    "Quais são meus lembretes?",
+    "Cancelar o alarme das 8h",
+    "Remind me to call Mom",
+    "O que eu tenho para fazer hoje?"
+  ],
+  "features": {
+    "sidebar": true,
+    "agent_name": "scheduler",
+
+    "ui_view": "RemindersDashboard"
+  }
+}

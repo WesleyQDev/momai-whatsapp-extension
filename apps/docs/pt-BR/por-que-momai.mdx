@@ -1,73 +1,67 @@
 ---
 title: "Por que MomAI?"
-description: "A história por trás do projeto e o que ele quer resolver."
+description: "A realidade das pequenas frustrações e o problema da nuvem."
 ---
 
-## As pequenas frustrações
+## O Problema: Inteligência Burra
 
-Todo mundo fala de IA revolucionando o mundo. Mas no meu dia a dia, eu ainda:
+Temos LLMs incríveis que conseguem explicar física quântica, mas que não sabem:
+- Que o arquivo que eu baixei agora há pouco está na pasta `Downloads`.
+- Que eu tenho uma reunião daqui a 5 minutos e meu computador está fazendo um update pesado.
+- Que eu respondo a mesma mensagem de "Ok, obrigado" dez vezes por dia.
 
-- **Comparo planilhas na mão** porque ninguém fez uma ferramenta simples pra isso
-- **Respondo "sim" ou "não"** no WhatsApp pra mesma pessoa, todo dia, sobre a mesma coisa
-- **Esqueço de beber água** porque o lembrete some no meio de outras notificações
-- **Perco prazos da faculdade** porque estão espalhados em 3 sistemas diferentes
-- **Quero ler mangás offline** mas preciso baixar um por um, manualmente
+A tecnologia existe, mas ela está trancada em abas de navegador. O MomAI existe para trazer essa inteligência para o **nível do sistema**.
 
-E o mais frustrante: **a tecnologia pra resolver tudo isso já existe**.
+## A Frustração do Usuário Comum
 
-Existem MCPs que conectam com qualquer coisa. APIs pra tudo. Modelos de IA que entendem linguagem natural. Mas tudo isso serve pra criar programas isolados. Ninguém juntou as peças num único lugar que funcione pra **minha vida**.
+A motivação do projeto vem de tarefas reais, chatas e repetitivas:
 
-## O sonho
+1.  **Silo de Dados**: Por que eu tenho que subir meus extratos bancários para o servidor da OpenAI para que ela me ajude a categorizar gastos?
+2.  **Falta de Proatividade**: Lembretes de celular são fáceis de ignorar. Um assistente que te fala (literalmente) "Ei, você tem aula agora" enquanto você está distraído jogando ou trabalhando é muito mais eficaz.
+3.  **Contexto Local**: IAs de nuvem não têm contexto do seu hardware. Elas não sabem se sua RAM está acabando ou se sua GPU está livre para processar algo.
 
-Imagina o seguinte cenário:
+## Por que Local-First?
 
-Você acorda. Seu computador já ligou sozinho (Wake-on-LAN). Quando você senta pra tomar café, uma voz diz:
+Existem três pilares que tornam o processamento local a única escolha real para um assistente pessoal:
 
-> *"Bom dia! Você tem 3 coisas pra hoje: entregar o trabalho de cálculo até 23h59, reunião às 14h, e o lixo reciclável é amanhã. Ah, sua mãe mandou mensagem perguntando se você almoçou. Quer que eu responda?"*
+### 1. Soberania de Dados
+Seus arquivos, suas conversas e sua rotina são seus. No momento em que você integra um assistente com seu sistema de arquivos, a nuvem deixa de ser uma opção segura para a maioria das pessoas.
 
-Você diz "responde que sim" e continua tomando café.
+### 2. Latência de Voz
+Para que uma conversa por voz pareça natural, a resposta precisa ser rápida. O tempo de enviar áudio para a nuvem, processar e devolver é o suficiente para quebrar a imersão. Processando a palavra-chave e o TTS localmente, chegamos perto da resposta instantânea.
 
-Duas horas depois:
+### 3. Custo e Independência
+Modelos locais não têm mensalidade e não param de funcionar se a empresa mudar a API ou se sua internet cair. Se você tem uma GPU, você tem um cérebro digital gratuito.
 
-> *"Ei, você não bebe água há um tempão. Vai lá."*
+## O "Sonho" vs A Realidade
 
-À noite, você abre o app de leitura e os últimos capítulos dos seus mangás já estão lá, baixados automaticamente.
+Muitos projetos de IA vendem um "JARVIS" completo. A realidade do MomAI é um **núcleo extensível**. 
 
-**Isso é o que MomAI quer ser.**
+Nós não vamos criar todas as automações do mundo. Vamos criar a infraestrutura (Agentes, Roteador Semântico, Tool RAG) para que **você** ou a comunidade adicione a peça que falta para a sua vida — seja baixar mangás automaticamente, controlar o Spotify ou organizar os PDFs da faculdade.
 
-## Como isso funciona?
+## Como isso funciona na prática?
 
-MomAI é construída como uma equipe de agentes. Pense numa empresa:
-
-- **MomAgent** é o gerente. Recebe seu pedido e decide quem resolve.
-- **Agentes especializados** fazem o trabalho: um busca na internet, outro cria lembretes, outro gerencia arquivos.
+MomAI é uma equipe de especialistas coordenados pelo **LangGraph**:
 
 ```mermaid
-sequenceDiagram
-    participant Você
-    participant MomAgent
-    participant Agente
-    participant IA
-
-    Você->>MomAgent: "Qual a previsão do tempo?"
-    MomAgent->>IA: Entender a intenção
-    IA-->>MomAgent: Usar agente de busca
-    MomAgent->>Agente: Buscar previsão
-    Agente-->>MomAgent: "Ensolarado, 28°C"
-    MomAgent->>IA: Formatar resposta
-    IA-->>MomAgent: "Hoje tá ótimo! Sol e 28 graus."
-    MomAgent-->>Você: Resposta por voz
+graph TD
+    A[Usuário] -->|Voz/Texto| B(Roteador Semântico)
+    B -->|Match Local| C{Especialista}
+    B -->|Complexo| D(Orquestrador LLM)
+    D --> C
+    C --> E[SearchAgent]
+    C --> F[SystemAgent]
+    C --> G[SchedulerAgent]
+    E & F & G --> H[Resultado]
+    H --> I[Voz + UI]
 ```
 
 <AccordionGroup>
   <Accordion title="O que são Agentes?">
-    São como funcionários virtuais. Cada um sabe fazer uma coisa: buscar na internet, criar lembretes, enviar mensagens. O MomAgent coordena todos.
+    São funcionários virtuais focados. O `SystemAgent` só se preocupa com o seu Windows. O `SearchAgent` só se preocupa com a Web. Isso mantém a IA focada e evita erros.
   </Accordion>
-  <Accordion title="O que são Ferramentas (Tools)?">
-    São as capacidades de cada agente. Por exemplo: abrir sites, ler arquivos, fazer cálculos, enviar dados pra uma API.
-  </Accordion>
-  <Accordion title="O que é MCP?">
-    Model Context Protocol. Um padrão que permite conectar a MomAI com qualquer aplicativo (Notion, e-mail, calendário) sem criar integração específica pra cada um.
+  <Accordion title="O que é o Tool RAG?">
+    É como uma caixa de ferramentas infinita. A IA não carrega todas as ferramentas de uma vez. Ela busca apenas o que precisa no momento (ex: "preciso da ferramenta de volume agora"). Isso economiza memória e inteligência.
   </Accordion>
 </AccordionGroup>
 
