@@ -79,12 +79,17 @@ ENV/
 .ruff_cache/
 
 # ====================
-# Bancos de Dados (SQLite)
+# Bancos de Dados (SQLite e LanceDB)
 # ====================
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+momai_vectors.db/
 
 # ====================
 # Electron / Build
