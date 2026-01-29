@@ -6,18 +6,18 @@
   "description": "Real-time web search and information retrieval.",
   "icon": "Search",
   "entry": "plugin.py",
-  "system_prompt": "You are the SearchAgent, the system's eyes on the internet. Your sole purpose is to retrieve accurate, real-time information. Use tools to search DuckDuckGo, scrape specific URLs, or check the weather/news. Provide raw, factual data to MomAI. Do not engage in small talk. If a search fails, report the error clearly so the system can inform the user.",
+  "system_prompt": "You are the SearchAgent. Your sole purpose is to retrieve accurate, real-time information. Use tools to search DuckDuckGo, scrape specific URLs, or check the weather/news. Provide raw, factual data to MomAI. Do not engage in trivial conversations. If a search fails, clearly report the error so the system can inform the user",
   "intents": [
-    "Pesquisar no Google sobre o preço do dólar",
-    "Qual a previsão do tempo para amanhã?",
-    "Quem é o presidente do Brasil?",
-    "Notícias sobre tecnologia",
+"Search on Google for the price of the dollar",
+    "What's the weather forecast for tomorrow?",
+    "Who is the president of Brazil?",
+    "Technology news",
     "Search for latest AI news",
-    "O que está acontecendo no mundo?"
+    "What's happening in the world?"
   ],
   "features": {
     "sidebar": false,
-    "agent_name": "search"
-
+    "agent_name": "search",
+    "tools": ["duckduckgo_search", "web_scrape"]
   }
 }

@@ -10,7 +10,7 @@ def index_all_system_tools():
     
     tools_to_index = []
     
-    # Ferramentas nativas do core
+    # Native core tools
     for tool in TOOLS:
         tools_to_index.append({
             "name": tool.name,
@@ -18,7 +18,7 @@ def index_all_system_tools():
             "metadata": json.dumps({"source": "native"})
         })
         
-    # Ferramentas de plugins registrados via hooks
+    # Plugin tools registered via hooks
     ext_tools = extension_manager.get_tools()
     for tool in ext_tools:
         tools_to_index.append({
@@ -36,7 +36,7 @@ def index_initial_intents():
     
     intents = []
     
-    # O manager já carregou todos os manifestos (builtin + extensões)
+    # The manager already loaded all manifests (builtin + extensions)
     active_manifests = extension_manager.get_active_manifests()
     
     for manifest_dict in active_manifests:
@@ -56,7 +56,7 @@ def index_initial_intents():
         print("[Indexer] No intents found to index.")
 
 if __name__ == "__main__":
-    # Carrega plugins antes de indexar se rodado como script
+    # Load plugins before indexing if run as script
     extension_manager.load_all()
     index_all_system_tools()
     index_initial_intents()

@@ -1,8 +1,11 @@
 import os
 import asyncio
+import json
+import time
+import requests
+import subprocess
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from llama_cpp import Llama
 from huggingface_hub import hf_hub_download
 import numpy as np
 from functools import lru_cache
@@ -17,44 +20,113 @@ class EmbeddingEngine:
     _executor = ThreadPoolExecutor(max_workers=1)
     _cache = {}
 
+    _process = None
+    _port = 8081
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(EmbeddingEngine, cls).__new__(cls)
         return cls._instance
 
+    def _get_paths(self):
+        """Get paths of binaries and models."""
+        base_dir = Path(__file__).parent.parent
+        # try to get backend from db
+        try:
+            from database.models import SessionLocal, Settings
+            db = SessionLocal()
+            s = db.query(Settings).first()
+            backend = s.local_backend if s and s.local_backend != "auto" else None
+            db.close()
+        except:
+            backend = None
+
+        if not backend:
+            # Auto-detect best installed
+            from utils.downloader import get_installed_info
+            info = get_installed_info()
+            backend = info.get("backend", "cpu")
+
+        exe_path = base_dir / "bin" / backend / "llama-server.exe"
+        if not exe_path.exists():
+            # Fallback
+            for b in ["vulkan", "cpu"]:
+                p = base_dir / "bin" / b / "llama-server.exe"
+                if p.exists():
+                    exe_path = p
+                    break
+        
+        return {
+            "exe": str(exe_path),
+            "models": str(base_dir / "models")
+        }
+
     def _get_model_path(self):
-        """Garante que o modelo existe e retorna o caminho."""
+        """Ensure the model exists and returns the path."""
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
         model_path = MODELS_DIR / MODEL_FILE
         
         if not model_path.exists():
-            print(f"[Embeddings] Baixando modelo {MODEL_FILE} de {MODEL_REPO}...")
+            print(f"[Embeddings] Downloading model {MODEL_FILE} from {MODEL_REPO}...")
             hf_hub_download(
                 repo_id=MODEL_REPO,
                 filename=MODEL_FILE,
                 local_dir=MODELS_DIR
             )
-        return str(model_path)
+        return str(model_path.resolve())
 
     def load(self):
-        """Carrega o modelo na memória se ainda não estiver carregado."""
-        if self._model is None:
+        """Ensure the llama-server for embeddings is running."""
+        if self._process is None:
+            # Check if something is already running on port 8081
+            try:
+                res = requests.get(f"http://127.0.0.1:{self._port}/health", timeout=1)
+                if res.status_code == 200:
+                    self._process = True # indicates that the server is ready
+                    return
+            except:
+                pass
+
+            paths = self._get_paths()
             model_path = self._get_model_path()
-            print(f"[Embeddings] Carregando modelo de embeddings: {model_path}")
             
-            # Configurações otimizadas para Embedding
-            self._model = Llama(
-                model_path=model_path,
-                embedding=True,
-                n_ctx=2048,
-                n_gpu_layers=-1, 
-                n_threads=os.cpu_count(),
-                verbose=False
+            print(f"[Embeddings] Starting llama-server for embeddings on port {self._port}...")
+            
+            cmd = [
+                paths["exe"],
+                "-m", model_path,
+                "--port", str(self._port),
+                "--embedding",
+                "--ctx-size", "2048",
+                "--n-gpu-layers", "-1",
+                "--parallel", "1",
+                "--threads", str(os.cpu_count() or 4),
+                "--no-mmap"
+            ]
+            
+            # Silences the embeddings server output
+            self._process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
             )
-        return self._model
+
+            # Aguarda healthcheck
+            for _ in range(30): # 15 segundos max
+                try:
+                    res = requests.get(f"http://127.0.0.1:{self._port}/health", timeout=0.5)
+                    if res.status_code == 200:
+                        print("[Embeddings] Servidor de embeddings pronto!")
+                        break
+                except:
+                    pass
+                time.sleep(0.5)
+        
+        return self._process
 
     async def embed_text(self, text: str) -> list[float]:
-        """Transforma um texto em um vetor de embeddings de forma assíncrona com cache."""
+        """Transforms a text into an embedding vector asynchronously with cache."""
         clean_text = text.strip().lower()
         if clean_text in self._cache:
             return self._cache[clean_text]
@@ -69,21 +141,59 @@ class EmbeddingEngine:
         return embedding
 
     def _embed_sync(self, text: str) -> list[float]:
-        """Versão síncrona interna para o executor."""
-        model = self.load()
-        embedding = model.create_embedding(text)
-        return embedding['data'][0]['embedding']
+        """Internal synchronous version for the executor."""
+        self.load()
+        try:
+            response = requests.post(
+                f"http://127.0.0.1:{self._port}/embedding",
+                json={"content": text},
+                timeout=10
+            )
+            data = response.json()
+            
+            # Case 1: Response is a direct list (common in recent llama.cpp versions)
+            if isinstance(data, list) and len(data) > 0:
+                return data[0].get('embedding', [0.0] * 1024)
+            
+            # Case 2: OpenAI format {'data': [{'embedding': ...}]}
+            if isinstance(data, dict) and 'data' in data and isinstance(data['data'], list):
+                return data['data'][0]['embedding']
+            
+            # Case 3: Simple format {'embedding': [...]} 
+            if isinstance(data, dict):
+                return data.get('embedding', [0.0] * 1024)
+                
+            return [0.0] * 1024
+        except Exception as e:
+            print(f"[Embeddings] Erro ao obter embedding: {e}")
+            return [0.0] * 1024 # Fallback vector
 
     async def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        """Transforma uma lista de textos em uma lista de vetores de forma assíncrona."""
+        """Transforms a list of texts into a list of embeddings asynchronously."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self._executor, self._embed_docs_sync, texts)
 
     def _embed_docs_sync(self, texts: list[str]) -> list[list[float]]:
-        """Versão síncrona interna para o executor."""
-        model = self.load()
-        embeddings = model.create_embedding(texts)
-        return [e['embedding'] for e in embeddings['data']]
+        """Internal synchronous version for the executor."""
+        self.load()
+        try:
+            response = requests.post(
+                f"http://127.0.0.1:{self._port}/embedding",
+                json={"content": texts},
+                timeout=30
+            )
+            data = response.json()
+            
+            # Handle list of results
+            if isinstance(data, list):
+                return [r.get('embedding', [0.0] * 1024) for r in data]
+                
+            if isinstance(data, dict) and 'results' in data:
+                return [r['embedding'] for r in data['results']]
+                
+            return [[0.0] * 1024] * len(texts)
+        except:
+            return [self._embed_sync(t) for t in texts]
 
 # Singleton instance
 embeddings = EmbeddingEngine()

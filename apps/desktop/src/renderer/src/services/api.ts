@@ -16,12 +16,15 @@ export interface Message {
     options: string[]
     uiSchema?: any
   }
+  activities?: string[]
 }
 
 export interface StatusData {
   status: string
   version: string
   mode: string
+  brain_ready: boolean
+  is_loading: boolean
   setup: {
     local_installed: boolean
     groq_ready: boolean
@@ -33,6 +36,7 @@ export interface StatusData {
 
 export interface ChatStreamCallbacks {
   onToken: (token: string) => void
+  onStatus: (status: string) => void
   onError: (error: string) => void
   onDone: () => void
 }
@@ -70,6 +74,10 @@ export async function sendChatMessage(
 
         if (data.token) {
           callbacks.onToken(data.token)
+        }
+
+        if (data.status) {
+          callbacks.onStatus(data.status)
         }
 
         if (data.error) {
@@ -167,3 +175,33 @@ export async function toggleExtension(id: string, enabled: boolean): Promise<voi
   if (!response.ok) throw new Error('Erro ao alterar status da extensão')
 }
 
+// --- GAMING MODE ---
+
+export interface GamingApp {
+  id: number
+  name: string
+  executable: string
+  is_active: boolean
+}
+
+export async function fetchGamingApps(): Promise<GamingApp[]> {
+  const response = await fetch(`${API_URL}/system/gaming-apps`)
+  if (!response.ok) throw new Error('Erro ao buscar apps de jogo')
+  return response.json()
+}
+
+export async function addGamingApp(name: string, executable: string): Promise<void> {
+  const response = await fetch(`${API_URL}/system/gaming-apps`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, executable })
+  })
+  if (!response.ok) throw new Error('Erro ao adicionar app de jogo')
+}
+
+export async function deleteGamingApp(id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/system/gaming-apps/${id}`, {
+    method: 'DELETE'
+  })
+  if (!response.ok) throw new Error('Erro ao remover app de jogo')
+}

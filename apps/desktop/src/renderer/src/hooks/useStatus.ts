@@ -31,7 +31,7 @@ export function useStatus() {
       setInitSteps(prev => ({ 
         ...prev, 
         api: 'ok',
-        brain: (data.mode !== 'waiting' && data.mode !== 'initial') ? 'ok' : 'pending'
+        brain: data.brain_ready ? 'ok' : 'pending'
       }))
 
       // Check extensions

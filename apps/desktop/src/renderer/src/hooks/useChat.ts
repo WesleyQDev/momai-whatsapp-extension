@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Message, sendChatMessage, fetchChatHistory, clearChatHistory } from '../services/api'
 
+let appGreetingTriggered = false
+
 export function useChat() {
   const [text, setText] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [currentStatus, setCurrentStatus] = useState<string | null>(null)
-  const [threadId] = useState('default') // Usando default para persistência global por enquanto
+  const [threadId] = useState('default')
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Graph State
@@ -33,8 +35,12 @@ export function useChat() {
     fetchChatHistory(threadId)
       .then((history) => {
         setMessages(history)
+        setIsHistoryLoaded(true)
       })
-      .catch((err) => console.error('Erro ao carregar histórico:', err))
+      .catch((err) => {
+        console.error('Erro ao carregar histórico:', err)
+        setIsHistoryLoaded(true)
+      })
   }, [threadId])
 
   const scrollToBottom = useCallback(() => {
@@ -49,13 +55,19 @@ export function useChat() {
     setIsLoading(true)
     try {
       await clearChatHistory(threadId)
-      setMessages([])
+      window.dispatchEvent(new CustomEvent('momai_clear_history'))
     } catch (err) {
       console.error('Erro ao limpar histórico:', err)
     } finally {
       setIsLoading(false)
     }
   }, [threadId])
+
+  useEffect(() => {
+    const handleClear = () => setMessages([])
+    window.addEventListener('momai_clear_history', handleClear)
+    return () => window.removeEventListener('momai_clear_history', handleClear)
+  }, [])
 
   const reopenGraph = useCallback((data: any) => {
     setGraphState(data)
@@ -86,6 +98,22 @@ export function useChat() {
             updated[lastIdx] = {
               ...updated[lastIdx],
               content: updated[lastIdx].content + token
+            }
+            return updated
+          })
+        },
+        onStatus: (status) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              const currentActivities = updated[lastIdx].activities || []
+              if (!currentActivities.includes(status)) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  activities: [...currentActivities, status]
+                }
+              }
             }
             return updated
           })
@@ -130,7 +158,7 @@ export function useChat() {
       }
 
       const modelName = modelNames[detail] || detail
-      const contentPrefix = 'Cérebro alterado para:'
+      const contentPrefix = 'Brain changed to:'
       const finalContent = `${contentPrefix} **${modelName}** ✅`
 
       setMessages((prev) => {
@@ -171,7 +199,7 @@ export function useChat() {
         groq: 'Groq (Cloud)'
       }
       const modelName = modelNames[detail] || detail
-      const loadingContent = `Cérebro alterado para: **${modelName}** ⏳`
+      const loadingContent = `Brain changed to: **${modelName}** ⏳`
 
       setMessages((prev) => {
         if (prev.length === 0) return [{ role: 'assistant', content: loadingContent }]
@@ -233,6 +261,8 @@ export function useChat() {
       const handleWsMessage = (msg: any) => {
         if (msg.type === 'extensions_sync') {
           window.dispatchEvent(new CustomEvent('momai_extensions_sync', { detail: msg.data }))
+        } else if (msg.type === 'fortscript_event') {
+          window.dispatchEvent(new CustomEvent('momai_fortscript_event', { detail: msg }))
         } else if (msg.type === 'graph_open') {
           // Abre interface gráfica (Centro ou Lateral)
           const newGraphState = {
@@ -286,7 +316,7 @@ export function useChat() {
         } else if (msg.type === 'model_change_start') {
           window.dispatchEvent(new CustomEvent('ai_model_change_start', { detail: msg.data.mode }))
         } else if (msg.type === 'model_change_progress') {
-          setCurrentStatus(msg.data.status)
+          // Progress is now handled via activities or global status if needed
         } else if (msg.type === 'reminder_trigger') {
           // Alerta visual de lembrete
           setGraphState({
@@ -329,13 +359,28 @@ export function useChat() {
           const { data } = msg
 
           if (data.status) {
-            if (data.status === 'thinking') setCurrentStatus('Pensando...')
-            else if (data.status === 'responding') setCurrentStatus(null)
-            else setCurrentStatus(data.status)
+            const statusText =
+              data.status === 'thinking' ? 'Pensando...' : data.status === 'responding' ? null : data.status
+
+            if (statusText) {
+              setMessages((prev) => {
+                const updated = [...prev]
+                const lastIdx = updated.length - 1
+                if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+                  const currentActivities = updated[lastIdx].activities || []
+                  if (!currentActivities.includes(statusText)) {
+                    updated[lastIdx] = {
+                      ...updated[lastIdx],
+                      activities: [...currentActivities, statusText]
+                    }
+                  }
+                }
+                return updated
+              })
+            }
           }
 
           if (data.token) {
-            setCurrentStatus(null)
             setMessages((prev) => {
               const updated = [...prev]
               const lastIdx = updated.length - 1
@@ -371,11 +416,9 @@ export function useChat() {
 
           if (data.done) {
             setIsLoading(false)
-            setCurrentStatus(null)
           }
 
           if (data.error) {
-            setCurrentStatus(null)
             setMessages((prev) => {
               const updated = [...prev]
               if (updated[updated.length - 1]?.role === 'assistant') {
@@ -421,12 +464,14 @@ export function useChat() {
   }, []) // Removida dependência graphState para estabilidade
 
   const sendMessage = useCallback(
-    async (overrideText?: string) => {
+    async (overrideText?: string, isSilent: boolean = false) => {
       const messageText = overrideText ?? text
       if (!messageText.trim() || isLoading) return
 
-      const userMessage: Message = { role: 'user', content: messageText }
-      setMessages((prev) => [...prev, userMessage])
+      if (!isSilent) {
+        const userMessage: Message = { role: 'user', content: messageText }
+        setMessages((prev) => [...prev, userMessage])
+      }
 
       if (!overrideText) setText('')
 
@@ -438,7 +483,6 @@ export function useChat() {
       try {
         await sendChatMessage(messageText, threadId, {
           onToken: (token) => {
-            setCurrentStatus(null)
             setMessages((prev) => {
               const updated = [...prev]
               const lastIdx = updated.length - 1
@@ -456,6 +500,22 @@ export function useChat() {
               } else {
                 return [...prev, { role: 'assistant', content: token }]
               }
+            })
+          },
+          onStatus: (status) => {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const lastIdx = updated.length - 1
+              if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+                const currentActivities = updated[lastIdx].activities || []
+                if (!currentActivities.includes(status)) {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    activities: [...currentActivities, status]
+                  }
+                }
+              }
+              return updated
             })
           },
           onError: (error) => {
@@ -487,6 +547,17 @@ export function useChat() {
     [text, isLoading, threadId]
   )
 
+  // Auto-Greeting Effect (Only once per app initialization)
+  useEffect(() => {
+    if (isHistoryLoaded && !appGreetingTriggered) {
+      appGreetingTriggered = true
+      // Trigger greeting. We only do this once per app mount.
+      setTimeout(() => {
+        sendMessage("Greet the user warmly in one VERY short sentence, welcoming them back to MomAI. Use their language if possible.", true)
+      }, 500)
+    }
+  }, [isHistoryLoaded, sendMessage])
+
   return {
     text,
     setText,
@@ -495,7 +566,6 @@ export function useChat() {
     sendMessage,
     messagesEndRef,
     graphState,
-    currentStatus,
     handleGraphOption,
     closeGraph,
     reopenGraph,

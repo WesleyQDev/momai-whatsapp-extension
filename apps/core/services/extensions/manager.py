@@ -35,7 +35,7 @@ class PluginRegistry:
             d.mkdir(parents=True, exist_ok=True)
 
     def load_all(self):
-        """Descobre e carrega todos os plugins das pastas configuradas."""
+        """Discovers and loads all plugins from the configured directories."""
         print("[Microkernel] Discovering agents and extensions...")
         
         # Unregister existing plugins to avoid "already registered" errors on reload
@@ -187,7 +187,7 @@ class PluginRegistry:
 
 
     def get_tools(self) -> List[Any]:
-        """Coleta ferramentas registradas via hooks."""
+        """Collect tools registered via hooks."""
         all_tools = []
         results = self.pm.hook.register_tools()
         if results:
@@ -196,7 +196,7 @@ class PluginRegistry:
         return all_tools
 
     def get_active_manifests(self) -> List[Dict]:
-        """Retorna manifestos formatados para o Frontend com status."""
+        """Returns formatted manifests for the Frontend with status."""
         result = []
         for p in self.plugins.values():
             if p["manifest"]:
@@ -204,9 +204,9 @@ class PluginRegistry:
             else:
                 m_dict = {
                     "id": p.get("id", "unknown"),
-                    "name": f"Erro em {p['path'].name}",
-                    "description": p.get("error", "Erro ao carregar manifesto."),
-                    "author": "Sistema",
+                    "name": f"Error in {p['path'].name}",
+                    "description": p.get("error", "Error loading manifest."),
+                    "author": "System",
                     "version": "0.0.0",
                     "icon": "Puzzle",
                     "features": {"agent_name": "error", "sidebar": False}

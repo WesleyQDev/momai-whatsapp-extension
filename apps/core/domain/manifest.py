@@ -6,6 +6,7 @@ class AgentFeatures(BaseModel):
     agent_name: str
     ui_view: Optional[str] = "ChatDashboard"
     ui_schema: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    tools: List[str] = Field(default_factory=list)
 
 
 

@@ -3,39 +3,48 @@ title: 'Desenvolvimento Frontend'
 description: 'Interface reativa construída com Electron, React 19 e Tailwind CSS.'
 ---
 
-A interface da MomAI foi desenhada para ser leve, moderna e, acima de tudo, dinâmica. Ela não apenas exibe texto, mas reage a comandos do backend para abrir interfaces gráficas e monitorar o sistema.
+A interface da MomAI foi desenhada para ser leve, moderna e, acima de tudo, dinâmica. Ela não apenas exibe texto, mas reage a comandos do backend para abrir interfaces gráficas e monitorar o sistema operacional em tempo real.
 
 ## Stack Tecnológica
-- **React 19**: Aproveitando as últimas melhorias de performance e hooks.
-- **Tailwind CSS**: Estilização baseada em variáveis globais para suporte a temas.
-- **Lucide & Heroicons**: Conjunto unificado de ícones.
-- **React Router 7**: Gerenciamento de rotas para views principais e de extensões.
+- **React 19**: Aproveitando as últimas melhorias de performance e hooks (como `useTransition` e `useActionState`).
+- **Tailwind CSS**: Estilização baseada em um sistema de design tokens (definidos em `index.css`) para suporte nativo a temas Dark/Light.
+- **Vite**: Motor de build ultra-rápido para desenvolvimento.
+- **Electron**: Container que permite ao React acessar APIs nativas do Windows através da camada de Preload.
 
-## Comunicação em Tempo Real
-A maior parte da inteligência de UI vem do **WebSocket** (`ws://localhost:8000/ws`).
+---
 
-### Eventos do Sistema
-- `extensions_sync`: Enviado pelo backend ao conectar, sincroniza os ícones da barra lateral.
-- `graph_open`: Aciona o `GraphInterface` para exibir componentes visuais (Gráficos, Forms).
-- `resource_usage`: Telemetria de CPU/RAM/VRAM exibida no `ResourceFooter`.
+## Arquitetura de Renderização Dinâmica
 
-## Componentes Dinâmicos
+Um dos maiores diferenciais da MomAI é como ela renderiza telas que ela "nem conhece" ainda:
 
-### LateralBar.tsx
-Este componente é inteligente. Além das rotas fixas (`/`, `/reminders`), ele mapeia o array de extensões ativas. Se uma extensão declarar `sidebar: true`, o ícone aparecerá automaticamente aqui.
+### 1. MainViewRenderer.tsx
+Este componente atua como um roteador de componentes dinâmicos. Em vez de rotas estáticas tradicionais, ele decide o que exibir com base nos metadados enviados pelas extensões:
+- Se você clica em um ícone de extensão, o `MainViewRenderer` localiza o componente exportado pela extensão e o monta no palco principal.
 
-### GraphInterface.tsx
-É o "palco" para interações complexas. Ele pode ser exibido no centro (modal) ou na lateral.
-- **UI Schema**: Aceita um objeto JSON que define botões e ações, permitindo que o backend controle a UI sem precisar de código JS novo no frontend.
+### 2. GraphInterface.tsx
+Inspirado por sistemas de orquestração de UI, este componente é o "palco" para interações complexas enviadas pelo Orquestrador de IA:
+- **UI Schema Dynamic**: O backend envia um JSON detalhando o que deve ser exibido (ex: uma tabela de arquivos, uma lista de confirmação de remessa).
+- **Interatividade**: Quando o usuário clica em uma ação no grafo, o evento é devolvido ao LangGraph para que o agente saiba como prosseguir.
 
-## Gerenciamento de Estado
-Utilizamos Hooks customizados para isolar a lógica de negócio:
-- `useChat`: Gerencia o histórico, o streaming de tokens e o estado do Grafo.
-- `useStatus`: Monitora a saúde do backend e gerencia a troca de modelos de IA.
+---
 
-## Como rodar em desenvolvimento
+## Comunicação e Fluxo de Dados
+
+### WebSocket (O Sistema Nervoso)
+A maior parte da inteligência de UI vem do **WebSocket** direto com o núcleo FastAPI.
+- **Streaming de Tokens**: A resposta da assistente é renderizada caractere por caractere para uma sensação de "pensamento" em tempo real.
+- **FortScript Toasts**: Notificações instantâneas de suspensão/restauração de recursos são disparadas via socket.
+- **Telemetria**: Dados de hardware são transmitidos a cada 2 segundos no `ResourceFooter`.
+
+### Hooks Customizados
+- **`useChat`**: Centraliza a lógica de envio de mensagens, recepção de tokens, controle de histórico e abertura de grafos.
+- **`useStatus`**: Gerencia o estado de "saúde" do sistema, verificando se o Llama.cpp está online e se as extensões foram carregadas corretamente.
+
+---
+
+## Desenvolvimento e Debug
+Para rodar a interface em modo de desenvolvimento com HMR:
 ```bash
-# Na raiz do projeto
 pnpm run dev
 ```
-Isso iniciará o Vite e o Electron. O HMR (Hot Module Replacement) está ativo, então as mudanças no React refletirão instantaneamente.
+Você pode abrir o **DevTools** do Chrome (`Ctrl+Shift+I`) dentro do Electron para inspecionar componentes e monitorar o tráfego do WebSocket, essencial para debugar novas extensões de UI.

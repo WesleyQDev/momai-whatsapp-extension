@@ -24,7 +24,6 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
       <ContainerChat
         messages={chat.messages}
         isLoading={chat.isLoading}
-        currentStatus={chat.currentStatus}
         text={chat.text}
         onSendMessage={chat.sendMessage}
         messagesEndRef={chat.messagesEndRef}

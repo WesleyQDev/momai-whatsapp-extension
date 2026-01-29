@@ -12,18 +12,19 @@ from langchain.chat_models import init_chat_model
 from dotenv import load_dotenv
 from ai.graph.workflow import create_momai_graph
 load_dotenv()
-
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+import traceback
+import logging
 
+logger = logging.getLogger("momai.ai")
 
 CHECKPOINT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "checkpoints.db")
 
-# O checkpointer será inicializado pelo main.py no lifespan
+# The checkpointer will be initialized by main.py in lifespan
 checkpointer = None
 
-SYSTEM_PROMPT = """You are MomAI, a helpful and professional virtual assistant.  
-You always address the user as "Senhor." Your main characteristics are politeness and efficiency. 
-"""
+SYSTEM_PROMPT = """You are MomAI, a sophisticated and helpful virtual assistant.
+You prioritize local processing, user privacy, and efficiency. Always be polite, reliable, and ready to assist with any request on the system."""
 MAX_MESSAGES = 6 # Reduced from 8 to 6 to save tokens in Cloud models
 llm_mode = "waiting"
 chat_history = {} # Stores temporary history if needed
@@ -210,21 +211,16 @@ def initialize_llm(mode: str):
     thread.daemon = True
     thread.start()
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
-
-console = Console()
 
 def _initialize_llm_task(mode: str):
-    """Internal task to initialize the LLM and rebuild the graph."""
+    """Tarefa interna para inicializar o LLM e reconstruir o grafo."""
     global llm, llm_with_tools, llm_mode, momai_graph, is_loading, init_error
     
     import main
     import asyncio
 
     def report_progress(status: str):
-        console.print(f"[dim][AI_core][/dim] {status}")
+        print(f"[AI_core] {status}")
         if main.main_loop:
             asyncio.run_coroutine_threadsafe(
                 main.broadcast_to_sockets({
@@ -236,10 +232,10 @@ def _initialize_llm_task(mode: str):
 
     try:
         mode = mode.lower()
-        console.print(Panel(f"[bold cyan]Initializing AI Engine: {mode.upper()}[/bold cyan]", expand=False))
-        report_progress("Starting transition...")
+        print(f"\n--- Inicializando Motor de IA: {mode.upper()} ---")
+        report_progress("Iniciando transição...")
 
-        # Fetch current settings for the Graph
+        # Busca configurações atuais para o Grafo
         from database.models import SessionLocal, Settings
         db = SessionLocal()
         s = db.query(Settings).first()
@@ -249,37 +245,37 @@ def _initialize_llm_task(mode: str):
 
         new_llm = None
         if mode == "local":
-            report_progress("Configuring Llama.cpp engine...")
+            report_progress("Configurando motor Llama.cpp...")
             new_llm = load_model(
                 repo_id="unsloth/Qwen3-4B-Instruct-2507-GGUF",
                 filename="Qwen3-4B-Instruct-2507-Q6_K.gguf",
                 on_progress=report_progress
             )
         elif mode == "groq":
-            report_progress("Connecting to Groq Cloud...")
+            report_progress("Conectando ao Groq Cloud...")
             key = get_api_key("groq")
             if not key:
-                raise ValueError("Groq API Key not found in settings.")
+                raise ValueError("API Key do Groq não encontrada nas configurações.")
             from langchain_groq import ChatGroq
             new_llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=key)
         elif mode == "gemini":
-            report_progress("Connecting to Google Gemini...")
+            report_progress("Conectando ao Google Gemini...")
             key = get_api_key("gemini")
             if key:
                 import os
                 os.environ["GOOGLE_API_KEY"] = key
             else:
-                raise ValueError("Gemini API Key not found.")
-            new_llm = init_chat_model("gemini-1.5-flash", model_provider="google_genai")
+                raise ValueError("API Key do Gemini não encontrada.")
+            new_llm = init_chat_model("gemini-2.5-flash-lite", model_provider="google_genai")
         else:
-            raise ValueError(f"Unknown AI provider: {mode}")
+            raise ValueError(f"Provedor de IA desconhecido: {mode}")
 
         if new_llm:
-            console.print(f"[green]✔[/green] Model {mode} instantiated. Rebuilding Graph...")
-            report_progress("Rebuilding Agent Graph...")
+            print(f"[AI_core] Modelo {mode} instanciado. Reconstruindo Grafo...")
+            report_progress("Reconstruindo Grafo de Agentes...")
             
             try:
-                # Rebuild Graph with new LLM and settings
+                # Reconstroi o Grafo com novo LLM e configurações
                 new_graph = create_momai_graph(new_llm, user_name=u_name, assistant_persona=u_persona, checkpointer=checkpointer)
                 
                 # ATOMIC UPDATE
@@ -291,23 +287,23 @@ def _initialize_llm_task(mode: str):
                     tools.current_mode = mode
                     init_error = None
                 
-                report_progress("All ready, Sir!")
-                console.print(f"[bold green]✔ AI Engine {mode} is ready![/bold green]")
+                report_progress("Tudo pronto, Senhor!")
+                print(f"[AI_core] Motor de IA {mode} está pronto!")
             except Exception as graph_err:
-                console.print(f"[bold red]✘ Graph Rebuild Error:[/bold red] {graph_err}")
+                print(f"[AI_core] Erro na Reconstrução do Grafo: {graph_err}")
                 raise graph_err
             
-            # Notify frontend that switch is complete
+            # Notifica o frontend
             if main.main_loop:
                 asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": mode}}), main.main_loop)
                 main.set_graph_state(None, False)
             
         else:
-            raise Exception(f"Provider {mode} did not return a valid instance.")
+            raise Exception(f"Provedor {mode} não retornou uma instância válida.")
 
     except Exception as e:
         err_msg = str(e)
-        console.print(f"[bold red]✘ Critical Initialization Error:[/bold red] {err_msg}")
+        print(f"[AI_core] Erro Crítico de Inicialização: {err_msg}")
         init_error = err_msg
         is_loading = False
         
@@ -373,24 +369,20 @@ def clean_response(text: str) -> str:
     return text
 
 
-import traceback
+
 
 async def generate(message: ChatMessage):
     """
     Main stream generator for chat responses.
     """
     import services.voice.tts as tts
-    from rich.live import Live
-
-    # Stop previous speech
     tts.stop_all()
     tts.start_workers()
-
-    console.print(f"[bold magenta]New Request:[/bold magenta] [italic]{message.content}[/italic]")
+    print(f"\n[AI_core] Nova Requisição: {message.content}")
 
     if is_loading or llm is None or momai_graph is None:
-        status_mode = llm_mode if llm_mode != "waiting" else "initial"
-        msg = f"Please wait, Sir. I am configuring my brain for {status_mode} mode."
+        status_mode = llm_mode if llm_mode != "waiting" else "inicial"
+        msg = f"Aguarde um momento, Senhor. Estou configurando meu motor para o modo {status_mode}."
         yield f"data: {json.dumps({'error': msg})}\n\n"
         return
 
@@ -411,67 +403,115 @@ async def generate(message: ChatMessage):
 
             kind = event["event"]
             name = event["name"]
+            metadata = event.get("metadata", {})
+            node_name = metadata.get("langgraph_node", "")
 
-            # ... (código intermediário mantido) ...
+            # Log todos os eventos de chain/node no terminal para depuração
+            if kind in ["on_chain_start", "on_node_start"]:
+                logger.info(f"[GraphEvent] {kind}: {name} (node: {node_name})")
+
+            # Status for UI
+            if (kind == "on_chain_start" or kind == "on_node_start"):
+                if "semantic_router" in name or node_name == "semantic_router":
+                    yield f"data: {json.dumps({'status': 'Router: Analyzing intent...'})}\n\n"
+                
+                elif "mom_orchestrator" in name or node_name == "mom_orchestrator":
+                    yield f"data: {json.dumps({'status': 'Orchestrator: Planning action...'})}\n\n"
+
+                elif "specialist_node" in name or node_name == "specialist_node":
+                    yield f"data: {json.dumps({'status': 'Specialist: Processing request...'})}\n\n"
+
+            if kind == "on_tool_start":
+                logger.info(f"[AI_core] Executing tool: {name}")
+                yield f"data: {json.dumps({'status': f'Executing: {name}'})}\n\n"
+            
+            if kind == "on_tool_end":
+                logger.info(f"[AI_core] Tool {name} finished.")
+                yield f"data: {json.dumps({'status': None})}\n\n"
+
             
             if kind == "on_chat_model_stream":
                 metadata = event.get("metadata", {})
                 node = metadata.get("langgraph_node", "")
                 
-                if node == "responder":
-                    content = event["data"]["chunk"].content
-                    if not content: continue
+                # Bloqueio total de nós técnicos (Roteador e Orquestrador)
+                if node in ["semantic_router", "mom_orchestrator", "router"]:
+                    continue
 
-                    if "<think>" in content: is_thinking = True; continue
-                    if "</think>" in content: is_thinking = False; continue
-                    if is_thinking: continue
+                content = event["data"]["chunk"].content
+                if not content: continue
 
-                    filtered_content = "".join(c for c in content if ord(c) <= 0xFFFF)
-                    if filtered_content:
-                        # Se for o início da resposta, remove prefixos comuns que o modelo pode teimar em gerar
-                        if not full_content:
-                            clean_chunk = re.sub(r'^(MomAI|Assistente|Assistant|MomAgent|IA)\s*:?\s*', '', filtered_content, flags=re.IGNORECASE)
-                            if not clean_chunk.strip() and len(filtered_content) < 15:
-                                # Era apenas o prefixo, ignoramos esse chunk e continuamos
-                                full_content += filtered_content 
-                                continue
-                            filtered_content = clean_chunk
-                        
-                        full_content += filtered_content
-                        yield f"data: {json.dumps({'token': filtered_content})}\n\n"
-                        tts_buffer += filtered_content
-                        
-                        # Processamento inteligente para TTS: fluidez vs latência
-                        while True:
-                            match = sentence_end_pattern.search(tts_buffer)
-                            if match:
-                                sentence = (match.group(1) or match.group(2)).strip()
-                                tts_buffer = tts_buffer[match.end():]
-                                if len(sentence) > 2:
-                                    clean_sent = clean_text_for_tts(sentence)
-                                    if clean_sent: tts.speak_sentence(clean_sent)
-                            # Fallback para frases muito longas sem pontuação (evita latência alta)
-                            elif len(tts_buffer) > 120: 
-                                last_space = tts_buffer.rfind(" ")
-                                if last_space != -1 and last_space > 60:
-                                    sentence = tts_buffer[:last_space].strip()
-                                    tts_buffer = tts_buffer[last_space:].strip()
-                                    clean_sent = clean_text_for_tts(sentence)
-                                    if clean_sent: tts.speak_sentence(clean_sent)
-                                else: break
+                # Filtro de Pensamento (DeepSeek/Qwen tags)
+                if "<think>" in content: is_thinking = True; continue
+                if "</think>" in content: is_thinking = False; continue
+                if is_thinking: continue
+
+                # Filtro de JSON e Chamadas de Funções Hallucinadas
+                raw_token = content.strip()
+                if raw_token.startswith('{') or raw_token.startswith('}'): continue
+                if raw_token.startswith('"next"'): continue
+
+                filtered_content = "".join(c for c in content if ord(c) <= 0xFFFF)
+                if filtered_content:
+                    # Se for o início da resposta, limpa prefixos
+                    if not full_content:
+                        clean_chunk = re.sub(r'^(MomAI|Assistente|Assistant|MomAgent|IA)\s*:?\s*', '', filtered_content, flags=re.IGNORECASE)
+                        if not clean_chunk.strip() and len(filtered_content) < 15:
+                            full_content += filtered_content 
+                            continue
+                        filtered_content = clean_chunk
+                    
+                    full_content += filtered_content
+                    yield f"data: {json.dumps({'token': filtered_content})}\n\n"
+                    tts_buffer += filtered_content
+                    
+                    # Processamento para TTS
+                    while True:
+                        match = sentence_end_pattern.search(tts_buffer)
+                        if match:
+                            sentence = (match.group(1) or match.group(2)).strip()
+                            tts_buffer = tts_buffer[match.end():]
+                            if len(sentence) > 2:
+                                clean_sent = clean_text_for_tts(sentence)
+                                if clean_sent: tts.speak_sentence(clean_sent)
+                        elif len(tts_buffer) > 120: 
+                            last_space = tts_buffer.rfind(" ")
+                            if last_space != -1 and last_space > 60:
+                                sentence = tts_buffer[:last_space].strip()
+                                tts_buffer = tts_buffer[last_space:].strip()
+                                clean_sent = clean_text_for_tts(sentence)
+                                if clean_sent: tts.speak_sentence(clean_sent)
                             else: break
+                        else: break
+
+            elif kind == "on_chat_model_end":
+                metadata = event.get("metadata", {})
+                node = metadata.get("langgraph_node", "")
+                
+                # Só processa fallback se for um nó de comunicação com o humano
+                if node in ["specialist_node", "responder"]:
+                    output = event["data"].get("output")
+                    if output and hasattr(output, "content") and output.content:
+                        if not full_content:
+                            content = clean_response(output.content)
+                            # Se o conteúdo final for apenas código/ferramenta, não exibe como texto
+                            if content and '{"next":' not in content and 'show_graph(' not in content:
+                                full_content = content
+                                yield f"data: {json.dumps({'token': content})}\n\n"
+                                clean_sent = clean_text_for_tts(content)
+                                if clean_sent: tts.speak_sentence(clean_sent)
 
             elif kind == "on_chain_end" and name == "mom_orchestrator":
                 output = event["data"].get("output")
                 if output and isinstance(output, dict):
                     next_agent = output.get("next")
                     if next_agent and next_agent != "responder":
-                         console.print(f"[dim]Routing context to:[/dim] [yellow]{next_agent}[/yellow]")
-                         yield f"data: {json.dumps({'status': f'Consultando {next_agent}...'})}\n\n"
+                         print(f"[AI_core] Routing to: {next_agent}")
+                         yield f"data: {json.dumps({'status': f'Consulting {next_agent}...'})}\n\n"
 
     except Exception as e:
         error_msg = str(e)
-        console.print(f"[bold red]Stream Error:[/bold red] {error_msg}")
+        print(f"[AI_core] Erro de Stream: {error_msg}")
         
         if "429" in error_msg or "rate_limit" in error_msg.lower():
             friendly_error = "Sir, I have reached the Groq processing limit for this minute. Please wait a few seconds before trying again."

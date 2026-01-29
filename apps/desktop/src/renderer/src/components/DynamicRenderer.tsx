@@ -1,4 +1,4 @@
-import React from 'react'
+
 
 export interface UIComponent {
   type: 'container' | 'text' | 'button' | 'input' | 'list'

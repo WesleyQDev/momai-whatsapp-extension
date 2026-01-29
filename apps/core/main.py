@@ -28,10 +28,11 @@ import json
 import asyncio
 import logging
 from datetime import datetime
-from database.models import init_db, SessionLocal, Reminder, Settings, Extension
+from database.models import init_db, SessionLocal, Reminder, Settings, Extension, GamingApp
 from services.reminders.manager import ReminderManager
 import services.voice.tts as tts
 from services.extensions.manager import extension_manager
+from services.system.resource_manager import resource_manager
 
 # Silencia logs de acesso do uvicorn especificamente para o endpoint /status
 class EndpointFilter(logging.Filter):
@@ -109,11 +110,25 @@ async def broadcast_resource_usage():
                 "data": stats
             })
         await asyncio.sleep(2)
+        
+
+def notify_economy_change(status: str):
+    """Callback para o ResourceManager notificar a UI via WebSocket."""
+    if main_loop:
+        main_loop.call_soon_threadsafe(
+            lambda: asyncio.create_task(broadcast_to_sockets({
+                "type": "fortscript_event",
+                "status": status,
+                "timestamp": datetime.now().isoformat()
+            }))
+        )
 
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global main_loop, reminder_manager, ww
+    main_loop = asyncio.get_running_loop()
     # Startup: Database and Migrations
     init_db()
     
@@ -150,11 +165,13 @@ async def lifespan(app: FastAPI):
     tts.tts.set_enabled(settings.tts_enabled)
     orchestrator.SYSTEM_PROMPT = settings.assistant_persona
     
-    global main_loop, reminder_manager, ww
-    main_loop = asyncio.get_running_loop()
     
     # Start resource usage broadcaster
     asyncio.create_task(broadcast_resource_usage())
+
+    # Start Gaming Mode Monitor (FortScript)
+    resource_manager.on_notify_callback = notify_economy_change
+    resource_manager.start()
 
     from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
     
@@ -258,6 +275,10 @@ class ExtensionToggle(BaseModel):
     id: str
     enabled: bool
 
+class GamingAppCreate(BaseModel):
+    name: str
+    executable: str
+
 # --- ROUTES ---
 @app.post("/chat/stream")
 async def handle_chat_stream(message: ChatMessage):
@@ -304,6 +325,8 @@ def get_status():
         "status": "ok", 
         "version": tools.version, 
         "mode": orchestrator.llm_mode,
+        "brain_ready": orchestrator.llm is not None and orchestrator.momai_graph is not None,
+        "is_loading": orchestrator.is_loading,
         "setup": {
             "local_installed": engine_ok,
             "installed_version": install_info.get("version") if install_info else None,
@@ -572,6 +595,44 @@ async def toggle_extension(req: ExtensionToggle):
         return {"status": "ok"}
     db.close()
     return {"status": "error", "message": "Extensão não encontrada"}
+
+
+# --- GAMING MODE ROUTES ---
+@app.get("/system/gaming-apps")
+def list_gaming_apps():
+    db = SessionLocal()
+    apps = db.query(GamingApp).all()
+    db.close()
+    return [{"id": a.id, "name": a.name, "executable": a.executable, "is_active": a.is_active} for a in apps]
+
+@app.post("/system/gaming-apps")
+def add_gaming_app(data: GamingAppCreate):
+    db = SessionLocal()
+    try:
+        new_app = GamingApp(name=data.name, executable=data.executable.lower())
+        db.add(new_app)
+        db.commit()
+        # Reinicia o monitor para pegar a nova config
+        resource_manager.start()
+        return {"status": "ok"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+
+@app.delete("/system/gaming-apps/{app_id}")
+def delete_gaming_app(app_id: int):
+    db = SessionLocal()
+    app = db.query(GamingApp).filter(GamingApp.id == app_id).first()
+    if app:
+        db.delete(app)
+        db.commit()
+        resource_manager.start()
+        db.close()
+        return {"status": "ok"}
+    db.close()
+    return {"status": "error", "message": "App não encontrado"}
 
 
 @app.get("/extensions/hardware-stats")

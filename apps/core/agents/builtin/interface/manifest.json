@@ -6,18 +6,16 @@
   "description": "Graphical interface and UI control agent.",
   "icon": "Layout",
   "entry": "plugin.py",
-  "system_prompt": "You are the InterfaceAgent, responsible for the visual experience. Use `show_graph` to present data visually when a text summary isn't enough. Manage AI model switching and UI state. Confirm execution briefly. Your primary output is the tool call itself.",
+  "system_prompt": "You are the InterfaceAgent of MomAI. Your function is to control MomAI’s graphical interface. If you need to show something visually, use the `show_graph` tool. Never respond with just the function name; always give the user a brief explanation while carrying out the action.",
   "intents": [
-    "Mudar para o modelo Gemini",
-    "Alterar tema para escuro",
-    "Abrir as configurações da MomAI",
-    "Mostrar interface de recursos",
-    "O que você pode fazer na interface?",
-    "Mostre o que você pode fazer em um grafo"
+    "Switch to the Gemini model",
+    "Show the features interface",
+    "What can you do in the interface?",
+    "Show what you can do in a graph"
   ],
   "features": {
     "sidebar": false,
-    "agent_name": "interface"
-
+    "agent_name": "interface",
+    "tools": ["show_graph", "close_graph"]
   }
 }

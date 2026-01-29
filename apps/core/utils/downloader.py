@@ -15,7 +15,7 @@ BIN_PATH = Path(__file__).parent.parent / "bin"
 
 # Cache settings
 CACHE_FILE = BIN_PATH / ".version_cache.json"
-CACHE_DURATION_HOURS = 6  # Cache por 6 horas
+CACHE_DURATION_HOURS = 6  # Cache for 6 hours
 
 def get_bin_dir(backend: str) -> Path:
     """Returns the specific directory for a backend."""
@@ -76,7 +76,7 @@ def get_latest_llama_version():
             'Accept': 'application/vnd.github.v3+json'
         }
         
-        # Você pode adicionar autenticação aqui se tiver um token:
+        # You can add authentication here if you have a token:
         # github_token = os.environ.get('GITHUB_TOKEN')
         # if github_token:
         #     headers['Authorization'] = f'token {github_token}'
@@ -94,7 +94,7 @@ def get_latest_llama_version():
             return version
         elif response.status_code == 403:
             print("[Aviso] Rate limit do GitHub atingido. Usando cache ou versão padrão.")
-            # Tenta usar cache mesmo se expirado
+
             cached = load_version_cache()
             if cached != LLAMA_VERSION:
                 print(f"[Cache] Usando versão em cache (expirada): {cached}")

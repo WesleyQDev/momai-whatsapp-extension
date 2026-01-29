@@ -10,13 +10,13 @@ from .manager import extension_manager
 REGISTRY_URL = "https://raw.githubusercontent.com/WesleyQDev/MomAI/main/registry.json"
 
 class ExtensionInstaller:
+    """Handles the installation of extensions from a registry."""
     def __init__(self):
         self.user_dir = extension_manager._get_user_extensions_dir()
 
     def fetch_registry(self) -> List[Dict[str, Any]]:
-        """Busca a lista de extensões disponíveis. Tenta localmente primeiro (dev) depois nuvem."""
-        # 1. Tenta Registry Local (para testes e desenvolvimento)
-        # Caminho: apps/core/services/extensions/installer.py -> ../../../../registry.json
+        """Fetches the list of available extensions. Tries locally first (dev) then cloud."""
+
         local_registry = Path(__file__).parent.parent.parent.parent.parent / "registry.json"
         if local_registry.exists():
             try:
@@ -28,25 +28,25 @@ class ExtensionInstaller:
                 print(f"[Installer] Erro ao ler registro local: {e}")
 
 
-        # 2. Fallback para Nuvem (Oficial)
+        # 2. Fallback to Cloud (Official)
         try:
-            print(f"[Installer] Buscando registro na nuvem: {REGISTRY_URL}")
+            print(f"[Installer] Fetching registry from cloud: {REGISTRY_URL}")
             response = requests.get(REGISTRY_URL, timeout=10)
             response.raise_for_status()
             data = response.json()
             return data.get("extensions", [])
         except Exception as e:
-            print(f"[Installer] Erro ao buscar registro na nuvem: {e}")
+            print(f"[Installer] Error fetching registry from cloud: {e}")
             return []
 
 
     def install(self, download_url: str, extension_id: str) -> bool:
-        """Baixa e instala uma extensão a partir de uma URL de ZIP."""
+        """Downloads and installs an extension from a ZIP URL."""
         temp_zip = self.user_dir / f"{extension_id}.zip"
         target_dir = self.user_dir / extension_id
 
         try:
-            print(f"[Installer] Baixando {extension_id}...")
+            print(f"[Installer] Downloading {extension_id}...")
             response = requests.get(download_url, stream=True)
             response.raise_for_status()
 
@@ -54,31 +54,35 @@ class ExtensionInstaller:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            # Limpa diretório antigo se existir
+            # Clear old directory if it exists
             if target_dir.exists():
                 shutil.rmtree(target_dir)
 
-            # Extrai
+            # Extract
             with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
                 zip_ref.extractall(target_dir)
 
-            # Lógica para lidar com ZIPs do GitHub que vêm com uma pasta raiz (ex: repo-main/)
+            # Logic to handle GitHub ZIPs that come with a root folder (e.g., repo-main/)
             contents = list(target_dir.iterdir())
             if len(contents) == 1 and contents[0].is_dir():
                 subfolder = contents[0]
-                print(f"[Installer] Movendo conteúdo de {subfolder.name} para a raiz...")
+                print(f"[Installer] Moving content from {subfolder.name} to root...")
                 for item in subfolder.iterdir():
                     shutil.move(str(item), str(target_dir))
                 subfolder.rmdir()
 
 
-            # Remove o ZIP
+            # Remove the ZIP
             temp_zip.unlink()
 
-            # Tenta instalar dependências Python via uv se houver requirements.txt
+            # Try to install Python dependencies via uv if pyproject.toml exists
+            pyproject = target_dir / "pyproject.toml"
             requirements = target_dir / "requirements.txt"
-            if requirements.exists():
-                self._install_requirements(requirements)
+            
+            if pyproject.exists():
+                self._install_requirements_uv(pyproject)
+            elif requirements.exists():
+                self._install_requirements_legacy(requirements)
 
             print(f"[Installer] {extension_id} instalado com sucesso!")
             return True
@@ -88,8 +92,32 @@ class ExtensionInstaller:
             if temp_zip.exists(): temp_zip.unlink()
             return False
 
-    def _install_requirements(self, requirements_path: Path):
-        """Usa o módulo venv padrão para criar um ambiente isolado e instalar dependências."""
+    def _install_requirements_uv(self, pyproject_path: Path):
+        """Usa o uv para gerenciar dependências de forma ultrarápida."""
+        import subprocess
+        import sys
+        import os
+        
+        target_dir = pyproject_path.parent
+        
+        try:
+            # Priorize the uv binary passed by Electron
+            uv_bin = os.environ.get("MOMAI_UV_BIN", "uv")
+            
+            print(f"[Installer] Sincronizando dependências com {uv_bin} em {target_dir}...")
+            
+            # Synchronize the extension environment
+            subprocess.run([uv_bin, "sync"], cwd=str(target_dir), check=True)
+            print(f"[Installer] Dependencies synchronized successfully via uv.")
+            
+        except Exception as e:
+            print(f"[Installer] Error using uv for {target_dir.name}: {e}")
+            # Fallback to the legacy mode if uv fails or is not present
+            print("[Installer] Tentando fallback para venv tradicional...")
+            self._install_requirements_legacy(pyproject_path)
+
+    def _install_requirements_legacy(self, requirements_path: Path):
+        """Uses the default venv module to create an isolated environment and install dependencies."""
         import subprocess
         import sys
         
@@ -97,28 +125,31 @@ class ExtensionInstaller:
         venv_dir = target_dir / ".venv"
         
         try:
-            # 1. Cria o VENV se não existir
+            # 1. Create the VENV if it doesn't exist
             if not venv_dir.exists():
-                print(f"[Installer] Criando ambiente virtual em {venv_dir}...")
+                print(f"[Installer] Creating virtual environment at {venv_dir}...")
                 subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
             
-            # 2. Determina o caminho do executável python dentro do VENV
+            # 2. Determine the path to the python executable inside the VENV
             if sys.platform == "win32":
                 python_exe = venv_dir / "Scripts" / "python.exe"
             else:
                 python_exe = venv_dir / "bin" / "python"
 
             if not python_exe.exists():
-                raise FileNotFoundError(f"Python não encontrado no VENV: {python_exe}")
+                raise FileNotFoundError(f"Python not found in VENV: {python_exe}")
 
-            # 3. Instala as dependências usando o pip do VENV
-            print(f"[Installer] Instalando dependências de {requirements_path} no VENV...")
-            subprocess.run([str(python_exe), "-m", "pip", "install", "-r", str(requirements_path)], check=True)
+            # 3. Install dependencies using the VENV pip
+            print(f"[Installer] Installing dependencies from {requirements_path} in VENV...")
+            if requirements_path.name == "pyproject.toml":
+                 subprocess.run([str(python_exe), "-m", "pip", "install", "."], cwd=str(target_dir), check=True)
+            else:
+                 subprocess.run([str(python_exe), "-m", "pip", "install", "-r", str(requirements_path)], check=True)
             
-            print(f"[Installer] Dependências instaladas com sucesso no ambiente isolado.")
+            print(f"[Installer] Dependencies installed successfully in isolated environment.")
             
         except Exception as e:
-            print(f"[Installer] Erro ao configurar ambiente isolado para {target_dir.name}: {e}")
+            print(f"[Installer] Error configuring isolated environment for {target_dir.name}: {e}")
 
 # Singleton
 extension_installer = ExtensionInstaller()

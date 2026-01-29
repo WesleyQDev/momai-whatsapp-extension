@@ -5,7 +5,6 @@ import { Message } from '../../services/api'
 interface MessageListProps {
   messages: Message[]
   isLoading: boolean
-  currentStatus: string | null
   messagesEndRef: RefObject<HTMLDivElement | null>
   onReopenGraph: (data: any) => void
 }
@@ -13,7 +12,6 @@ interface MessageListProps {
 const MessageList = memo(function MessageList({
   messages,
   isLoading,
-  currentStatus,
   messagesEndRef,
   onReopenGraph
 }: MessageListProps): JSX.Element {
@@ -45,7 +43,6 @@ const MessageList = memo(function MessageList({
           key={i}
           message={msg}
           isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
-          currentStatus={isLoading && i === messages.length - 1 ? currentStatus : null}
           onReopenGraph={onReopenGraph}
         />
       ))}

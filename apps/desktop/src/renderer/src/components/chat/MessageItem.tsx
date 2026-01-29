@@ -7,18 +7,16 @@ import icon from '../../assets/icon.png'
 interface MessageItemProps {
   message: Message
   isLoading?: boolean
-  currentStatus?: string | null
   onReopenGraph: (data: any) => void
 }
 
 const MessageItem = memo(function MessageItem({
   message,
   isLoading = false,
-  currentStatus = null,
   onReopenGraph
 }: MessageItemProps): JSX.Element {
   const isSystemModelChange =
-    message.role === 'assistant' && message.content.startsWith('Cérebro alterado para:')
+    message.role === 'assistant' && message.content.startsWith('Brain changed to:')
   const isDone = message.content.includes('✅')
 
   // Limpa o indicador de expectativa do conteúdo para não aparecer no texto
@@ -28,7 +26,7 @@ const MessageItem = memo(function MessageItem({
     const modelName =
       message.content.split('**')[1] ||
       message.content
-        .replace('Cérebro alterado para:', '')
+        .replace('Brain changed to:', '')
         .replace('⏳', '')
         .replace('✅', '')
         .trim()
@@ -121,7 +119,62 @@ const MessageItem = memo(function MessageItem({
             MomAI
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
+          {message.role === 'assistant' && (message.activities?.length || isLoading) && (
+            <div className={`flex flex-col gap-1 ${displayContent ? 'mb-3' : 'mb-1'} mt-1`}>
+              {/* ACTIVE STATUS (Only while loading) */}
+              {isLoading && (
+                <div className="flex items-center gap-2 px-1 py-0.5 animate-in fade-in duration-700">
+                  <div className="w-1 h-1 bg-text-muted/40 rounded-full" />
+                  <span className="text-[10px] font-bold text-text-muted/60 uppercase tracking-[0.1em]">
+                    {message.activities && message.activities.length > 0 
+                      ? message.activities[message.activities.length - 1] 
+                      : "Thinking..."}
+                  </span>
+                  <div className="flex gap-0.5 ml-1 opacity-20">
+                    <span className="w-0.5 h-0.5 bg-text-muted rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-0.5 h-0.5 bg-text-muted rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-0.5 h-0.5 bg-text-muted rounded-full animate-bounce"></span>
+                  </div>
+                </div>
+              )}
+
+              {/* TRACE ACCORDION (Only after finished) */}
+              {!isLoading && message.activities && message.activities.length > 0 && (
+                <details className="group/trace overflow-hidden">
+                  <summary className="flex items-center gap-2 text-[9px] font-black text-text-muted/40 uppercase tracking-[0.2em] cursor-pointer hover:text-accent/60 transition-colors list-none outline-none select-none px-1">
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="group-open/trace:rotate-180 transition-transform duration-300"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                    <span>View Thinking Trace</span>
+                  </summary>
+                  
+                  <div className="flex flex-col gap-1.5 mt-2 ml-1 pl-3 border-l border-border/10 animate-in slide-in-from-top-1 duration-300">
+                    {message.activities.map((activity, idx) => (
+                      <div 
+                        key={idx} 
+                        className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity"
+                      >
+                        <div className="w-1 h-1 rounded-full bg-border" />
+                        <span className="text-[10px] font-bold tracking-tight text-text-muted uppercase">
+                          {activity.replace('Consultando', 'Consulting').replace('Executando', 'Executing').replace('Processando', 'Processing')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+
           {displayContent && (
             <div className="transition-opacity duration-500 opacity-100">
               <ReactMarkdown
@@ -184,21 +237,6 @@ const MessageItem = memo(function MessageItem({
                 </span>
               </div>
             </button>
-          )}
-
-          {message.role === 'assistant' && isLoading && (
-            <div className="flex items-center gap-2 py-1 mt-1.5">
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-accent/60 rounded-full animate-[typing_1.4s_infinite_ease-in-out_both_-0.32s]"></span>
-                <span className="w-1.5 h-1.5 bg-accent/60 rounded-full animate-[typing_1.4s_infinite_ease-in-out_both_-0.16s]"></span>
-                <span className="w-1.5 h-1.5 bg-accent/60 rounded-full animate-[typing_1.4s_infinite_ease-in-out_both]"></span>
-              </div>
-              {currentStatus && (
-                <span className="text-[10px] font-bold text-accent/50 uppercase tracking-widest animate-pulse">
-                  {currentStatus}
-                </span>
-              )}
-            </div>
           )}
         </div>
       </div>

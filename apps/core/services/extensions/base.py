@@ -4,10 +4,10 @@ from .hooks import hookimpl
 
 class MomAIExtension:
     """
-    Classe base para facilitar o desenvolvimento de extensões do MomAI.
-    Ao herdar desta classe, você tem acesso facilitado aos hooks e utilitários.
+    Base class for facilitating the development of MomAI extensions.
+    By inheriting from this class, you gain access to hooks and utilities.
     
-    Exemplo:
+    Example:
     class MyExtension(MomAIExtension):
         @hookimpl
         def register_tools(self):

@@ -16,24 +16,24 @@ class VectorDB:
         return cls._instance
 
     def connect(self):
-        """Conecta ao banco de dados LanceDB."""
+        """Connects to the LanceDB database."""
         if self._db is None:
             self._db = lancedb.connect(str(DB_PATH))
         return self._db
 
     def get_table(self, name: str, schema=None):
-        """Retorna uma tabela, criando-a se necessário."""
+        """Returns a table, creating it if necessary."""
         db = self.connect()
         if name in db.table_names():
             return db.open_table(name)
         
         if schema is None:
-            raise ValueError(f"Tabela {name} não existe e nenhum schema foi fornecido.")
+            raise ValueError(f"Table {name} does not exist and no schema was provided.")
         
         return db.create_table(name, schema=schema)
 
     async def search_intent(self, query: str, limit: int = 1):
-        """Busca a intenção mais próxima no banco."""
+        """Searches for the closest intent in the database."""
         table = self.get_table("intents")
         query_vector = await embeddings.embed_text(query)
         
@@ -41,7 +41,7 @@ class VectorDB:
         return results
 
     async def search_tools(self, query: str, limit: int = 5):
-        """Busca as ferramentas mais relevantes no banco."""
+        """Searches for the most relevant tools in the database."""
         table = self.get_table("tools")
         query_vector = await embeddings.embed_text(query)
         
@@ -50,8 +50,8 @@ class VectorDB:
 
     async def add_intents(self, intents_data: list[dict]):
         """
-        Adiciona exemplos de intenções para o roteador.
-        Esperado: [{'text': '...', 'agent': '...'}]
+        Adds examples of intents for the router.
+        Expected: [{'text': '...', 'agent': '...'}]
         """
         schema = pa.schema([
             pa.field("vector", pa.list_(pa.float32(), 1024)), # Qwen3-0.6B tem dimensão 1024
@@ -73,8 +73,8 @@ class VectorDB:
 
     async def add_tools(self, tools_data: list[dict]):
         """
-        Adiciona ferramentas ao banco de vetores.
-        Esperado: [{'name': '...', 'description': '...', 'metadata': {}}]
+        Adds tools to the vector database.
+        Expected: [{'name': '...', 'description': '...', 'metadata': {}}]
         """
         schema = pa.schema([
             pa.field("vector", pa.list_(pa.float32(), 1024)),
@@ -87,7 +87,7 @@ class VectorDB:
         
         data_with_vectors = []
         for item in tools_data:
-            # Usamos a descrição para gerar o vetor de busca
+            # Use the description to generate the search vector
             data_with_vectors.append({
                 "vector": await embeddings.embed_text(item["description"]),
                 "name": item["name"],
@@ -98,7 +98,7 @@ class VectorDB:
         table.add(data_with_vectors)
 
     def register_agent(self, name: str, system_prompt: str):
-        """Registra a definição de um agente no banco."""
+        """Registers an agent definition in the database."""
         schema = pa.schema([
             pa.field("name", pa.string()),
             pa.field("system_prompt", pa.string())

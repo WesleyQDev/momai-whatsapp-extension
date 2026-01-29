@@ -100,9 +100,15 @@ def on_startup():
     with open(base_path / "plugin.py", "w", encoding="utf-8") as f:
         f.write(simple_plugin)
 
-    # 3. Create requirements.txt (empty)
-    with open(base_path / "requirements.txt", "w", encoding="utf-8") as f:
-        f.write("# Adicione dependências aqui (ex: pandas)\n")
+    # 3. Create pyproject.toml
+    pyproject_content = f"""[project]
+name = "{ext_id}"
+version = "0.1.0"
+description = "Extension {name} for MomAI"
+dependencies = []
+"""
+    with open(base_path / "pyproject.toml", "w", encoding="utf-8") as f:
+        f.write(pyproject_content)
 
     print(f"Success! Extension {name} created at {base_path}")
     print(f"To test: Restart MomAI and the extension will be loaded automatically.")

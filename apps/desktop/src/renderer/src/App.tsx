@@ -6,6 +6,7 @@ import { useStatus } from './hooks/useStatus'
 import SettingsCard from './components/floating/SettingsCard'
 import SplashScreen from './components/floating/SplashScreen'
 import UpdateToast from './components/floating/UpdateToast'
+import FortScriptToast from './components/floating/FortScriptToast'
 import GraphInterface from './components/GraphInterface'
 import TitleBar from './components/TitleBar'
 import RemindersSidebar from './components/chat/RemindersSidebar'
@@ -180,7 +181,7 @@ function App(): React.JSX.Element {
       )}
 
       {/* SplashScreen */}
-      <SplashScreen steps={initSteps} status={localMode} />
+      <SplashScreen steps={initSteps} status={localMode} statusInfo={statusInfo} />
 
       {/* Update Notification */}
       {hasUpdate && !showSettings && (
@@ -190,6 +191,8 @@ function App(): React.JSX.Element {
           onOpenSettings={openSettings}
         />
       )}
+
+      <FortScriptToast />
 
       {!isCompact && <ResourceFooter />}
     </div>

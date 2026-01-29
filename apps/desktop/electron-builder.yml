@@ -37,6 +37,15 @@ linux:
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
+extraResources:
+  - from: '../core'
+    to: 'core'
+    filter:
+      - '!**/.venv'
+      - '!**/__pycache__'
+      - '!**/models/*'
+  - from: 'bin'
+    to: 'bin'
 npmRebuild: false
 publish:
   provider: generic

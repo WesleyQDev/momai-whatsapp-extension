@@ -7,40 +7,40 @@ hookimpl = pluggy.HookimplMarker("momai")
 
 class ExtensionSpec:
     """
-    Especificação dos Hooks que as extensões do MomAI podem implementar.
-    Use o decorador @hookimpl em sua extensão para implementar estes métodos.
+    Specification of the Hooks that MomAI extensions can implement.
+    Use the @hookimpl decorator in your extension to implement these methods.
     """
 
     @hookspec
     def register_tools(self) -> List[BaseTool]:
         """
-        Retorna uma lista de ferramentas (LangChain Tools) que a extensão oferece.
-        Essas ferramentas ficarão disponíveis para todos os agentes se forem relevantes semanticamente.
+        Returns a list of tools (LangChain Tools) that the extension offers.
+        These tools will be available to all agents if they are semantically relevant.
         """
 
     @hookspec
     def register_sidebar_items(self) -> List[Dict[str, Any]]:
         """
-        Retorna itens para a barra lateral do frontend.
-        Formato esperado: [{
-            "id": "meu_plugin_view", 
+        Returns items for the frontend sidebar.
+        Expected format: [{
+            "id": "my_extension_view", 
             "icon": "LayoutDashboard", # Lucide Icon Name
-            "label": "Meu Plugin", 
-            "view": "MyCustomView" # Nome do componente Vue/React no frontend
+            "label": "My Extension", 
+            "view": "MyCustomView" # Name of the Vue/React component in the frontend
         }]
         """
 
     @hookspec
     def on_agent_init(self, agent_name: str) -> Optional[str]:
         """
-        Chamado antes de cada execução de um agente especialista.
-        Permite customizar o prompt de sistema programaticamente com base no contexto.
-        Retorno: Novo System Prompt (string) ou None para usar o padrão do manifest.
+        Called before each execution of a specialized agent.
+        Allows customizing the system prompt programatically based on the context.
+        Return: New System Prompt (string) or None to use the default from the manifest.
         """
 
     @hookspec
     def on_startup(self) -> None:
         """
-        Chamado uma única vez quando a extensão é carregada durante a inicialização do MomAI.
-        Ideal para inicializar bancos de dados, conexões ou carregar modelos pesados.
+        Called once when the extension is loaded during MomAI initialization.
+        Use this for one-time initialization tasks like database setup or model loading.
         """

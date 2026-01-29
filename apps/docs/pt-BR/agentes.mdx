@@ -6,38 +6,42 @@ description: "Entenda como a MomAI pensa e delega tarefas usando LangGraph."
 
 A MomAI não é um chatbot simples; ela é um ecossistema de agentes coordenados. Utilizamos o **LangGraph** para criar fluxos de trabalho complexos, cíclicos e resilientes.
 
-## O Fluxo de Decisão
+## O Fluxo de Decisão (O Ciclo de Inteligência)
 
 Quando você envia uma mensagem, ela passa por várias etapas de filtragem e decisão:
 
 ### 1. Roteador Semântico (LanceDB)
-O primeiro passo é totalmente local. Usamos o **LanceDB** para comparar sua mensagem com uma base de dados de intenções pré-indexadas.
-- **Vantagem:** Se você diz "Que horas são?", o sistema identifica instantaneamente que deve chamar o `SystemAgent` sem precisar gastar tokens em um LLM na nuvem.
-- **Confiança:** Se a similaridade for baixa, o pedido é escalado para o Orquestrador Estratégico.
+O primeiro passo é totalmente local. Usamos o **LanceDB** para comparar sua mensagem com uma base de dados de intenções pré-indexadas via embeddings reais.
+- **Vantagem:** Se você diz "Que horas são?", o sistema identifica instantaneamente que deve chamar o `SystemAgent` sem precisar gastar tokens em um LLM.
+- **Confiança:** Se a similaridade for baixa ou o pedido for ambíguo, ele é enviado ao Orquestrador Estratégico.
 
-### 2. Orquestrador Estratégico
-Se o roteador semântico não tiver certeza, o LLM principal analisa o pedido e decide qual especialista é o mais adequado. Ele pode escolher entre:
+### 2. O Loop de Execução do Grafo
+Uma vez que o contexto é direcionado para um agente, ele entra em um loop `Action -> Observe -> Decide`:
 
-- **SearchAgent:** Especialista em buscas na web e síntese de informações.
-- **SystemAgent:** Tem acesso ao sistema operacional (arquivos, processos, hardware).
-- **SchedulerAgent:** Cuida da sua agenda e lembretes proativos.
-- **InterfaceAgent:** Responsável por mudar o comportamento da UI ou exibir gráficos.
-- **Responder:** O modo de chat geral para conversas informais.
+1.  **Nó Orquestrador**: Recebe o histórico de mensagens e as ferramentas injetadas pelo Tool RAG. Decide se precisa acionar uma ferramenta ou se pode responder diretamente.
+2.  **Nó de Ferramentas (Tools)**: Se o orquestrador decidir por uma ação (ex: `read_file`), este nó executa o código Python real e devolve o resultado para o grafo.
+3.  **Nó Responder**: É o estágio final. Ele pega todas as observações das ferramentas e redige a resposta final para você, garantindo que o tom de voz "Senhor" e a personalidade sejam mantidos.
 
 ### 3. Tool RAG (Retrieval Augmented Tools)
 Diferente de outros assistentes que tentam enviar todas as funções disponíveis para o LLM, a MomAI usa **Tool RAG**. 
-- O sistema busca no banco vetorial as ferramentas mais relevantes para o contexto atual.
-- Apenas o "set" necessário de ferramentas é vinculado ao agente.
-- Isso permite que a MomAI tenha milhares de ferramentas disponíveis sem "alucinar" ou perder performance.
+- O sistema busca no banco vetorial as ferramentas mais relevantes para o contexto atual entre todas as extensões instaladas.
+- Isso permite que a MomAI tenha milhares de ferramentas disponíveis através de plugins de terceiros sem comprometer a janela de contexto do LLM.
 
-## Agentes Especialistas
+---
 
-| Agente | Responsabilidade | Ferramentas Típicas |
+## Catálogo de Agentes Pré-Instalados
+
+| Agente | Perfil Técnico | Escopo de Ação |
 |--------|------------------|-------------------|
-| **System** | Controle do PC | `get_system_stats`, `manage_files`, `volume_control` |
-| **Search** | Informação externa | `ddg_search`, `browser_control`, `weather_api` |
-| **Scheduler** | Tempo e Agenda | `set_reminder`, `check_calendar`, `alarms` |
-| **Interface** | Visualização | `show_graph`, `change_theme`, `open_settings` |
+| **System** | Root Access | Manipulação de arquivos, monitoramento de hardware, controle de som e energia. |
+| **Search** | Research Lead | Navegação web, busca em buscadores (DuckDuckGo) e síntese de notícias. |
+| **Scheduler** | Butler | Gerenciamento proativo de lembretes, calendário e sincronização de horários. |
+| **Interface** | UI Designer | Capaz de abrir modais, trocar temas e exibir componentes gráficos (Charts, Tabelas). |
 
-## Memória Persistente
-Utilizamos o `AsyncSqliteSaver` do LangGraph para manter o estado da conversa. Isso significa que a MomAI lembra não apenas do texto, mas do progresso de tarefas complexas que envolvem múltiplos passos, mesmo que você feche a aplicação.
+---
+
+## Memória e Estado Persistente
+
+Utilizamos o `AsyncSqliteSaver` do LangGraph para manter o estado da jornada do usuário. 
+- **Thread Management**: Cada conversa tem um `thread_id`. O orquestrador recupera o estado exato da conversa anterior do `checkpoints.db`.
+- **Continuidade de Tarefa**: Se você pedir para a IA baixar um arquivo grande e a internet cair, ela lembrará em que passo da tarefa estava na próxima interação.

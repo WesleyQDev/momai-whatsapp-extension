@@ -56,8 +56,18 @@ class Extension(Base):
     is_builtin = Column(Boolean, default=False)
     installed_at = Column(DateTime, default=lambda: datetime.now())
 
+class GamingApp(Base):
+    """Apps that, when opened, activate the resource saving mode."""
+    __tablename__ = 'gaming_apps'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    executable = Column(String, nullable=False, unique=True) # ex: 'rdr2.exe'
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now())
+
 # Database setup
-# Aponta para a pasta core (um nível acima de database/)
+# Points to the core folder (one level up from database/)
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "momai.db")
 engine = create_engine(f"sqlite:///{DB_PATH}")
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

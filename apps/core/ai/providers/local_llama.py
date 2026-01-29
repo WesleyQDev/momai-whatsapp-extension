@@ -8,7 +8,7 @@ from pathlib import Path
 from huggingface_hub import hf_hub_download
 from langchain_openai import ChatOpenAI
 
-# Configurar logger
+# Configure logger
 logger = logging.getLogger("uvicorn.error")
 
 # Global variable

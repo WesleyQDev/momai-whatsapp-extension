@@ -6,7 +6,7 @@ import time
 import logging
 from typing import Optional
 
-# Configurar logger
+# Configure logger
 logger = logging.getLogger("momai.tts")
 
 

@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react'
 import icon from '../../assets/icon.png'
 import { InitSteps } from '../../hooks/useStatus'
-import { 
-  CheckCircleIcon, 
-  ArrowPathIcon, 
-  ExclamationCircleIcon 
-} from '@heroicons/react/24/solid'
+import { StatusData } from '../../services/api'
 
 interface SplashScreenProps {
   steps: InitSteps
   status: string | null
+  statusInfo: StatusData | null
 }
 
-export default function SplashScreen({ steps, status }: SplashScreenProps) {
+export default function SplashScreen({ steps, status, statusInfo }: SplashScreenProps) {
   const [isVisible, setIsVisible] = useState(true)
   
   // Consideramos pronto apenas quando TUDO está OK
@@ -31,81 +28,90 @@ export default function SplashScreen({ steps, status }: SplashScreenProps) {
 
   if (!isVisible) return null
 
-  const renderStep = (label: string, state: 'pending' | 'ok' | 'error') => {
-    return (
-      <div className="flex items-center justify-between w-full group">
-        <span className={`text-[10px] font-bold tracking-widest uppercase transition-colors ${state === 'ok' ? 'text-white/40' : 'text-accent'}`}>
-          {label}
-        </span>
-        <div className="flex items-center gap-2">
-          {state === 'pending' && <ArrowPathIcon className="w-3 h-3 text-accent animate-spin" />}
-          {state === 'ok' && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
-          {state === 'error' && <ExclamationCircleIcon className="w-3 h-3 text-red-500" />}
-        </div>
-      </div>
-    )
+  // Calculate the current active status message
+  const getStatusMessage = () => {
+    if (steps.api === 'error') return "Falha crítica na API"
+    if (steps.api === 'pending') return "Iniciando protocolos de sistema..."
+    
+    if (steps.socket === 'error') return "Erro de comunicação visual"
+    if (steps.socket === 'pending') return "Sincronizando interface de controle..."
+    
+    if (steps.extensions === 'error') return "Erro nos módulos externos"
+    if (steps.extensions === 'pending') return "Carregando extensões e ferramentas..."
+    
+    if (steps.brain === 'error') return "Falha ao despertar cérebro"
+    if (steps.brain === 'pending') return "Carregando núcleo de inteligência..."
+    
+    return "Sistemas operacionais. Bem-vindo."
   }
 
   return (
     <div
-      className={`fixed inset-0 z-[999] bg-[#05080f] flex flex-col items-center justify-center transition-all duration-1000 ease-in-out ${
+      className={`fixed inset-0 z-[999] bg-[#03050a] flex flex-col items-center justify-center transition-all duration-1000 ease-in-out ${
         isFullyReady ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Background Tech Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/10 blur-[120px] rounded-full" />
+      {/* Visual Background Effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-accent/10 blur-[150px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-accent/5 blur-[150px] rounded-full" />
       </div>
 
-      <div className="relative flex flex-col items-center gap-12 z-10 w-full max-w-sm px-12">
+      <div className="relative flex flex-col items-center gap-16 z-10 w-full max-w-sm">
         
-        {/* Animated Core Icon */}
+        {/* Central Brand Icon */}
         <div className="relative group">
-          <div className="absolute inset-0 bg-accent/30 blur-2xl rounded-full group-hover:bg-accent/50 transition-all duration-700 animate-pulse" />
-          <div className="relative w-28 h-28 rounded-[2rem] bg-white/[0.03] border border-white/10 flex items-center justify-center p-6 shadow-2xl backdrop-blur-md">
+          <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full group-hover:bg-accent/40 transition-all duration-1000 animate-pulse" />
+          <div className="relative w-32 h-32 rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex items-center justify-center p-7 shadow-2xl backdrop-blur-xl">
             <img
               src={icon}
               alt="MomAI"
-              className={`w-full h-full object-contain filter transition-all duration-700 ${isFullyReady ? 'brightness-125' : 'brightness-75'}`}
+              className={`w-full h-full object-contain transition-all duration-1000 ${isFullyReady ? 'brightness-125 scale-110' : 'brightness-90'}`}
             />
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-8 w-full">
-          <div className="flex flex-col items-center gap-1">
-            <h1 className="text-xl font-black text-white tracking-[0.4em] uppercase">
+        <div className="flex flex-col items-center gap-10 w-full px-8">
+          {/* Logo & Subtitle */}
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-2xl font-black text-white tracking-[0.5em] uppercase">
               Mom<span className="text-accent">AI</span>
             </h1>
-            <div className="text-[8px] font-bold text-accent/40 tracking-[0.5em] uppercase">
-              Initializing Core
+            <div className="h-[1px] w-12 bg-accent/30 rounded-full" />
+          </div>
+
+          {/* Unified Status Message */}
+          <div className="flex flex-col items-center gap-6 w-full">
+            <div className="h-6 flex items-center">
+              <span className="text-[11px] font-medium text-white/50 uppercase tracking-[0.25em] animate-pulse text-center">
+                {getStatusMessage()}
+              </span>
             </div>
-          </div>
-
-          {/* Steps List */}
-          <div className="w-full flex flex-col gap-3 p-6 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-sm">
-            {renderStep("Núcleo API", steps.api)}
-            {renderStep("Sincronização UI", steps.socket)}
-            {renderStep("Módulos & Extensões", steps.extensions)}
-            {renderStep("Cérebro (LLM)", steps.brain)}
-          </div>
-
-          <div className="flex flex-col items-center gap-3 w-full">
-             <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] animate-pulse">
-               {status === 'waiting' ? 'Aguardando sistema...' : `Modo: ${status}`}
-             </span>
-             <div className="w-full h-[2px] bg-white/5 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full bg-accent transition-all duration-700 ${isFullyReady ? 'w-full' : 'w-1/3 animate-loading-bar'}`}
-                />
-             </div>
+            
+            {/* Progress Bar Container */}
+            <div className="w-full h-[3px] bg-white/5 rounded-full overflow-hidden relative">
+              <div 
+                className={`h-full bg-accent transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)] ${
+                  isFullyReady ? 'w-full' : 'w-1/4 animate-loading-bar'
+                }`}
+              />
+            </div>
+            
+            <div className="flex justify-between w-full px-1">
+               <span className="text-[8px] font-bold text-accent/30 uppercase tracking-widest">
+                 {status === 'waiting' ? 'Auto-Boot' : status}
+               </span>
+               <span className="text-[8px] font-bold text-white/10 uppercase tracking-widest">
+                 System v{statusInfo?.version || '0.0.1'}
+               </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-8 flex flex-col items-center gap-2 opacity-30">
-        <div className="text-[8px] font-bold text-white uppercase tracking-[0.4em]">
-          WesleyQDev • Versão Experimental
+      <div className="absolute bottom-12 flex flex-col items-center gap-3 opacity-20 hover:opacity-40 transition-opacity duration-500">
+        <div className="text-[9px] font-bold text-white uppercase tracking-[0.5em]">
+          MomAI Environment
         </div>
       </div>
 

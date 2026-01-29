@@ -11,46 +11,99 @@ import {
 import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { spawn, execSync, type ChildProcess } from 'child_process'
+import { existsSync, mkdirSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
 
 let pythonProcess: ChildProcess | null = null
 let tray: Tray | null = null
 
-function startPythonBackend(): void {
-  // Localiza o caminho para apps/core baseado na estrutura do projeto
-  // app.getAppPath() no dev aponta para a raiz do apps/desktop
-  const corePath = resolve(app.getAppPath(), '..', 'core')
+async function bootstrapPython(): Promise<{ pythonExe: string; corePath: string; uvExe: string; venvPath: string }> {
+  const isDev = is.dev && process.env['ELECTRON_RENDERER_URL']
+  
+  // No dev, o corePath é relativo ao projeto. No prod, é nos extraResources.
+  const corePath = isDev 
+    ? resolve(app.getAppPath(), '..', 'core')
+    : join(process.resourcesPath, 'core')
 
-  const pythonExe =
-    process.platform === 'win32'
-      ? join(corePath, '.venv', 'Scripts', 'python.exe')
-      : join(corePath, '.venv', 'bin', 'python')
+  // No Windows, o AppData é o lugar certo para o VENV (escrita garantida)
+  const userDataPath = app.getPath('userData')
+  const venvPath = join(userDataPath, 'python_env')
+  const pythonExe = process.platform === 'win32'
+    ? join(venvPath, 'Scripts', 'python.exe')
+    : join(venvPath, 'bin', 'python')
 
-  console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
-  console.log(`[Electron] Usando executável: ${pythonExe}`)
+  // 1. Localiza o UV (deve estar em resources/bin ou no PATH em dev)
+  const uvExe = isDev ? 'uv' : join(process.resourcesPath, 'bin', process.platform === 'win32' ? 'uv.exe' : 'uv')
 
-  // Executamos o uvicorn como um módulo do python do venv para garantir o uso das dependências instaladas
-  pythonProcess = spawn(
-    pythonExe,
-    ['-m', 'uvicorn', 'main:app', '--reload', '--host', '127.0.0.1', '--port', '8000'],
-    {
-      cwd: corePath,
-      shell: false,
-      stdio: 'pipe'
+  console.log(`[Bootstrap] Verificando ambiente em: ${venvPath}`)
+
+  if (!existsSync(pythonExe)) {
+    console.log('[Bootstrap] Ambiente não encontrado. Iniciando setup com uv...')
+    if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
+
+    try {
+      // Cria o venv usando o uv e a versão 3.12 (uv cuida de baixar o python-build-standalone)
+      execSync(`"${uvExe}" venv "${venvPath}" --python 3.12`, { stdio: 'inherit' })
+      console.log('[Bootstrap] Venv criado. Sincronizando dependências...')
+      
+      // Sincroniza o core com o venv
+      execSync(`"${uvExe}" pip install -e "${corePath}"`, { 
+        env: { ...process.env, VIRTUAL_ENV: venvPath },
+        stdio: 'inherit' 
+      })
+    } catch (err) {
+      console.error('[Bootstrap] Erro crítico no setup:', err)
+      throw err
     }
-  )
+  }
 
-  pythonProcess.stdout?.on('data', (data) => {
-    console.log(`[Python]: ${data.toString().trim()}`)
-  })
+  return { pythonExe, corePath, uvExe, venvPath }
+}
 
-  pythonProcess.stderr?.on('data', (data) => {
-    console.error(`[Python PDF]: ${data.toString().trim()}`)
-  })
+async function startPythonBackend(): Promise<void> {
+  try {
+    const { pythonExe, corePath, uvExe, venvPath } = await bootstrapPython()
 
-  pythonProcess.on('close', (code) => {
-    console.log(`[Python] Processo encerrado com código ${code}`)
-  })
+    console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
+    console.log(`[Electron] Usando executável: ${pythonExe}`)
+
+    pythonProcess = spawn(
+      pythonExe,
+      ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'],
+      {
+        cwd: corePath,
+        shell: false,
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          VIRTUAL_ENV: venvPath,
+          MOMAI_UV_BIN: uvExe,
+          FORCE_COLOR: '1',
+          PYTHONIOENCODING: 'utf-8',
+          PYTHONUTF8: '1',
+          PYTHONLEGACYWINDOWSSTDIO: '0',
+          LC_ALL: 'pt_BR.UTF-8',
+          TERM: 'xterm-256color'
+        }
+      }
+    )
+
+    pythonProcess.stdout?.setEncoding('utf8')
+    pythonProcess.stdout?.on('data', (data) => {
+      process.stdout.write(`[Python]: ${data}`)
+    })
+
+    pythonProcess.stderr?.setEncoding('utf8')
+    pythonProcess.stderr?.on('data', (data) => {
+      process.stderr.write(`[Python Error]: ${data}`)
+    })
+
+    pythonProcess.on('close', (code) => {
+      console.log(`[Python] Processo encerrado com código ${code}`)
+    })
+  } catch (err) {
+    console.error('[Electron] Falha ao iniciar backend:', err)
+  }
 }
 
 function killPythonBackend(): void {
@@ -92,7 +145,7 @@ function createWindow(): void {
     mainWindow.show()
   })
 
-  mainWindow.on('minimize', (event: Event) => {
+  mainWindow.on('minimize' as any, (event) => {
     event.preventDefault()
     mainWindow.hide()
   })

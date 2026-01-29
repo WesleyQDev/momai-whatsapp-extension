@@ -83,15 +83,17 @@ export default function ChatInput({
     }
   }, [])
 
+  const isBrainReady = statusInfo?.brain_ready ?? false
+  const isBrainLoading = statusInfo?.is_loading ?? false
+
   const handleSend = () => {
-    if (!localText.trim() || isLoading || isModeChanging) return
+    if (!localText.trim() || isLoading || isModeChanging || !isBrainReady || isBrainLoading) return
     onSend(localText)
     setLocalText('')
   }
 
   const selectedMode = MODES.find((m) => m.id === currentMode) || MODES[0]
-  // @ts-ignore
-  const isSelectedModeReady = statusInfo?.setup?.[selectedMode.setupKey] ?? true
+  const isSelectedModeReady = statusInfo?.setup?.[selectedMode.setupKey] ?? false
 
   return (
     <footer className="p-3 sm:p-4 bg-transparent relative">
@@ -103,7 +105,12 @@ export default function ChatInput({
           value={localText}
           onChange={(e) => setLocalText(e.target.value)}
           placeholder="Mande uma mensagem para o MomAI..."
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleSend()
+            }
+          }}
         />
 
         <div className="flex items-center justify-between px-2 pb-0.5">
@@ -224,7 +231,7 @@ export default function ChatInput({
             type="button"
             className="bg-accent/90 hover:bg-accent text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-accent/10 disabled:opacity-30 disabled:scale-95 group"
             onClick={handleSend}
-            disabled={isLoading || isModeChanging || !localText.trim()}
+            disabled={isLoading || isModeChanging || !localText.trim() || !isBrainReady || isBrainLoading}
           >
             <svg
               width="16"

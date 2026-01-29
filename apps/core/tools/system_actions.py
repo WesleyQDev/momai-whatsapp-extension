@@ -11,7 +11,7 @@ search = DuckDuckGoSearchRun()
 
 # Global state
 current_mode = "local"
-version = "0.5.4"
+version = "v0"
 
 @tool
 def open_browser(url: str):
@@ -131,29 +131,69 @@ def launch_app(app_name_or_path: str):
     import subprocess
     import os
     try:
-        # Tenta abrir via comando de sistema (funciona para apps no PATH e URIs como fortnite://)
-        # O explorer.exe é usado como um 'opener' universal no Windows
         os.startfile(app_name_or_path)
-        return f"Comando enviado para abrir: {app_name_or_path}"
+        return f"Command sent to open: {app_name_or_path}"
     except Exception as e:
         try:
-            # Fallback usando shell
             subprocess.Popen(app_name_or_path, shell=True)
-            return f"Tentando iniciar {app_name_or_path} via shell."
+            return f"Trying to start {app_name_or_path} via shell."
         except Exception as e2:
-            return f"Erro ao tentar abrir {app_name_or_path}: {str(e2)}"
+            return f"Error trying to open {app_name_or_path}: {str(e2)}"
+
+class CreateReminderInput(BaseModel):
+    title: str = Field(description="Short title for the reminder.")
+    content: str = Field(default=None, description="Optional extra detail.")
+    scheduled_time: str = Field(description="Date and time in ISO format (YYYY-MM-DD HH:MM:SS)")
+    repeat_interval: Literal['minutes', 'hours', 'days', 'weeks', 'months'] = Field(default=None, description="Interval for repetition.")
+    repeat_value: int = Field(default=None, description="Value for interval (e.g., every 5 minutes).")
+
+@tool(args_schema=CreateReminderInput)
+def create_reminder_tool(title: str, scheduled_time: str, content: str = None, repeat_interval: str = None, repeat_value: int = None):
+    """Schedules a new reminder or alarm."""
+    from datetime import datetime
+    try:
+        dt = datetime.fromisoformat(scheduled_time)
+        if not main.reminder_manager: return "Error: Reminder manager not ready."
+        main.reminder_manager.add_reminder(title, content, dt, repeat_interval, repeat_value)
+        return f"OK: Reminder '{title}' scheduled for {scheduled_time}."
+    except Exception as e:
+        return f"Error scheduling: {str(e)}"
+
+@tool
+def list_reminders_tool():
+    """Lists all active reminders and their schedules."""
+    if not main.reminder_manager:
+        return "Reminder system not initialized."
+    reminders = main.reminder_manager.list_reminders()
+    if not reminders:
+        return "You have no active reminders."
+    
+    res = "### Current Reminders:\n\n"
+    for r in reminders:
+        status = "Active" if r.is_active else "Off"
+        res += f"- **ID {r.id}:** {r.title} (Scheduled: {r.scheduled_time}) - Status: {status}\n"
+    return res
+
+@tool
+def delete_reminder_tool(reminder_id: int):
+    """Deletes a reminder by its ID."""
+    if not main.reminder_manager: return "Error: Reminder manager not ready."
+    main.reminder_manager.delete_reminder(reminder_id)
+    return f"Reminder {reminder_id} deleted."
 
 # Core Tools
+search.name = "duckduckgo_search"
 TOOLS = [
-    open_browser, web_scrape, launch_app,
+    open_browser, web_scrape, launch_app, search,
     show_graph, close_graph, ask_confirmation, open_model_selector, switch_ai_model,
-    get_momai_resources_tool
+    get_momai_resources_tool,
+    create_reminder_tool, list_reminders_tool, delete_reminder_tool
 ]
 
 AVAILABLE_TOOLS = {t.name: t for t in TOOLS}
 
 def get_all_tools_registry():
-    """Retorna um dicionário unificado de todas as ferramentas (nativas + extensões)."""
+    """Returns a unified dictionary of all tools (native + extensions)."""
     from services.extensions.manager import extension_manager
     registry = AVAILABLE_TOOLS.copy()
     
@@ -164,5 +204,5 @@ def get_all_tools_registry():
     return registry
 
 def get_all_tools_list():
-    """Retorna uma lista de todas as ferramentas (nativas + extensões)."""
+    """Returns a list of all tools (native + extensions)."""
     return list(get_all_tools_registry().values())

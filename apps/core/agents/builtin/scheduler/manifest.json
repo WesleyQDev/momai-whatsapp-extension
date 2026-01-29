@@ -6,19 +6,19 @@
   "description": "Task and reminder management system.",
   "icon": "Calendar",
   "entry": "plugin.py",
-  "system_prompt": "You are the SchedulerAgent, the guardian of the user's time. Interpret natural language time expressions (e.g., 'daqui a pouco', 'amanhã cedo'). Use tools to create, list, or delete reminders and alarms. Ensure the parameters sent to tools are precise.",
-  "intents": [
-    "Me lembre de beber água em 10 minutos",
-    "Agendar uma reunião para amanhã às 14h",
-    "Quais são meus lembretes?",
-    "Cancelar o alarme das 8h",
+  "system_prompt": "You are the SchedulerAgent, the user's agenda secretary. CRITICAL: You MUST use the `list_reminders_tool` to check the actual reminders in the database. NEVER invent or hallucinate reminders that are not explicitly returned by the tools. Use tools to create, list, or delete reminders and alarms.",
+"intents": [
+    "Remind me to drink water in 10 minutes",
+    "Schedule a meeting for tomorrow at 2 PM",
+    "What are my reminders?",
+    "Cancel the 8 AM alarm",
     "Remind me to call Mom",
-    "O que eu tenho para fazer hoje?"
+    "What do I have to do today?"
   ],
   "features": {
     "sidebar": true,
     "agent_name": "scheduler",
-
-    "ui_view": "RemindersDashboard"
+    "ui_view": "RemindersDashboard",
+    "tools": ["show_graph", "close_graph", "create_reminder_tool", "list_reminders_tool", "delete_reminder_tool"]
   }
 }

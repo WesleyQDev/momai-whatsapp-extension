@@ -6,7 +6,6 @@ import { StatusData } from '../services/api'
 interface ContainerChatProps {
   messages: Message[]
   isLoading: boolean
-  currentStatus: string | null
   text: string
   onSendMessage: (text?: string) => void
   messagesEndRef: RefObject<HTMLDivElement | null>
@@ -21,7 +20,6 @@ interface ContainerChatProps {
 export default function ContainerChat({
   messages,
   isLoading,
-  currentStatus,
   text,
   onSendMessage,
   messagesEndRef,
@@ -37,7 +35,6 @@ export default function ContainerChat({
       <MessageList
         messages={messages}
         isLoading={isLoading}
-        currentStatus={currentStatus}
         messagesEndRef={messagesEndRef}
         onReopenGraph={onReopenGraph}
       />

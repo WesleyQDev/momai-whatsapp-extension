@@ -7,7 +7,7 @@ import threading
 import logging
 import time
 
-# Configurar logger
+# Configure logger
 logger = logging.getLogger("uvicorn.error")
 
 
