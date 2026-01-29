@@ -116,3 +116,17 @@ coverage/
 .nyc_output/
 *.tgz
 .turbo
+
+# ====================
+# Secrets / Keys
+# ====================
+*.pem
+*.key
+*.pub
+*.cert
+
+# ====================
+# Portable Binaries (Desktop)
+# ====================
+apps/desktop/bin/
+p.txt
