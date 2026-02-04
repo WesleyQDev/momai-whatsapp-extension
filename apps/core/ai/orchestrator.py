@@ -29,7 +29,7 @@ MAX_MESSAGES = 6 # Reduced from 8 to 6 to save tokens in Cloud models
 llm_mode = "waiting"
 chat_history = {} # Stores temporary history if needed
 
-def save_message_to_db(thread_id: str, role: str, content: str):
+def save_message_to_db(thread_id: str, role: str, content: str, activities: list = None, graph_data: dict = None):
     """
     Saves a message to the SQLite database.
 
@@ -37,11 +37,21 @@ def save_message_to_db(thread_id: str, role: str, content: str):
         thread_id (str): The conversation thread ID.
         role (str): 'user' or 'assistant'.
         content (str): Message content.
+        activities (list, optional): List of activity strings (Thinking Trace).
+        graph_data (dict, optional): Generated interface data.
     """
     from database.models import SessionLocal, Message
     db = SessionLocal()
     try:
-        msg = Message(thread_id=thread_id, role=role, content=content)
+        activities_json = json.dumps(activities) if activities else None
+        graph_data_json = json.dumps(graph_data) if graph_data else None
+        msg = Message(
+            thread_id=thread_id, 
+            role=role, 
+            content=content,
+            activities=activities_json,
+            graph_data=graph_data_json
+        )
         db.add(msg)
         db.commit()
     except Exception as e:
@@ -272,6 +282,16 @@ def _initialize_llm_task(mode: str):
 
         if new_llm:
             print(f"[AI_core] Modelo {mode} instanciado. Reconstruindo Grafo...")
+            report_progress("Atualizando conhecimento de ferramentas...")
+            
+            # Sync Vector DB with Tools/Agents
+            try:
+                from database.vector_db import vector_db
+                from services.extensions.manager import extension_manager
+                asyncio.run(extension_manager.sync_indexes(vector_db))
+            except Exception as sync_err:
+                print(f"[AI_core] Warning: Falha na sincronização de ferramentas: {sync_err}")
+
             report_progress("Reconstruindo Grafo de Agentes...")
             
             try:
@@ -387,6 +407,10 @@ async def generate(message: ChatMessage):
         return
 
     try:
+        # Register thread_id in the current thread for tool access
+        import threading
+        threading.current_thread()._momai_thread_id = message.thread_id
+        
         config = {"configurable": {"thread_id": message.thread_id}, "recursion_limit": 50}
         save_message_to_db(message.thread_id, "user", message.content)
 
@@ -395,6 +419,20 @@ async def generate(message: ChatMessage):
         sentence_end_pattern = re.compile(r'(.*?[.?!;])(?:\s+|$)|(.*\n\n)', re.DOTALL)
         full_content = ""
         is_thinking = False
+        activities_trace = []  # Accumulate status updates for persistence
+        shown_node_types = set()  # Track which node types have been shown (avoid ReAct loop duplicates)
+
+        # Helper to avoid duplicate activities
+        def add_activity(status: str, node_type: str = None):
+            # For node types (router, agent), only show once
+            if node_type:
+                if node_type in shown_node_types:
+                    return False
+                shown_node_types.add(node_type)
+            # For tool calls, always add (they're unique)
+            if not activities_trace or activities_trace[-1] != status:
+                activities_trace.append(status)
+            return True
 
         input_data = {"messages": [HumanMessage(content=message.content)]}
 
@@ -406,28 +444,41 @@ async def generate(message: ChatMessage):
             metadata = event.get("metadata", {})
             node_name = metadata.get("langgraph_node", "")
 
-            # Log todos os eventos de chain/node no terminal para depuração
-            if kind in ["on_chain_start", "on_node_start"]:
-                logger.info(f"[GraphEvent] {kind}: {name} (node: {node_name})")
-
-            # Status for UI
-            if (kind == "on_chain_start" or kind == "on_node_start"):
-                if "semantic_router" in name or node_name == "semantic_router":
-                    yield f"data: {json.dumps({'status': 'Router: Analyzing intent...'})}\n\n"
+            # Status for UI - Only use on_node_start to avoid duplicates
+            if kind == "on_node_start":
+                if node_name == "semantic_router":
+                    status = 'Router: Analyzing intent...'
+                    if add_activity(status, "router"):
+                        yield f"data: {json.dumps({'status': status})}\n\n"
                 
-                elif "mom_orchestrator" in name or node_name == "mom_orchestrator":
-                    yield f"data: {json.dumps({'status': 'Orchestrator: Planning action...'})}\n\n"
+                elif node_name == "mom_orchestrator":
+                    status = 'Orchestrator: Planning action...'
+                    if add_activity(status, "orchestrator"):
+                        yield f"data: {json.dumps({'status': status})}\n\n"
 
-                elif "specialist_node" in name or node_name == "specialist_node":
-                    yield f"data: {json.dumps({'status': 'Specialist: Processing request...'})}\n\n"
+                elif node_name == "specialist_node":
+                    status = 'Agent: Processing request...'
+                    if add_activity(status, "agent"):
+                        yield f"data: {json.dumps({'status': status})}\n\n"
 
             if kind == "on_tool_start":
                 logger.info(f"[AI_core] Executing tool: {name}")
-                yield f"data: {json.dumps({'status': f'Executing: {name}'})}\n\n"
+                tool_input = event["data"].get("input")
+                args_str = ""
+                if isinstance(tool_input, dict):
+                    # Take the first argument value for brevity
+                    vals = list(tool_input.values())
+                    if vals: args_str = f": {str(vals[0])[:30]}..."
+                elif isinstance(tool_input, str):
+                    args_str = f": {tool_input[:30]}..."
+                
+                display_status = f"Running capability: {name}{args_str}"
+                add_activity(display_status)
+                yield f"data: {json.dumps({'status': display_status})}\n\n"
             
             if kind == "on_tool_end":
                 logger.info(f"[AI_core] Tool {name} finished.")
-                yield f"data: {json.dumps({'status': None})}\n\n"
+                # yield f"data: {json.dumps({'status': None})}\n\n" # Keep last status visible for a bit
 
             
             if kind == "on_chat_model_stream":
@@ -501,13 +552,25 @@ async def generate(message: ChatMessage):
                                 clean_sent = clean_text_for_tts(content)
                                 if clean_sent: tts.speak_sentence(clean_sent)
 
-            elif kind == "on_chain_end" and name == "mom_orchestrator":
-                output = event["data"].get("output")
-                if output and isinstance(output, dict):
-                    next_agent = output.get("next")
-                    if next_agent and next_agent != "responder":
-                         print(f"[AI_core] Routing to: {next_agent}")
-                         yield f"data: {json.dumps({'status': f'Consulting {next_agent}...'})}\n\n"
+            elif kind == "on_chain_end":
+                if name == "semantic_router":
+                    output = event["data"].get("output")
+                    if output and isinstance(output, dict):
+                        next_agent = output.get("next")
+                        if next_agent:
+                             status = f'Router Decision: {next_agent}'
+                             activities_trace.append(status)
+                             yield f"data: {json.dumps({'status': status})}\n\n"
+
+                elif name == "mom_orchestrator":
+                     output = event["data"].get("output")
+                     if output and isinstance(output, dict):
+                         next_agent = output.get("next")
+                         if next_agent and next_agent != "responder":
+                              print(f"[AI_core] Routing to: {next_agent}")
+                              status = f'Orchestrator Strategy: Consult {next_agent}'
+                              activities_trace.append(status)
+                              yield f"data: {json.dumps({'status': status})}\n\n"
 
     except Exception as e:
         error_msg = str(e)
@@ -523,7 +586,10 @@ async def generate(message: ChatMessage):
     finally:
         final_reply = clean_response(full_content)
         if final_reply.strip():
-            save_message_to_db(message.thread_id, "assistant", final_reply)
+            # Retrieve pending graph data for this thread
+            import main as main_module
+            pending_graph = main_module.get_pending_graph_data(message.thread_id)
+            save_message_to_db(message.thread_id, "assistant", final_reply, activities=activities_trace if activities_trace else None, graph_data=pending_graph)
 
         if tts_buffer.strip():
             clean_phrase = clean_text_for_tts(clean_response(tts_buffer)).strip()

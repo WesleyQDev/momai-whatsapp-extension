@@ -2,6 +2,9 @@ import sys
 import os
 import threading
 import logging
+import atexit
+import time
+import gc
 from pathlib import Path
 from typing import List
 
@@ -103,11 +106,45 @@ class ResourceManager:
         
         # Para serviços pesados
         try:
-            stop_server() # Llama.cpp
+            # Stop embeddings server first
+            from ai.embeddings import embeddings
+            embeddings.stop()
+            
+            stop_server() # Llama.cpp (main LLM)
             tts.stop_all() # TTS
             logger.info("[ResourceManager] Heavy services suspended successfully.")
+            
+            # NOVO: Notificar FastAPI que está em gaming mode
+            try:
+                from main import set_gaming_mode
+                set_gaming_mode(True)
+            except ImportError:
+                pass  # main not available
+            
+            # NOVO: Garbage collection agressivo
+            logger.info("[ResourceManager] Running aggressive garbage collection...")
+            gc.collect()
+            
+            # NOVO: Descarregar módulos opcionais da memória
+            logger.info("[ResourceManager] Unloading optional modules...")
+            modules_to_unload = [
+                'langchain', 'langchain_core', 'langgraph', 
+                'embeddings', 'services.reminders', 'services.extensions'
+            ]
+            for mod_name in modules_to_unload:
+                if mod_name in sys.modules:
+                    try:
+                        del sys.modules[mod_name]
+                        logger.debug(f"[ResourceManager] Unloaded module: {mod_name}")
+                    except Exception as e:
+                        logger.warning(f"[ResourceManager] Failed to unload {mod_name}: {e}")
+            
+            # Final memory compaction
+            gc.collect()
+            
             if self.on_notify_callback:
                 self.on_notify_callback("active")
+                
         except Exception as e:
             logger.error(f"[ResourceManager] Error suspending services: {e}")
 
@@ -119,22 +156,63 @@ class ResourceManager:
         logger.info("[ResourceManager] Gaming mode disabled. Restoring systems...")
         self.is_gaming = False
         
-        # Restaura o motor local se ele estava sendo usado
-        if orchestrator.llm_mode == "local":
-            logger.info("[ResourceManager] Restoring Local Llama engine...")
-            orchestrator.initialize_llm("local")
-        
-        # Reinicia workers de TTS
-        tts.start_workers()
+        try:
+            # NOVO: Notificar FastAPI que saiu do gaming mode
+            try:
+                from main import set_gaming_mode
+                set_gaming_mode(False)
+            except ImportError:
+                pass
+            
+            # Stop embeddings first before restarting
+            from ai.embeddings import embeddings
+            embeddings.stop()
+            time.sleep(0.3)  # Brief buffer to ensure port is free
+            
+            # Restaura o motor local se ele estava sendo usado
+            if orchestrator.llm_mode == "local":
+                logger.info("[ResourceManager] Restoring Local Llama engine...")
+                orchestrator.initialize_llm("local")
+            
+            # Restart embeddings
+            logger.info("[ResourceManager] Restarting embeddings server...")
+            embeddings.restart()
+            
+            # Reinicia workers de TTS
+            tts.start_workers()
+            
+            # NOVO: Garbage collection após reload
+            gc.collect()
 
-        if self.on_notify_callback:
-            self.on_notify_callback("inactive")
+            if self.on_notify_callback:
+                self.on_notify_callback("inactive")
+                
+        except Exception as e:
+            logger.error(f"[ResourceManager] Error during gaming mode exit: {e}")
 
     def stop(self):
-        """Stops the monitoring."""
-        if self.fs:
-            # FortScript doesn't have a direct 'stop' method in the infinite loop yet 
-            # (it runs while True). But since it's a daemon thread, it dies with the process.
-            pass
+        """
+        Stops all resource management services.
+        Called during application shutdown to ensure clean termination.
+        """
+        logger.info("[ResourceManager] Stopping resource manager...")
+        try:
+            # Stop embeddings server
+            from ai.embeddings import embeddings
+            embeddings.stop()
+            
+            # Stop main llama server
+            stop_server()
+            
+            # Stop TTS
+            tts.stop_all()
+            
+            # FortScript thread is daemon, will die with process
+            logger.info("[ResourceManager] Resource manager stopped successfully.")
+        except Exception as e:
+            logger.error(f"[ResourceManager] Error during stop: {e}")
 
 resource_manager = ResourceManager()
+
+# Register cleanup on exit
+atexit.register(resource_manager.stop)

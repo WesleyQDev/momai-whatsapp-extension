@@ -1,4 +1,4 @@
-import { JSX, memo } from 'react'
+import { JSX, memo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Message } from '../../services/api'
@@ -15,6 +15,8 @@ const MessageItem = memo(function MessageItem({
   isLoading = false,
   onReopenGraph
 }: MessageItemProps): JSX.Element {
+  const [showTrace, setShowTrace] = useState(false)
+
   const isSystemModelChange =
     message.role === 'assistant' && message.content.startsWith('Brain changed to:')
   const isDone = message.content.includes('✅')
@@ -25,11 +27,7 @@ const MessageItem = memo(function MessageItem({
   if (isSystemModelChange) {
     const modelName =
       message.content.split('**')[1] ||
-      message.content
-        .replace('Brain changed to:', '')
-        .replace('⏳', '')
-        .replace('✅', '')
-        .trim()
+      message.content.replace('Brain changed to:', '').replace('⏳', '').replace('✅', '').trim()
 
     return (
       <div className="w-full flex justify-center px-4 my-4 animate-in fade-in zoom-in-95 duration-500">
@@ -115,64 +113,169 @@ const MessageItem = memo(function MessageItem({
       >
         {' '}
         {message.role === 'assistant' && (
-          <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mb-2 opacity-50">
-            MomAI
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] opacity-50">
+              MomAI
+            </span>
+
+            {/* TRACE TOGGLE BUTTON (INLINE) */}
+            {!isLoading && message.activities && message.activities.length > 0 && (
+              <button
+                onClick={() => setShowTrace(!showTrace)}
+                className={`flex items-center justify-center w-4 h-4 rounded transition-all cursor-pointer ${showTrace ? 'text-accent bg-accent/10' : 'text-text-muted/40 hover:text-accent hover:bg-accent/10'}`}
+                title="View System Trace"
+              >
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  className={`transition-transform duration-300 ${showTrace ? 'rotate-180' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+            )}
           </div>
         )}
         <div className="flex flex-col gap-2">
-          {message.role === 'assistant' && (message.activities?.length || isLoading) && (
-            <div className={`flex flex-col gap-1 ${displayContent ? 'mb-3' : 'mb-1'} mt-1`}>
+          {message.role === 'assistant' && (
+            <>
               {/* ACTIVE STATUS (Only while loading) */}
               {isLoading && (
-                <div className="flex items-center gap-2 px-1 py-0.5 animate-in fade-in duration-700">
-                  <div className="w-1 h-1 bg-text-muted/40 rounded-full" />
-                  <span className="text-[10px] font-bold text-text-muted/60 uppercase tracking-[0.1em]">
-                    {message.activities && message.activities.length > 0 
-                      ? message.activities[message.activities.length - 1] 
-                      : "Thinking..."}
-                  </span>
-                  <div className="flex gap-0.5 ml-1 opacity-20">
-                    <span className="w-0.5 h-0.5 bg-text-muted rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="w-0.5 h-0.5 bg-text-muted rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="w-0.5 h-0.5 bg-text-muted rounded-full animate-bounce"></span>
+                <div className="flex items-center gap-2 px-1 py-0.5 animate-in fade-in duration-700 mb-1">
+                  <div className="w-2.5 h-2.5 flex items-center justify-center relative">
+                    <span className="absolute inset-0 rounded-full bg-accent/40 animate-ping"></span>
+                    <div className="w-1.5 h-1.5 bg-accent rounded-full" />
                   </div>
+                  <span className="text-[10px] font-bold text-accent/80 uppercase tracking-[0.15em] animate-pulse">
+                    {message.activities && message.activities.length > 0
+                      ? message.activities[message.activities.length - 1]
+                          .split(':')[0]
+                          .replace('Running capability', 'Executing')
+                      : 'Thinking...'}
+                  </span>
                 </div>
               )}
 
-              {/* TRACE ACCORDION (Only after finished) */}
-              {!isLoading && message.activities && message.activities.length > 0 && (
-                <details className="group/trace overflow-hidden">
-                  <summary className="flex items-center gap-2 text-[9px] font-black text-text-muted/40 uppercase tracking-[0.2em] cursor-pointer hover:text-accent/60 transition-colors list-none outline-none select-none px-1">
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      className="group-open/trace:rotate-180 transition-transform duration-300"
-                    >
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                    <span>View Thinking Trace</span>
-                  </summary>
-                  
-                  <div className="flex flex-col gap-1.5 mt-2 ml-1 pl-3 border-l border-border/10 animate-in slide-in-from-top-1 duration-300">
-                    {message.activities.map((activity, idx) => (
-                      <div 
-                        key={idx} 
-                        className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity"
-                      >
-                        <div className="w-1 h-1 rounded-full bg-border" />
-                        <span className="text-[10px] font-bold tracking-tight text-text-muted uppercase">
-                          {activity.replace('Consultando', 'Consulting').replace('Executando', 'Executing').replace('Processando', 'Processing')}
-                        </span>
+              {/* TRACE CONTAINER (Visible via State) */}
+              {!isLoading && showTrace && message.activities && message.activities.length > 0 && (
+                <div className="flex flex-col gap-1 mt-1 mb-2 animate-in slide-in-from-top-2 duration-200">
+                  {message.activities.map((activity, idx) => {
+                    let iconInfo = <div className="w-1 h-1 rounded-full bg-border" />
+                    let content = activity
+                    let highlightColor = 'text-text-muted'
+
+                    if (activity.toLowerCase().includes('router')) {
+                      highlightColor = 'text-purple-400'
+                      iconInfo = (
+                        <svg
+                          className="w-3 h-3 text-purple-400"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <polyline points="16 3 21 3 21 8"></polyline>
+                          <line x1="4" y1="20" x2="21" y2="3"></line>
+                          <polyline points="21 16 21 21 16 21"></polyline>
+                          <line x1="15" y1="15" x2="21" y2="21"></line>
+                          <line x1="4" y1="4" x2="9" y2="9"></line>
+                        </svg>
+                      )
+                    } else if (
+                      activity.toLowerCase().includes('running capability') ||
+                      activity.toLowerCase().includes('executing')
+                    ) {
+                      highlightColor = 'text-cyan-400'
+                      content = content.replace('Running capability:', '').trim()
+                      iconInfo = (
+                        <svg
+                          className="w-3 h-3 text-cyan-400"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                        </svg>
+                      )
+                    } else if (activity.toLowerCase().includes('orchestrator')) {
+                      highlightColor = 'text-blue-400'
+                      iconInfo = (
+                        <svg
+                          className="w-3 h-3 text-blue-400"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                          <rect x="9" y="9" width="6" height="6"></rect>
+                          <line x1="9" y1="1" x2="9" y2="4"></line>
+                          <line x1="15" y1="1" x2="15" y2="4"></line>
+                          <line x1="9" y1="20" x2="9" y2="23"></line>
+                          <line x1="15" y1="20" x2="15" y2="23"></line>
+                          <line x1="20" y1="9" x2="23" y2="9"></line>
+                          <line x1="20" y1="14" x2="23" y2="14"></line>
+                          <line x1="1" y1="9" x2="4" y2="9"></line>
+                          <line x1="1" y1="14" x2="4" y2="14"></line>
+                        </svg>
+                      )
+                    } else if (
+                      activity.toLowerCase().includes('specialist') ||
+                      activity.toLowerCase().includes('agent')
+                    ) {
+                      _activityType = 'agent'
+                      highlightColor = 'text-emerald-400'
+                      iconInfo = (
+                        <svg
+                          className="w-3 h-3 text-emerald-400"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <rect x="3" y="11" width="18" height="10" rx="2" />
+                          <circle cx="12" cy="5" r="2" />
+                          <path d="M12 7v4" />
+                          <line x1="8" y1="16" x2="8.01" y2="16" />
+                          <line x1="16" y1="16" x2="16.01" y2="16" />
+                        </svg>
+                      )
+                    }
+
+                    // Split content for highlighting (e.g. key: value)
+                    const parts = content.split(':')
+                    let label = parts.length > 1 ? parts[0] : null
+                    const value = parts.length > 1 ? parts.slice(1).join(':') : content
+
+                    // Rename generic terms for better UX
+                    if (label && label.toUpperCase() === 'SPECIALIST') label = 'AGENT'
+
+                    return (
+                      <div key={idx} className="relative group/item py-1 first:pt-0">
+                        <div className="flex items-start gap-2 opacity-60 group-hover/item:opacity-100 transition-opacity">
+                          <div className="mt-0.5 opacity-80">{iconInfo}</div>
+                          <span className="text-[11px] font-medium tracking-wide text-text-muted leading-relaxed font-mono">
+                            {label && (
+                              <span
+                                className={`${highlightColor} font-bold opacity-80 uppercase text-[9px] mr-2 tracking-wider`}
+                              >
+                                {label}
+                              </span>
+                            )}
+                            {value}
+                          </span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </details>
+                    )
+                  })}
+                </div>
               )}
-            </div>
+            </>
           )}
 
           {displayContent && (

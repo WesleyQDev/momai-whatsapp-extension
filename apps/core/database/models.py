@@ -46,6 +46,8 @@ class Message(Base):
     thread_id = Column(String, index=True)
     role = Column(String) # 'user' or 'assistant'
     content = Column(String)
+    activities = Column(String, default=None)  # JSON array of activity strings
+    graph_data = Column(String, default=None)  # JSON object for generated interfaces
     created_at = Column(DateTime, default=lambda: datetime.now())
 
 class Extension(Base):

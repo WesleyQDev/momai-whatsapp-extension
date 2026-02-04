@@ -1,14 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Message, sendChatMessage, fetchChatHistory, clearChatHistory } from '../services/api'
 
-let appGreetingTriggered = false
-
 export function useChat() {
   const [text, setText] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [threadId] = useState('default')
-  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false)
+  const [_isHistoryLoaded, setIsHistoryLoaded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Graph State
@@ -32,15 +30,34 @@ export function useChat() {
 
   // Carrega histórico inicial do SQLite
   useEffect(() => {
-    fetchChatHistory(threadId)
-      .then((history) => {
-        setMessages(history)
+    let retries = 0
+    const maxRetries = 5
+    
+    const loadHistory = async () => {
+      try {
+        const history = await fetchChatHistory(threadId)
+        // Processa histórico para adicionar flag isGraph quando graphData existe
+        const processedHistory = history.map((msg) => ({
+          ...msg,
+          isGraph: msg.role === 'assistant' && !!msg.graphData
+        }))
+        setMessages(processedHistory)
         setIsHistoryLoaded(true)
-      })
-      .catch((err) => {
-        console.error('Erro ao carregar histórico:', err)
-        setIsHistoryLoaded(true)
-      })
+      } catch (err) {
+        retries++
+        if (retries < maxRetries) {
+          // Retry silencioso com backoff exponencial
+          const delay = Math.min(500 * Math.pow(1.5, retries), 5000)
+          setTimeout(loadHistory, delay)
+        } else {
+          // Só loga erro após todas as tentativas
+          console.error('Erro ao carregar histórico:', err)
+          setIsHistoryLoaded(true)
+        }
+      }
+    }
+    
+    loadHistory()
   }, [threadId])
 
   const scrollToBottom = useCallback(() => {
@@ -144,8 +161,14 @@ export function useChat() {
     let ws: WebSocket | null = null
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
     let reconnectAttempts = 0
-    const maxReconnectAttempts = 10
+    const maxReconnectAttempts = 15 // Aumentado para garantir conexão
     let isUnmounting = false
+    let isBooting = true // Flag para suprimir erros durante boot
+
+    // Desativa flag de boot após 15 segundos
+    const bootTimeout = setTimeout(() => {
+      isBooting = false
+    }, 15000)
 
     const handleRemoteChange = (e: any) => {
       const { detail } = e
@@ -259,7 +282,10 @@ export function useChat() {
       }
 
       const handleWsMessage = (msg: any) => {
-        if (msg.type === 'extensions_sync') {
+        if (msg.type === 'init_progress') {
+          // Propaga evento de progresso de inicialização para useStatus
+          window.dispatchEvent(new CustomEvent('momai_init_progress', { detail: msg.data }))
+        } else if (msg.type === 'extensions_sync') {
           window.dispatchEvent(new CustomEvent('momai_extensions_sync', { detail: msg.data }))
         } else if (msg.type === 'fortscript_event') {
           window.dispatchEvent(new CustomEvent('momai_fortscript_event', { detail: msg }))
@@ -360,7 +386,11 @@ export function useChat() {
 
           if (data.status) {
             const statusText =
-              data.status === 'thinking' ? 'Pensando...' : data.status === 'responding' ? null : data.status
+              data.status === 'thinking'
+                ? 'Pensando...'
+                : data.status === 'responding'
+                  ? null
+                  : data.status
 
             if (statusText) {
               setMessages((prev) => {
@@ -432,12 +462,18 @@ export function useChat() {
       }
 
       ws.onclose = () => {
-        console.log('Voice WebSocket desconectado.')
+        // Suprimir log durante boot
+        if (!isBooting) {
+          console.log('Voice WebSocket desconectado.')
+        }
         scheduleReconnect()
       }
 
       ws.onerror = (err) => {
-        console.error('WebSocket error:', err)
+        // Suprimir erros durante os primeiros 15s de boot
+        if (!isBooting) {
+          console.error('WebSocket error:', err)
+        }
         ws?.close()
       }
     }
@@ -446,8 +482,12 @@ export function useChat() {
       if (isUnmounting || reconnectAttempts >= maxReconnectAttempts) return
 
       reconnectAttempts++
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000) // Exponential backoff, max 30s
-      console.log(`Reconectando WebSocket em ${delay / 1000}s... (tentativa ${reconnectAttempts})`)
+      const delay = Math.min(500 * Math.pow(1.5, reconnectAttempts - 1), 10000) // Backoff mais rápido: 500ms -> 10s
+      
+      // Suprimir log durante boot
+      if (!isBooting || reconnectAttempts > 3) {
+        console.log(`Reconectando WebSocket em ${(delay / 1000).toFixed(1)}s... (tentativa ${reconnectAttempts})`)
+      }
 
       reconnectTimeout = setTimeout(connect, delay)
     }
@@ -456,6 +496,7 @@ export function useChat() {
 
     return () => {
       isUnmounting = true
+      clearTimeout(bootTimeout)
       if (reconnectTimeout) clearTimeout(reconnectTimeout)
       if (ws) ws.close()
       window.removeEventListener('ai_model_changed', handleRemoteChange)
@@ -546,17 +587,6 @@ export function useChat() {
     },
     [text, isLoading, threadId]
   )
-
-  // Auto-Greeting Effect (Only once per app initialization)
-  useEffect(() => {
-    if (isHistoryLoaded && !appGreetingTriggered) {
-      appGreetingTriggered = true
-      // Trigger greeting. We only do this once per app mount.
-      setTimeout(() => {
-        sendMessage("Greet the user warmly in one VERY short sentence, welcoming them back to MomAI. Use their language if possible.", true)
-      }, 500)
-    }
-  }, [isHistoryLoaded, sendMessage])
 
   return {
     text,

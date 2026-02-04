@@ -21,14 +21,10 @@ function App(): React.JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const {
-    graphState,
-    handleGraphOption,
-    closeGraph,
-    clearHistory
-  } = useChat()
+  const chat = useChat()
+  const { graphState, handleGraphOption, closeGraph, clearHistory } = chat
 
-  const { localMode, statusInfo, hasUpdate, initSteps } = useStatus()
+  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady } = useStatus()
 
   const [showSettings, setShowSettings] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -56,20 +52,40 @@ function App(): React.JSX.Element {
 
     const handleResize = () => setIsCompact(window.innerWidth < 850)
     window.addEventListener('resize', handleResize)
+
+    // Delay inicial para carregar extensões (espera backend)
+    const loadExtensions = async () => {
+      try {
+        const exts = await fetchExtensions()
+        setExtensions(exts)
+      } catch {
+        // Retry silencioso após 2s
+        setTimeout(async () => {
+          try {
+            const exts = await fetchExtensions()
+            setExtensions(exts)
+          } catch {
+            // Silent fail - não é crítico
+          }
+        }, 2000)
+      }
+    }
     
-    fetchExtensions().then(setExtensions)
+    setTimeout(loadExtensions, 1500)
+    
     const handleSync = (e: any) => setExtensions(e.detail)
     window.addEventListener('momai_extensions_sync', handleSync)
-    
+
     return () => {
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('momai_extensions_sync', handleSync)
     }
   }, [])
 
-  const currentExtension = location.pathname === '/' 
-    ? extensions.find(e => e.features.agent_name === 'responder')
-    : extensions.find(e => location.pathname.includes(e.id))
+  const currentExtension =
+    location.pathname === '/'
+      ? extensions.find((e) => e.features.agent_name === 'responder')
+      : extensions.find((e) => location.pathname.includes(e.id))
 
   let uiView = currentExtension?.features?.ui_view || 'ChatDashboard'
   if (location.pathname === '/extensions') {
@@ -97,58 +113,58 @@ function App(): React.JSX.Element {
           </div>
 
           <div className="relative z-10 flex-1 flex min-h-0 overflow-hidden bg-transparent">
-            <div className={`w-full h-full flex ${isCompact ? 'flex-col' : `flex-row ${isChat ? 'p-6 gap-6 justify-center' : ''}`}`}>
-                
-                {/* DYNAMIC MAIN VIEW (Chat, Extensions, etc) */}
-                <MainViewRenderer 
-                  viewName={uiView} 
-                  isCompact={isCompact} 
-                  onOpenSettings={openSettings} 
-                  extensionData={currentExtension}
-                />
+            <div
+              className={`w-full h-full flex ${isCompact ? 'flex-col' : `flex-row ${isChat ? 'p-6 gap-6 justify-center' : ''}`}`}
+            >
+              {/* DYNAMIC MAIN VIEW (Chat, Extensions, etc) */}
+              <MainViewRenderer
+                viewName={uiView}
+                isCompact={isCompact}
+                onOpenSettings={openSettings}
+                extensionData={currentExtension}
+                chat={chat}
+              />
 
+              {/* 2. Graph Panel (Middle Column - Conditional) */}
+              {graphState.view === 'side' && !isCompact && (
+                <div className="flex-1 min-w-[400px] max-w-[800px] rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative">
+                  <GraphInterface
+                    view="side"
+                    content={graphState.content}
+                    options={graphState.options}
+                    uiSchema={graphState.uiSchema}
+                    onOptionSelect={handleGraphOption}
+                    onClose={closeGraph}
+                  />
+                </div>
+              )}
 
-                {/* 2. Graph Panel (Middle Column - Conditional) */}
-                {graphState.view === 'side' && !isCompact && (
-                    <div className="flex-1 min-w-[400px] max-w-[800px] rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative">
-                    <GraphInterface
-                        view="side"
-                        content={graphState.content}
-                        options={graphState.options}
-                        uiSchema={graphState.uiSchema}
-                        onOptionSelect={handleGraphOption}
-                        onClose={closeGraph}
-                    />
+              {/* 3. Desktop Sidebar (Right Side - Visible only in Chat) */}
+              {!isCompact && isChat && (
+                <div className="w-[320px] flex flex-col gap-6 h-full shrink-0">
+                  <div className="flex flex-col items-center justify-center py-2 animate-fade-in shrink-0">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full opacity-50"></div>
+                      <img
+                        src={logo}
+                        alt="MomAI"
+                        className="w-20 h-20 object-contain relative z-10 drop-shadow-2xl"
+                      />
                     </div>
-                )}
+                    <span className="text-text/20 text-xs font-medium tracking-[0.3em] uppercase mt-2">
+                      Personal Assistant
+                    </span>
+                  </div>
 
-                {/* 3. Desktop Sidebar (Right Side - Visible only in Chat) */}
-                {!isCompact && isChat && (
-                    <div className="w-[320px] flex flex-col gap-6 h-full shrink-0">
-                    <div className="flex flex-col items-center justify-center py-2 animate-fade-in shrink-0">
-                        <div className="relative w-24 h-24 flex items-center justify-center">
-                        <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full opacity-50"></div>
-                        <img
-                            src={logo}
-                            alt="MomAI"
-                            className="w-20 h-20 object-contain relative z-10 drop-shadow-2xl"
-                        />
-                        </div>
-                        <span className="text-text/20 text-xs font-medium tracking-[0.3em] uppercase mt-2">
-                        Personal Assistant
-                        </span>
-                    </div>
-
-                    <div className="flex-1 rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative flex flex-col">
-                        <RemindersSidebar />
-                    </div>
-                    </div>
-                )}
+                  <div className="flex-1 rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative flex flex-col">
+                    <RemindersSidebar />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </main>
       </div>
-
 
       {/* Floating Interfaces */}
       {showSettings && (
@@ -181,7 +197,13 @@ function App(): React.JSX.Element {
       )}
 
       {/* SplashScreen */}
-      <SplashScreen steps={initSteps} status={localMode} statusInfo={statusInfo} />
+      <SplashScreen 
+        isFullyReady={isReady} 
+        status={localMode} 
+        statusInfo={statusInfo} 
+        initMessage={initMessage}
+        initProgress={initProgress}
+      />
 
       {/* Update Notification */}
       {hasUpdate && !showSettings && (

@@ -217,6 +217,49 @@ class PluginRegistry:
             result.append(m_dict)
         return result
 
+    async def sync_indexes(self, db):
+        """Syncs all enabled tools and agents to the Vector DB."""
+        print("[Registry] Syncing Vector DB...")
+        
+        tools_to_add = []
+        intents_to_add = []
+        
+        # 1. Native Tools
+        # We handle imports here to avoid circular deps
+        from tools.system_actions import TOOLS
+        
+        for t in TOOLS:
+            # We index ALL native tools so the specialist can find them via text search too
+            tools_to_add.append({
+                "name": t.name,
+                "description": t.description or "",
+                "metadata": json.dumps({"source": "native"})
+            })
 
+        # 2. Extensions
+        tools = self.get_tools()
+        for t in tools:
+             tools_to_add.append({
+                "name": t.name,
+                "description": t.description or "",
+                "metadata": json.dumps({"source": "extension"})
+            })
+            
+        # 3. Agents (Intents)
+        for p in self.plugins.values():
+            if p["enabled"] and p["manifest"]:
+                m = p["manifest"]
+                intents_to_add.append({
+                    "text": m.description, # "Agent that controls HUE lights"
+                    "agent": m.features.agent_name
+                })
+        
+        if tools_to_add:
+            await db.add_tools(tools_to_add)
+        
+        if intents_to_add:
+            await db.add_intents(intents_to_add)
+            
+        print(f"[Registry] Vector DB synced with {len(tools_to_add)} tools and {len(intents_to_add)} agents.")
 # Singleton instance
 extension_manager = PluginRegistry()

@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 import webbrowser
 from langchain_community.tools import DuckDuckGoSearchRun
 from typing import List, Literal, Dict, Any
-import main
+
 import asyncio
 
 # Search instance
@@ -13,57 +13,47 @@ search = DuckDuckGoSearchRun()
 current_mode = "local"
 version = "v0"
 
-@tool
-def open_browser(url: str):
-    """Opens a URL in the default browser."""
-    if not url.startswith("http"):
-        url = "https://" + url
-    webbrowser.open(url)
-    return f"Opening browser at {url}"
 
-@tool
-def web_scrape(url: str):
-    """Extracts text content from a web page."""
-    import requests
-    from bs4 import BeautifulSoup
-    if not url.startswith("http"): url = "https://" + url
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        for s in soup(["script", "style"]): s.decompose()
-        text = soup.get_text(separator='\n')
-        return f"Content of {url}:\n\n{text[:5000]}..."
-    except Exception as e:
-        return f"Error reading site {url}: {str(e)}"
 
-class ShowGraphInput(BaseModel):
-    view: Literal['center', 'side'] = Field(description="'center' for dialogs/decisions. 'side' for info/status.")
+class ShowInterfaceInput(BaseModel):
+    view: Literal['side'] = Field(default='side', description="The view type. Currently only 'side' is supported.")
     content: str = Field(description="Markdown content to display.")
     options: List[str] = Field(default=[], description="Action buttons for the user.")
     ui_schema: Dict[str, Any] = Field(default=None, description="Dynamic UI JSON schema.")
     bypass_wake_word: bool = Field(default=False, description="Whether to activate mic immediately.")
 
-@tool(args_schema=ShowGraphInput)
-def show_graph(view: Literal['center', 'side'], content: str, options: list[str] = None, ui_schema: dict = None, bypass_wake_word: bool = False):
-    """Displays a graphical interface (UI) to the user."""
+@tool(args_schema=ShowInterfaceInput)
+def show_interface(content: str, view: Literal['side'] = 'side', options: list[str] = None, ui_schema: dict = None, bypass_wake_word: bool = False):
+    """
+    Displays a graphical side interface (UI) to the user.
+    MANDATORY Usage: Use this whenever the user asks to "show", "list", or "open interface", OR when displaying lists, markdown tables, or long content.
+    """
     if options is None: options = []
+    # Force view to be 'side' just in case
+    view = 'side'
+    import main
     main.set_graph_state(view, bypass_wake_word)
-    payload = {
-        "type": "graph_open",
-        "data": {
-            "view": view, "content": content, "options": options,
-            "ui_schema": ui_schema, "bypass_wake_word": bypass_wake_word
-        }
+    
+    graph_data = {
+        "view": view, "content": content, "options": options,
+        "ui_schema": ui_schema, "bypass_wake_word": bypass_wake_word
     }
+    
+    # Register for persistence (will be saved with the message)
+    # Get thread_id from current context if available, otherwise use default
+    import threading
+    thread_id = getattr(threading.current_thread(), '_momai_thread_id', 'default')
+    main.set_pending_graph_data(thread_id, graph_data)
+    
+    payload = {"type": "graph_open", "data": graph_data}
     if main.main_loop:
         asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets(payload), main.main_loop)
     return f"Interface '{view}' opened."
 
 @tool
-def close_graph():
+def close_interface():
     """Closes any open UI."""
+    import main
     main.set_graph_state(None, False)
     payload = {"type": "graph_close"}
     if main.main_loop:
@@ -72,18 +62,18 @@ def close_graph():
 
 @tool
 def ask_confirmation(message: str, options: list[str] = None):
-    """Shows a confirmation dialog in the Center UI."""
+    """Shows a confirmation dialog in the UI."""
     if options is None: options = ["Yes", "No"]
-    return show_graph.invoke({
-        "view": "center", "content": f"### Confirmation Required\n\n{message}",
+    return show_interface.invoke({
+        "view": "side", "content": f"### Confirmation Required\n\n{message}",
         "options": options, "bypass_wake_word": True
     })
 
 @tool
 def open_model_selector():
     """Opens the AI model selector."""
-    return show_graph.invoke({
-        "view": "center",
+    return show_interface.invoke({
+        "view": "side",
         "content": "### Select AI Model\n\nChoose the brain I should use.",
         "options": ["Local", "Groq", "Gemini"],
         "bypass_wake_word": True
@@ -121,38 +111,22 @@ def get_momai_resources_tool():
     data = get_momai_resources()
     return f"### MomAI Status\n\n- **RAM:** {data['ram_mb']} MB\n- **CPU:** {data['cpu_percent']}%"
 
-@tool
-def launch_app(app_name_or_path: str):
-    """
-    Launches a Windows application, game, or opens a file/folder.
-    Args:
-        app_name_or_path: The name of the app (e.g., 'notepad', 'fortnite'), a path, or a URI.
-    """
-    import subprocess
-    import os
-    try:
-        os.startfile(app_name_or_path)
-        return f"Command sent to open: {app_name_or_path}"
-    except Exception as e:
-        try:
-            subprocess.Popen(app_name_or_path, shell=True)
-            return f"Trying to start {app_name_or_path} via shell."
-        except Exception as e2:
-            return f"Error trying to open {app_name_or_path}: {str(e2)}"
+
 
 class CreateReminderInput(BaseModel):
     title: str = Field(description="Short title for the reminder.")
     content: str = Field(default=None, description="Optional extra detail.")
-    scheduled_time: str = Field(description="Date and time in ISO format (YYYY-MM-DD HH:MM:SS)")
-    repeat_interval: Literal['minutes', 'hours', 'days', 'weeks', 'months'] = Field(default=None, description="Interval for repetition.")
-    repeat_value: int = Field(default=None, description="Value for interval (e.g., every 5 minutes).")
+    scheduled_time: str = Field(description="Date and time for the FIRST trigger in ISO format (YYYY-MM-DD HH:MM:SS). For recurring reminders, set this to NOW or NOW + interval.")
+    repeat_interval: Literal['minutes', 'hours', 'days', 'weeks', 'months'] = Field(default=None, description="Interval unit for repetition (e.g., 'minutes' for every N minutes).")
+    repeat_value: int = Field(default=None, description="Value for interval (e.g., 25 for 'every 25 minutes').")
 
 @tool(args_schema=CreateReminderInput)
 def create_reminder_tool(title: str, scheduled_time: str, content: str = None, repeat_interval: str = None, repeat_value: int = None):
-    """Schedules a new reminder or alarm."""
+    """Schedules a new reminder or alarm. For RECURRING reminders, set scheduled_time to NOW (or NOW + interval) and provide repeat_interval + repeat_value."""
     from datetime import datetime
     try:
         dt = datetime.fromisoformat(scheduled_time)
+        import main
         if not main.reminder_manager: return "Error: Reminder manager not ready."
         main.reminder_manager.add_reminder(title, content, dt, repeat_interval, repeat_value)
         return f"OK: Reminder '{title}' scheduled for {scheduled_time}."
@@ -162,6 +136,7 @@ def create_reminder_tool(title: str, scheduled_time: str, content: str = None, r
 @tool
 def list_reminders_tool():
     """Lists all active reminders and their schedules."""
+    import main
     if not main.reminder_manager:
         return "Reminder system not initialized."
     reminders = main.reminder_manager.list_reminders()
@@ -177,17 +152,63 @@ def list_reminders_tool():
 @tool
 def delete_reminder_tool(reminder_id: int):
     """Deletes a reminder by its ID."""
+    import main
     if not main.reminder_manager: return "Error: Reminder manager not ready."
     main.reminder_manager.delete_reminder(reminder_id)
     return f"Reminder {reminder_id} deleted."
 
+@tool
+def get_capabilities():
+    """Retrieves a raw list of all available system tools and extensions and OPENS the side interface to display them."""
+    from services.extensions.manager import extension_manager
+    import main
+    import asyncio
+    
+    # 1. Native Tools
+    report = "### TODAS AS CAPACIDADES DO SISTEMA\n"
+    report += "Abaixo está a lista completa de ferramentas e extensões disponíveis no sistema:\n\n"
+    report += "**Ferramentas Nativas do Sistema:**\n"
+    for t in TOOLS:
+        if t.name == "get_capabilities": continue
+        # Simple extraction of first line of docstring
+        desc = t.description.split('\n')[0] if t.description else "Sem descrição"
+        report += f"- `{t.name}`: {desc}\n"
+
+    # 2. Extensions
+    ext_tools = extension_manager.get_tools()
+    if ext_tools:
+        report += "\n**Extensões:**\n"
+        for t in ext_tools:
+             desc = t.description.split('\n')[0] if t.description else "Sem descrição"
+             report += f"- `{t.name}`: {desc}\n"
+    else:
+        report += "\n**Extensões:** Nenhuma instalada.\n"
+    
+    # Force open interface directly from here
+    main.set_graph_state('side', False)
+    payload = {
+        "type": "graph_open",
+        "data": {
+            "view": "side", 
+            "content": report, 
+            "options": [],
+            "ui_schema": None, 
+            "bypass_wake_word": False
+        }
+    }
+    if main.main_loop:
+        asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets(payload), main.main_loop)
+        
+    return "SUCESSO: A lista de capacidades foi enviada para a interface do usuário."
+
 # Core Tools
 search.name = "duckduckgo_search"
 TOOLS = [
-    open_browser, web_scrape, launch_app, search,
-    show_graph, close_graph, ask_confirmation, open_model_selector, switch_ai_model,
+    search,
+    show_interface, close_interface, ask_confirmation, open_model_selector, switch_ai_model,
     get_momai_resources_tool,
-    create_reminder_tool, list_reminders_tool, delete_reminder_tool
+    create_reminder_tool, list_reminders_tool, delete_reminder_tool,
+    get_capabilities
 ]
 
 AVAILABLE_TOOLS = {t.name: t for t in TOOLS}

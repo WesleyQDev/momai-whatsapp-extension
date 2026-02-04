@@ -1,12 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { StatusData, fetchStatus, updateMode, fetchExtensions } from '../services/api'
-
-export interface InitSteps {
-  api: 'pending' | 'ok' | 'error'
-  socket: 'pending' | 'ok' | 'error'
-  extensions: 'pending' | 'ok' | 'error'
-  brain: 'pending' | 'ok' | 'error'
-}
+import { StatusData, fetchStatus, updateMode, fetchInitStatus } from '../services/api'
 
 export function useStatus() {
   const [statusInfo, setStatusInfo] = useState<StatusData | null>(null)
@@ -14,12 +7,32 @@ export function useStatus() {
   const [isOnline, setIsOnline] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [hasUpdate, setHasUpdate] = useState(false)
-  const [initSteps, setInitSteps] = useState<InitSteps>({
-    api: 'pending',
-    socket: 'pending',
-    extensions: 'pending',
-    brain: 'pending'
-  })
+  
+  const [initMessage, setInitMessage] = useState<string>('Iniciando...')
+  const [initProgress, setInitProgress] = useState<number>(0)
+  const [isBooting, setIsBooting] = useState(true)
+  const [retryCount, setRetryCount] = useState(0)
+  const [hasReceivedWSEvent, setHasReceivedWSEvent] = useState(false)
+
+  const isReady = initProgress >= 100 && !isBooting
+
+  // Polling de fallback para progresso de init (caso WebSocket demore)
+  const checkInitProgress = useCallback(async () => {
+    if (hasReceivedWSEvent || initProgress >= 100) return
+    
+    try {
+      const data = await fetchInitStatus()
+      
+      setInitMessage(data.message)
+      setInitProgress(data.progress)
+      
+      if (data.progress >= 100) {
+        setIsBooting(false)
+      }
+    } catch {
+      // Silent fail
+    }
+  }, [hasReceivedWSEvent, initProgress])
 
   const checkStatus = useCallback(async () => {
     try {
@@ -28,34 +41,41 @@ export function useStatus() {
       setLocalMode(data.mode)
       setIsOnline(data.status === 'ok')
       
-      setInitSteps(prev => ({ 
-        ...prev, 
-        api: 'ok',
-        brain: data.brain_ready ? 'ok' : 'pending'
-      }))
-
-      // Check extensions
-      if (initSteps.extensions === 'pending') {
-        const exts = await fetchExtensions()
-        if (exts) setInitSteps(prev => ({ ...prev, extensions: 'ok' }))
+      // Se o status da API está OK, garantimos que o boot terminou
+      if (data.status === 'ok') {
+        setIsBooting(false)
+        setInitProgress(100)
       }
+
+      setRetryCount(0)
 
       if (data.setup.local_installed && data.setup.installed_version && data.setup.latest_version) {
         setHasUpdate(data.setup.installed_version !== data.setup.latest_version)
       }
     } catch (error) {
-      console.error('Erro ao buscar status:', error)
+      if (!isBooting || retryCount > 10) {
+        console.error('Erro ao buscar status:', error)
+      }
       setStatusInfo(null)
       setIsOnline(false)
-      setInitSteps(prev => ({ ...prev, api: 'pending' }))
+      setRetryCount(prev => prev + 1)
     }
-  }, [initSteps.extensions])
+  }, [isBooting, retryCount])
 
-  // Listener para o socket (disparado pelo useChat via Event)
   useEffect(() => {
-    const handleSocket = () => setInitSteps(prev => ({ ...prev, socket: 'ok' }))
-    window.addEventListener('momai_socket_connected', handleSocket)
-    return () => window.removeEventListener('momai_socket_connected', handleSocket)
+    const handleInitProgress = (e: any) => {
+      const { message, progress } = e.detail
+      setHasReceivedWSEvent(true)
+      setInitMessage(message)
+      setInitProgress(progress)
+
+      if (progress >= 100) {
+        setIsBooting(false)
+      }
+    }
+
+    window.addEventListener('momai_init_progress', handleInitProgress)
+    return () => window.removeEventListener('momai_init_progress', handleInitProgress)
   }, [])
 
   const changeMode = async (mode: string) => {
@@ -73,10 +93,25 @@ export function useStatus() {
   }
 
   useEffect(() => {
-    checkStatus()
-    const interval = setInterval(checkStatus, 5000)
-    return () => clearInterval(interval)
-  }, [checkStatus])
+    let statusInterval: NodeJS.Timeout
+    let initInterval: NodeJS.Timeout
+    
+    const startPolling = () => {
+      checkStatus()
+      const pollInterval = isBooting ? 1000 : 5000
+      statusInterval = setInterval(checkStatus, pollInterval)
+    }
+    
+    if (isBooting && initProgress < 100) {
+      initInterval = setInterval(checkInitProgress, 500)
+    }
+    
+    startPolling()
+    return () => {
+      clearInterval(statusInterval)
+      if (initInterval) clearInterval(initInterval)
+    }
+  }, [checkStatus, checkInitProgress, isBooting, initProgress])
 
   return {
     statusInfo,
@@ -84,7 +119,10 @@ export function useStatus() {
     isOnline,
     isUpdating,
     hasUpdate,
-    initSteps,
+    initMessage,
+    initProgress,
+    isReady,
+    isBooting,
     refreshStatus: checkStatus,
     changeMode
   }

@@ -16,14 +16,54 @@ export default function ResourceFooter() {
   })
 
   useEffect(() => {
-    const ws = new WebSocket('ws://127.0.0.1:8000/ws')
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data)
-      if (msg.type === 'resource_usage') {
-        setStats(msg.data)
+    let ws: WebSocket | null = null
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+    let reconnectAttempts = 0
+    let isBooting = true
+    
+    // Desativa flag de boot após 15s
+    const bootTimeout = setTimeout(() => {
+      isBooting = false
+    }, 15000)
+
+    const connect = () => {
+      try {
+        ws = new WebSocket('ws://127.0.0.1:8000/ws')
+        
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data)
+          if (msg.type === 'resource_usage') {
+            setStats(msg.data)
+            reconnectAttempts = 0 // Reset em caso de sucesso
+          }
+        }
+
+        ws.onclose = () => {
+          if (!isBooting && reconnectAttempts < 10) {
+            reconnectAttempts++
+            const delay = Math.min(2000 * reconnectAttempts, 10000)
+            reconnectTimeout = setTimeout(connect, delay)
+          }
+        }
+
+        ws.onerror = () => {
+          // Suprime erros durante boot
+          ws?.close()
+        }
+      } catch {
+        // Silent fail durante boot
       }
     }
-    return () => ws.close()
+
+    // Delay inicial de 3s para dar tempo do backend iniciar
+    const initialDelay = setTimeout(connect, 3000)
+
+    return () => {
+      clearTimeout(bootTimeout)
+      clearTimeout(initialDelay)
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+      ws?.close()
+    }
   }, [])
 
   const formatSize = (mb: number) => {

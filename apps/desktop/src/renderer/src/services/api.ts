@@ -7,6 +7,7 @@ export const api = axios.create({
 })
 
 export interface Message {
+  id?: string
   role: 'user' | 'assistant'
   content: string
   isGraph?: boolean
@@ -99,6 +100,12 @@ export async function fetchStatus(): Promise<StatusData> {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' }
   })
+  return response.json()
+}
+
+export async function fetchInitStatus(): Promise<{ stage: string, message: string, progress: number }> {
+  const response = await fetch(`${API_URL}/init-status`)
+  if (!response.ok) throw new Error('Erro ao buscar status de inicialização')
   return response.json()
 }
 

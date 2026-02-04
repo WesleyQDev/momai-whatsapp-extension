@@ -3,9 +3,6 @@ import ContainerChat from './ContainerChat'
 import RemindersView from '../views/RemindersView'
 import ExtensionsView from '../views/ExtensionsView'
 import DynamicDashboard from './DynamicDashboard'
-import { useChat } from '../hooks/useChat'
-
-
 import { useStatus } from '../hooks/useStatus'
 
 interface MainViewRendererProps {
@@ -13,24 +10,23 @@ interface MainViewRendererProps {
   isCompact: boolean
   onOpenSettings: (tab?: any) => void
   extensionData?: any
+  chat: any // Chat instance from App
 }
-
 
 const VIEW_MAP: Record<string, React.ComponentType<any>> = {
   ChatDashboard: (props: any) => {
-    const chat = useChat()
     const status = useStatus()
     return (
       <ContainerChat
-        messages={chat.messages}
-        isLoading={chat.isLoading}
-        text={chat.text}
-        onSendMessage={chat.sendMessage}
-        messagesEndRef={chat.messagesEndRef}
+        messages={props.chat.messages}
+        isLoading={props.chat.isLoading}
+        text={props.chat.text}
+        onSendMessage={props.chat.sendMessage}
+        messagesEndRef={props.chat.messagesEndRef}
         currentMode={status.localMode}
         onModeChange={status.changeMode}
         isModeChanging={status.isUpdating}
-        onReopenGraph={chat.reopenGraph}
+        onReopenGraph={props.chat.reopenGraph}
         statusInfo={status.statusInfo}
         onOpenSettings={props.onOpenSettings}
       />
@@ -41,8 +37,15 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
   DynamicDashboard: DynamicDashboard
 }
 
-export default function MainViewRenderer({ viewName, isCompact, onOpenSettings, extensionData }: MainViewRendererProps) {
-  const Component = VIEW_MAP[viewName] || (extensionData?.features?.ui_schema ? DynamicDashboard : null)
+export default function MainViewRenderer({
+  viewName,
+  isCompact,
+  onOpenSettings,
+  extensionData,
+  chat
+}: MainViewRendererProps) {
+  const Component =
+    VIEW_MAP[viewName] || (extensionData?.features?.ui_schema ? DynamicDashboard : null)
 
   const isChat = viewName === 'ChatDashboard'
 
@@ -55,16 +58,17 @@ export default function MainViewRenderer({ viewName, isCompact, onOpenSettings, 
   }
 
   return (
-    <div className={`flex-1 flex min-h-0 ${isChat && !isCompact ? 'max-w-[420px] rounded-xl bg-card border border-border/10 shadow-2xl relative overflow-hidden shrink-0' : 'w-full h-full'}`}>
-        <Component 
-          onOpenSettings={onOpenSettings} 
-          schema={extensionData?.features?.ui_schema}
-          title={extensionData?.name}
-          description={extensionData?.description}
-          extensionId={extensionData?.id}
-        />
+    <div
+      className={`flex-1 flex min-h-0 ${isChat && !isCompact ? 'max-w-[420px] rounded-xl bg-card border border-border/10 shadow-2xl relative overflow-hidden shrink-0' : 'w-full h-full'}`}
+    >
+      <Component
+        onOpenSettings={onOpenSettings}
+        schema={extensionData?.features?.ui_schema}
+        title={extensionData?.name}
+        description={extensionData?.description}
+        extensionId={extensionData?.id}
+        chat={chat}
+      />
     </div>
   )
 }
-
-

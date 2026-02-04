@@ -1,49 +1,42 @@
 ---
 title: "Por que MomAI?"
-description: "A realidade das pequenas frustrações e o problema da nuvem."
+description: "Entenda como a MomAI resolve as limitações dos assistentes tradicionais."
 ---
 
 ## Limitações da Tecnologia Atual
 
-Temos LLMs excelentes que conseguem explicar temas complexos, mas que muitas vezes:
-- Não conhecem a sua rotina ou preferências locais.
-- Não conseguem interagir com as ferramentas que você usa no dia a dia.
-- Precisam que você envie dados sensíveis para nuvem para realizar automações simples.
+Temos LLMs excelentes capazes de explicar temas complexos, mas que frequentemente:
 
-A tecnologia existe, mas ela está focada em produtividade corporativa ou pesquisa técnica. O MomAI existe para trazer essa inteligência para a **vida real**, como uma companheira que conhece o seu computador e a sua rotina.
+- Não entendem o contexto em que você se encontra nem suas preferências locais
+- Não conseguem interagir com as ferramentas que você usa no dia a dia
+- Exigem que você envie dados sensíveis para a nuvem
+
+A tecnologia existe, mas está focada em produtividade corporativa ou pesquisa técnica. A MomAI existe para trazer essa inteligência para sua **vida pessoal**, como uma companheira que cresce e ganha funcionalidades através de extensões conforme suas necessidades.
 
 ## Pessoas, não Usuários
 
-Diferente de frameworks de agentes feitos para desenvolvedores criarem automações para empresas, a MomAI é feita para **você**. O objetivo não é vender uma plataforma de IA, mas disponibilizar uma ferramenta que torne o seu dia a dia mais fluido. 
+Diferente de frameworks de agentes feitos para desenvolvedores criarem automações empresariais, a MomAI é feita para **você**. O objetivo não é vender uma plataforma de IA, mas disponibilizar uma ferramenta que torne seu dia a dia mais fluido.
 
-Se você é um estudante, um gamer ou um profissional criativo, a MomAI não quer ser um "terminal" onde você digita comandos, mas uma presença que te ajuda a gerenciar o caos digital sem que você precise ser um expert em tecnologia.
+Se você usa o computador para estudar, jogar ou trabalhar, a MomAI não quer ser um "terminal" onde você digita comandos, mas uma presença que te ajuda a gerenciar o caos digital sem que você precise ser um expert em tecnologia.
 
 ## A Frustração do Usuário Comum
 
 A motivação do projeto vem de tarefas reais, chatas e repetitivas:
 
-1.  **Privacidade da Rotina**: Para que uma IA ajude na sua organização pessoal, ela precisa conhecer seus horários e hábitos. Enviar todos esses detalhes para servidores externos pode deixar sua privacidade vulnerável.
-2.  **Falta de Proatividade**: Lembretes de celular são fáceis de ignorar. Um assistente que te fala (literalmente) "Ei, você tem aula agora" enquanto você está distraído jogando ou trabalhando é muito mais eficaz.
-3.  **Contexto Local**: IAs de nuvem não têm contexto do seu hardware. Elas não sabem se sua RAM está acabando ou se sua GPU está livre para processar algo.
+1. **Privacidade da Rotina**: Para que uma IA ajude na sua organização pessoal, ela precisa conhecer seus horários e hábitos. Enviar todos esses detalhes para servidores externos deixa sua privacidade vulnerável.
+2. **Falta de Proatividade**: Lembretes de celular são fáceis de ignorar. Um assistente que te fala (literalmente) "Ei, você tem aula agora" enquanto você está distraído jogando ou trabalhando é muito mais eficaz.
 
 ## Por que Local-First?
 
-Existem três pilares que tornam o processamento local a única escolha real para um assistente pessoal:
+### Soberania de Dados
 
-### 1. Soberania de Dados
-Seus arquivos, suas conversas e sua rotina são bens valiosos. Ao processar dados localmente, você elimina o risco de vazamentos em infraestruturas de terceiros. *Lembrando que a MomAI é híbrida: você tem a liberdade de usar modelos de nuvem como Gemini ou Groq se preferir, mas a base do projeto é garantir que o processamento local seja sempre uma opção viável e segura.*
-
-### 2. Latência de Voz
-Para que uma conversa por voz pareça natural, a resposta precisa ser rápida. O tempo de enviar áudio para a nuvem, processar e devolver é o suficiente para quebrar a imersão. Processando a palavra-chave localmente e otimizando o TTS (atualmente via Edge TTS, mas com motores offline previstos), chegamos perto da resposta instantânea.
-
-### 3. Custo e Independência
-Modelos locais não têm mensalidade e não param de funcionar se a empresa mudar a API ou se sua internet cair. Se você tem uma GPU, você tem um cérebro digital gratuito.
+Seus arquivos, conversas e rotina são bens valiosos. Ao processar dados localmente, você elimina o risco de vazamentos em infraestruturas de terceiros. A base do projeto é garantir que o processamento local seja sempre uma opção viável e segura.
 
 ## O "Sonho" vs A Realidade
 
-Muitos projetos de IA vendem um "JARVIS" completo. A realidade do MomAI é um **núcleo extensível**. 
+Muitos projetos de IA vendem um "JARVIS" completo. A realidade da MomAI é um **núcleo extensível**.
 
-Nós não vamos criar todas as automações do mundo. Vamos criar a infraestrutura (Agentes, Roteador Semântico, Tool RAG) para que **você** ou a comunidade adicione a peça que você precisa — seja organizar arquivos, controlar o Spotify ou gerenciar documentos da faculdade.
+MomAI não possui na sua loja de extensões todas as automações do mundo. Ela oferece a infraestrutura (Agentes, Roteador Semântico, Tool RAG) para que **você** ou a comunidade adicione as funcionalidades necessárias — seja organizar arquivos, controlar aplicativos ou gerenciar documentos da faculdade.
 
 ## Como isso funciona na prática?
 
@@ -64,27 +57,34 @@ graph TD
 
 <AccordionGroup>
   <Accordion title="O que são Agentes?">
-    São funcionários virtuais focados. O `SystemAgent` só se preocupa com o seu Windows. O `SearchAgent` só se preocupa com a Web. Isso mantém a IA focada e evita erros.
+    São especialistas virtuais focados. O `SystemAgent` gerencia apenas seu
+    sistema operacional. O `SearchAgent` cuida apenas de buscas na web. Isso mantém a IA focada e
+    reduz erros.
   </Accordion>
   <Accordion title="O que é o Tool RAG?">
-    É como uma caixa de ferramentas flexível. A IA não carrega todas as ferramentas de uma vez. Ela busca apenas o que precisa no momento (ex: "preciso da ferramenta de volume agora"). Isso economiza memória e deixa o processo mais organizado.
+    É como uma caixa de ferramentas inteligente. A IA não carrega todas as
+    ferramentas de uma vez. Ela busca apenas o que precisa no momento (ex:
+    "preciso da ferramenta de volume agora"). Isso economiza memória e otimiza o
+    processo.
   </Accordion>
 </AccordionGroup>
 
-## Tipos de agentes
+## Tipos de Agentes
 
 **1. Agentes de Delegação** — Você pede, eles fazem.
+
 - **SearchAgent**: Pesquisa na internet
 - **SchedulerAgent**: Gerencia lembretes e agenda
 - **InterfaceAgent**: Cria gráficos e relatórios
 
 **2. Agentes de Eventos** — Agem sozinhos quando algo acontece.
-- **ReminderAgent**: Te avisa quando chega a hora de algo
+
+- **ReminderAgent**: Te avisa quando chega a hora
 - **SystemAgent**: Age quando o PC liga ou detecta eventos do sistema
 
-## Eventos: o diferencial
+## Eventos: O Diferencial
 
-A maioria dos chatbots espera você digitar algo. MomAI age **sozinha** quando detecta gatilhos.
+A maioria dos chatbots espera você digitar algo. MomAI age **proativamente** quando detecta gatilhos.
 
 Exemplos que virão por padrão:
 
@@ -97,42 +97,13 @@ Exemplos para extensões futuras:
 - **WhatsApp**: Quando alguém manda mensagem, a MomAI pergunta se pode responder
 - **Monitoramento de uso**: Passou 2 horas no Instagram? Ela te lembra das tarefas pendentes
 
-## O que você pode fazer com MomAI + Extensões
 
-<CardGroup cols={2}>
-  <Card title="Gestão de Conhecimento" icon="book">
-    Revisar anotações no Obsidian, criar roadmaps de estudo, resumir notícias.
-  </Card>
-  <Card title="Controle do Sistema" icon="computer">
-    Hibernar, desligar, organizar arquivos, executar scripts.
-  </Card>
-  <Card title="Automação Pessoal" icon="robot">
-    Baixar mangás, responder mensagens padrão, monitorar preços.
-  </Card>
-  <Card title="Integração com Apps" icon="plug">
-    Notion, Google Calendar, Spotify, e qualquer coisa com API.
-  </Card>
-</CardGroup>
 
-## Sistema de Extensões
+## Extensões da Comunidade
 
-O MomAI vem simples de propósito. Instale só o que você precisa.
+Quer criar sua própria extensão? Clone o modelo de exemplo, adapte para seu caso e faça um PR no arquivo `community-plugins.json`.
 
-Algumas extensões planejadas:
-
-| Extensão | O que faz |
-|----------|-----------|
-| **WhatsApp** | Lê mensagens e sugere respostas (requer Docker) |
-| **Abertura de apps** | "Abre o Chrome e o Spotify" |
-| **Navegação** | Controla o navegador pra fazer tarefas em sites |
-| **Planilhas** | Lê, compara e edita planilhas locais |
-| **Notas** | Integra com Obsidian, Notion, Anytype |
-
-## Extensões da comunidade
-
-Quer criar sua própria extensão? Clone o modelo de exemplo, adapte pro seu caso, e faça um PR no arquivo `community-plugins.json`.
-
-A extensão que você criar ajuda todo mundo que usa MomAI.
+A extensão que você criar ajuda toda a comunidade MomAI.
 
 ```mermaid
 graph LR
@@ -156,24 +127,22 @@ graph LR
 
 ## Por que Python?
 
-- Melhor ecossistema pra IA (LangChain, LangGraph)
-- Fácil de processar áudio (voz pra texto, texto pra voz)
-- Curva de aprendizado suave pra quem quer criar extensões
+- Melhor ecossistema para IA (LangChain, LangGraph)
+- Fácil processamento de áudio (voz para texto, texto para voz)
+- Curva de aprendizado suave para criação de extensões
 
 ## Inspirações
 
-- [Vocalis](https://github.com/shaakz/vocalis) — Inspiração pra conversa por voz
+- [Vocalis](https://github.com/shaakz/vocalis) — Inspiração para conversa por voz
 - [Obsidian](https://obsidian.md/) — Modelo de plugins da comunidade
 
-## Menção Honrosa
+Um agradecimento especial ao **Eduardo Mendes (Dunossauro)**. Embora não faça parte do projeto, seus conteúdos de alta qualidade sobre Python foram fundamentais para as decisões técnicas e para a construção da base de conhecimento necessária para desenvolver a MomAI.
 
-Um agradecimento especial ao **Eduardo Mendes (Dunossauro)**. Embora não faça parte do projeto, seus conteúdos de alta qualidade sobre Python foram fundamentais para as decisões técnicas e para a formação da base de conhecimento necessária para construir a MomAI.
-
-## Próximos passos
+## Próximos Passos
 
 <CardGroup cols={2}>
   <Card title="Configurar Backend" icon="server" href="/pt-BR/backend">
-    Coloque o núcleo pra rodar.
+    Coloque o núcleo para rodar.
   </Card>
   <Card title="Como Colaborar" icon="code-branch" href="/pt-BR/como-colaborar">
     Ajude a construir o futuro da MomAI.

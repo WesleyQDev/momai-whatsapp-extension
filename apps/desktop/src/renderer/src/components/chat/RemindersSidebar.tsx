@@ -8,21 +8,32 @@ interface SimpleReminder {
 
 export default function RemindersSidebar() {
   const [reminders, setReminders] = useState<SimpleReminder[]>([])
+  const [retryCount, setRetryCount] = useState(0)
 
   const fetchActive = async () => {
     try {
       const response = await fetch('http://localhost:8000/reminders/active')
       const data = await response.json()
       setReminders(data)
+      setRetryCount(0) // Reset em caso de sucesso
     } catch (e) {
-      console.error('Erro ao buscar próximos lembretes', e)
+      // Suprimir erros durante os primeiros 10 segundos
+      if (retryCount > 5) {
+        console.error('Erro ao buscar próximos lembretes', e)
+      }
+      setRetryCount(prev => prev + 1)
     }
   }
 
   useEffect(() => {
-    fetchActive()
+    // Delay inicial de 2s para dar tempo do backend iniciar
+    const initialDelay = setTimeout(fetchActive, 2000)
+    
     const interval = setInterval(fetchActive, 10000)
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(initialDelay)
+      clearInterval(interval)
+    }
   }, [])
 
   if (reminders.length === 0) return null

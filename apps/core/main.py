@@ -6,51 +6,133 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
-from ai.orchestrator import generate
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from dotenv import load_dotenv
 from pydantic import BaseModel
 import tomllib
 from pathlib import Path
 from sqlalchemy import text
-from ai.orchestrator import initialize_llm
-import ai.orchestrator as orchestrator
-import tools.system_actions as tools
-from services.voice.detector import WakeWordDetector
 import threading
 import os
 import psutil
 import json
 import asyncio
 import logging
+import gc
 from datetime import datetime
 from database.models import init_db, SessionLocal, Reminder, Settings, Extension, GamingApp
-from services.reminders.manager import ReminderManager
-import services.voice.tts as tts
-from services.extensions.manager import extension_manager
 from services.system.resource_manager import resource_manager
+
+# Heavy imports (lazy loaded in lifespan)
+# from ai.orchestrator import generate, initialize_llm
+# import ai.orchestrator as orchestrator
+# from services.reminders.manager import ReminderManager
+# from services.voice.detector import WakeWordDetector
 
 # Silencia logs de acesso do uvicorn especificamente para o endpoint /status
 class EndpointFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         return "/status" not in record.getMessage()
-
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
-# Global Managers
+# Global version variable
+app_version = "0.0.0"
+
+# Configure Root Logger to ensure print statements and logs are visible
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+if not root_logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(handler)
+
+# Global Managers - Lazy loaded
 active_websockets: list[WebSocket] = []
 main_loop: asyncio.AbstractEventLoop = None
 reminder_manager = None
 ww = None
 
+# Gaming mode flag
+is_gaming_mode = False
+ai_stack_loaded = False
+
+# Init progress tracking (armazena último evento para novos WebSockets)
+last_init_event = {
+    "stage": "pending",
+    "message": "Aguardando inicialização...",
+    "progress": 0
+}
+
+# Lazy-loaded modules
+orchestrator = None
+generate = None
+initialize_llm = None
+WakeWordDetector = None
+ReminderManager = None
+tts = None
+extension_manager = None
+
 active_graph = {
     "view": None, 
     "bypass_wake_word": False
 }
+
+# --- LAZY LOADING FUNCTIONS ---
+def initialize_ai_stack():
+    """Lazy load heavy AI modules."""
+    global orchestrator, generate, initialize_llm, WakeWordDetector, ReminderManager, tts, extension_manager, ai_stack_loaded
+    
+    if ai_stack_loaded:
+        return
+    
+    print("[Main] Loading AI stack...")
+    import ai.orchestrator as orch
+    orchestrator = orch
+    from ai.orchestrator import generate as gen_func, initialize_llm as init_llm
+    generate = gen_func
+    initialize_llm = init_llm
+    from services.voice.detector import WakeWordDetector as WWD
+    WakeWordDetector = WWD
+    from services.reminders.manager import ReminderManager as RM
+    ReminderManager = RM
+    import services.voice.tts as t
+    tts = t
+    from services.extensions.manager import extension_manager as em
+    extension_manager = em
+    
+    ai_stack_loaded = True
+    print("[Main] AI stack loaded.")
+
+def set_gaming_mode(enabled: bool):
+    """Set gaming mode flag."""
+    global is_gaming_mode
+    is_gaming_mode = enabled
+    print(f"[Main] Gaming mode: {enabled}")
+
+# Track pending graph data per thread (for persistence)
+pending_graph_data = {}  # thread_id -> graph_data dict
+
+def set_pending_graph_data(thread_id: str, data: dict):
+    """Stores graph data to be saved with the next message."""
+    global pending_graph_data
+    pending_graph_data[thread_id] = data
+
+def get_pending_graph_data(thread_id: str) -> dict | None:
+    """Retrieves and clears pending graph data for a thread."""
+    global pending_graph_data
+    return pending_graph_data.pop(thread_id, None)
+
+# --- DEPENDENCIES ---
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def get_graph_state():
     """Returns current active UI graph state."""
@@ -69,6 +151,25 @@ async def broadcast_to_sockets(message: dict):
             await ws.send_json(message)
         except Exception as e:
             print(f"[WebSocket] Broadcast error: {e}")
+
+
+async def send_init_event(stage: str, message: str, progress: int = 0):
+    """Envia eventos de progresso de inicialização para o frontend."""
+    global last_init_event
+    
+    # Armazena último evento para novos WebSockets
+    last_init_event = {
+        "stage": stage,
+        "message": message,
+        "progress": progress
+    }
+    
+    # Broadcast para WebSockets conectados
+    await broadcast_to_sockets({
+        "type": "init_progress",
+        "data": last_init_event
+    })
+    print(f"[Init {progress}%] {stage}: {message}")
 
 async def process_voice_command(text: str):
     """Processes a recognized voice command through the AI engine."""
@@ -104,11 +205,15 @@ async def broadcast_resource_usage():
     """Background task to broadcast system resource usage."""
     while True:
         if active_websockets:
-            stats = tools.get_momai_resources()
-            await broadcast_to_sockets({
-                "type": "resource_usage",
-                "data": stats
-            })
+            try:
+                import tools.system_actions as sys_tools
+                stats = sys_tools.get_momai_resources()
+                await broadcast_to_sockets({
+                    "type": "resource_usage",
+                    "data": stats
+                })
+            except Exception as e:
+                logger.debug(f"Error getting resource usage: {e}")
         await asyncio.sleep(2)
         
 
@@ -129,18 +234,35 @@ def notify_economy_change(status: str):
 async def lifespan(app: FastAPI):
     global main_loop, reminder_manager, ww
     main_loop = asyncio.get_running_loop()
+    
+    # Evento 1: API iniciada
+    await send_init_event("api", "Protocolos de sistema iniciados", 10)
+    
     # Startup: Database and Migrations
     init_db()
+    await send_init_event("api", "Banco de dados conectado", 15)
+    
+    # NOVO: Initialize AI stack (lazy loading)
+    print("[Main] Initializing AI stack...")
+    await send_init_event("brain", "Carregando módulos de inteligência...", 25)
+    initialize_ai_stack()
+    await send_init_event("brain", "Módulos de IA carregados", 35)
     
     # Microkernel Startup: Load all agents (Builtin + Extensions)
+    await send_init_event("extensions", "Descobrindo extensões...", 40)
     extension_manager.load_all()
+    ext_count = len(extension_manager.get_active_manifests())
+    await send_init_event("extensions", f"{ext_count} extensões carregadas", 50)
     
     # Auto-Indexing Knowledge Base (LanceDB)
     try:
         from utils.indexer import index_all_system_tools, index_initial_intents
         print("[Main] Updating Knowledge Base (LanceDB)...")
+        await send_init_event("brain", "Indexando ferramentas do sistema...", 55)
         index_all_system_tools()
+        await send_init_event("brain", "Indexando intenções...", 60)
         index_initial_intents()
+        await send_init_event("brain", "Base de conhecimento atualizada", 65)
     except Exception as e:
         print(f"[Main] Indexing error: {e}")
     
@@ -148,6 +270,18 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         db.execute(text("ALTER TABLE settings ADD COLUMN local_backend TEXT DEFAULT 'auto'"))
+        db.commit()
+    except:
+        pass # Column likely already exists
+    
+    try:
+        db.execute(text("ALTER TABLE messages ADD COLUMN activities TEXT DEFAULT NULL"))
+        db.commit()
+    except:
+        pass # Column likely already exists
+    
+    try:
+        db.execute(text("ALTER TABLE messages ADD COLUMN graph_data TEXT DEFAULT NULL"))
         db.commit()
     except:
         pass # Column likely already exists
@@ -161,6 +295,7 @@ async def lifespan(app: FastAPI):
         db.refresh(settings)
     
     # Apply Settings
+    await send_init_event("brain", "Aplicando configurações...", 70)
     tts.tts.set_voice(settings.tts_voice)
     tts.tts.set_enabled(settings.tts_enabled)
     orchestrator.SYSTEM_PROMPT = settings.assistant_persona
@@ -172,6 +307,7 @@ async def lifespan(app: FastAPI):
     # Start Gaming Mode Monitor (FortScript)
     resource_manager.on_notify_callback = notify_economy_change
     resource_manager.start()
+    await send_init_event("extensions", "Monitor de recursos ativado", 75)
 
     from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
     
@@ -181,8 +317,11 @@ async def lifespan(app: FastAPI):
 
         # Initialize LLM with default provider
         print(f"[Main] Initializing with default provider: {settings.ai_provider}")
+        await send_init_event("brain", "Iniciando cérebro principal...", 80)
         orchestrator.initialize_llm(settings.ai_provider)
+        await send_init_event("brain", "Cérebro inicializado", 85)
         
+        await send_init_event("extensions", "Ativando lembretes...", 88)
         reminder_manager = ReminderManager(
             broadcast_callback=broadcast_to_sockets,
             tts_callback=tts.speak_sentence
@@ -198,12 +337,16 @@ async def lifespan(app: FastAPI):
             return state["view"] is not None and state["bypass_wake_word"]
 
         print("[FastAPI] Starting Wake Word Detector...")
+        await send_init_event("brain", "Iniciando detector de voz...", 92)
         ww = WakeWordDetector(keyword="Sistema", callback=on_wake_word, bypass_condition=should_bypass_wake_word)
         
         if settings.wake_word_enabled:
             ww.start()
         else:
             print("[WakeWord] Disabled in settings.")
+        
+        await send_init_event("ready", "Sistema operacional. Bem-vindo.", 100)
+        await send_init_event("socket", "WebSocket pronto", 100)
             
         db.close()
 
@@ -221,15 +364,51 @@ async def lifespan(app: FastAPI):
         
     # Shutdown
     print("[FastAPI] Shutting down...")
-    if reminder_manager: reminder_manager.stop()
-    if ww: ww.stop()
+    
+    # Stop embeddings server (port 8081)
+    try:
+        from ai.embeddings import embeddings
+        embeddings.stop()
+        print("[FastAPI] Embeddings server stopped.")
+    except Exception as e:
+        print(f"[FastAPI] Error stopping embeddings: {e}")
+    
+    # Stop reminder manager
+    if reminder_manager:
+        try:
+            reminder_manager.stop()
+            print("[FastAPI] Reminder manager stopped.")
+        except Exception as e:
+            print(f"[FastAPI] Error stopping reminder manager: {e}")
+    
+    # Stop wake word detector
+    if ww:
+        try:
+            ww.stop()
+            print("[FastAPI] Wake word detector stopped.")
+        except Exception as e:
+            print(f"[FastAPI] Error stopping wake word detector: {e}")
+    
+    # Stop main llama server (port 8080)
     try:
         from ai.providers.local_llama import stop_server
         stop_server()
-    except: pass
+        print("[FastAPI] Main LLM server stopped.")
+    except Exception as e:
+        print(f"[FastAPI] Error stopping LLM server: {e}")
+    
+    # Stop TTS workers
     try:
         tts.stop_all()
-    except: pass
+        print("[FastAPI] TTS workers stopped.")
+    except Exception as e:
+        print(f"[FastAPI] Error stopping TTS: {e}")
+    
+    # Brief pause to allow processes to terminate gracefully
+    import time
+    time.sleep(0.5)
+    
+    print("[FastAPI] Shutdown complete.")
 
 
 # --- APP SETUP ---
@@ -243,6 +422,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- DECORATORS ---
+def require_ai_loaded(func):
+    """Decorator to ensure AI stack is loaded before route execution."""
+    import functools
+    
+    if asyncio.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            if not ai_stack_loaded:
+                initialize_ai_stack()
+            return await func(*args, **kwargs)
+        return async_wrapper
+    else:
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            if not ai_stack_loaded:
+                initialize_ai_stack()
+            return func(*args, **kwargs)
+        return sync_wrapper
 
 # --- MODELS ---
 class ChatMessage(BaseModel):
@@ -280,24 +479,52 @@ class GamingAppCreate(BaseModel):
     executable: str
 
 # --- ROUTES ---
+
+@app.get("/init-status")
+async def get_init_status():
+    """Retorna o status atual de inicialização (fallback se WebSocket não conectar)."""
+    return {
+        "stage": last_init_event["stage"],
+        "message": last_init_event["message"],
+        "progress": last_init_event["progress"],
+        "ai_stack_loaded": ai_stack_loaded,
+        "is_ready": last_init_event["progress"] >= 100
+    }
+
 @app.post("/chat/stream")
+@require_ai_loaded
 async def handle_chat_stream(message: ChatMessage):
     return StreamingResponse(generate(message), media_type="text/event-stream")
 
 @app.get("/chat/history")
-async def get_chat_history(thread_id: str = "default"):
-    from ai.orchestrator import get_graph_history
-    history = await get_graph_history(thread_id)
+async def get_chat_history(thread_id: str = "default", db: Session = Depends(get_db)):
+    from database.models import Message
+    import json
     
-    # Se o grafo estiver vazio (ex: novo banco de checkpoints), tenta o fallback do DB relacional
-    if not history:
-        from ai.orchestrator import load_history_from_db
-        history = load_history_from_db(thread_id, limit=50)
-
-    return [
-        {"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content}
-        for m in history if not isinstance(m, (SystemMessage, ToolMessage)) # Filtra para a UI
-    ]
+    # Always use the relational DB for UI history (supports activities + graph_data)
+    messages = db.query(Message).filter(Message.thread_id == thread_id).order_by(Message.created_at.asc()).limit(100).all()
+    
+    result = []
+    for m in messages:
+        msg_dict = {
+            "role": m.role,
+            "content": m.content
+        }
+        # Parse activities if present
+        if m.activities:
+            try:
+                msg_dict["activities"] = json.loads(m.activities)
+            except:
+                pass
+        # Parse graph_data if present
+        if m.graph_data:
+            try:
+                msg_dict["graphData"] = json.loads(m.graph_data)
+            except:
+                pass
+        result.append(msg_dict)
+    
+    return result
 
 @app.delete("/chat/history")
 async def delete_chat_history(thread_id: str = "default"):
@@ -306,24 +533,22 @@ async def delete_chat_history(thread_id: str = "default"):
     return {"status": "ok"}
 
 @app.get("/status")
-def get_status():
-    db = SessionLocal()
+async def get_status(db: Session = Depends(get_db)):
     settings = db.query(Settings).first()
     
     api_keys = {}
     try:
         api_keys = json.loads(settings.api_keys) if settings.api_keys else {}
-    except:
+    except Exception:
         pass
         
     engine_ok = downloader.check_engine_installed()
     install_info = downloader.get_installed_info()
     latest_v = downloader.get_latest_llama_version()
-    db.close()
     
     return {
         "status": "ok", 
-        "version": tools.version, 
+        "version": app_version, 
         "mode": orchestrator.llm_mode,
         "brain_ready": orchestrator.llm is not None and orchestrator.momai_graph is not None,
         "is_loading": orchestrator.is_loading,
@@ -337,14 +562,17 @@ def get_status():
     }
 
 @app.post("/mode")
+@require_ai_loaded
 async def set_mode(mode_data: ModeChange):
-    initialize_llm(mode_data.mode)
+    # initialize_llm is likely blocking, run in thread
+    await asyncio.to_thread(initialize_llm, mode_data.mode)
     await broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": mode_data.mode}})
     return {"status": "ok", "mode": mode_data.mode}
 
 @app.get("/reminders")
-def list_reminders_route():
-    reminders = reminder_manager.list_reminders()
+@require_ai_loaded
+async def list_reminders_route():
+    reminders = await asyncio.to_thread(reminder_manager.list_reminders)
     return [
         {
             "id": r.id,
@@ -358,11 +586,8 @@ def list_reminders_route():
     ]
 
 @app.get("/reminders/active")
-def list_active_reminders():
-    db = SessionLocal()
-    now = datetime.now()
+async def list_active_reminders(db: Session = Depends(get_db)):
     reminders = db.query(Reminder).filter(Reminder.is_active == True).order_by(Reminder.scheduled_time.asc()).limit(5).all()
-    db.close()
     return [
         {
             "id": r.id,
@@ -372,19 +597,20 @@ def list_active_reminders():
     ]
 
 @app.post("/reminders")
-def create_reminder_route(data: ReminderCreate):
-    return reminder_manager.add_reminder(
+@require_ai_loaded
+async def create_reminder_route(data: ReminderCreate):
+    return await asyncio.to_thread(reminder_manager.add_reminder,
         data.title, data.content, data.scheduled_time, data.repeat_interval, data.repeat_value
     )
 
 @app.delete("/reminders/{reminder_id}")
-def delete_reminder_route(reminder_id: int):
-    reminder_manager.delete_reminder(reminder_id)
+@require_ai_loaded
+async def delete_reminder_route(reminder_id: int):
+    await asyncio.to_thread(reminder_manager.delete_reminder, reminder_id)
     return {"status": "deleted"}
 
 @app.get("/settings")
-def get_settings():
-    db = SessionLocal()
+async def get_settings(db: Session = Depends(get_db)):
     settings = db.query(Settings).first()
     if not settings:
         settings = Settings()
@@ -410,100 +636,117 @@ def get_settings():
         "wake_word_enabled": settings.wake_word_enabled,
         "wake_word_sensitivity": settings.wake_word_sensitivity
     }
-    db.close()
     return result
+
+def _sync_update_settings(data: SettingsUpdate):
+    """Helper to perform blocking DB updates."""
+    db = SessionLocal()
+    try:
+        settings = db.query(Settings).first()
+        changes = []
+        
+        if data.user_name is not None: 
+            settings.user_name = data.user_name
+            changes.append("user_name")
+            
+        if data.assistant_persona is not None: 
+            settings.assistant_persona = data.assistant_persona
+            changes.append("persona")
+            
+        if data.ai_provider is not None: 
+            settings.ai_provider = data.ai_provider
+            changes.append("provider")
+
+        if data.ai_model is not None: settings.ai_model = data.ai_model
+        
+        if data.local_backend is not None: settings.local_backend = data.local_backend
+        
+        if data.api_keys is not None:
+            settings.api_keys = json.dumps(data.api_keys)
+            
+        if data.tts_voice is not None:
+            settings.tts_voice = data.tts_voice
+            # TTS update happens outside DB transaction usually, but here is fine
+            
+        if data.tts_enabled is not None:
+            settings.tts_enabled = data.tts_enabled
+            
+        if data.wake_word_enabled is not None:
+            settings.wake_word_enabled = data.wake_word_enabled
+            
+        if data.wake_word_sensitivity is not None:
+            settings.wake_word_sensitivity = data.wake_word_sensitivity
+
+        db.commit()
+        db.refresh(settings) # Ensure we have latest data
+        return changes, settings.ai_provider, settings.tts_voice, settings.tts_enabled, settings.wake_word_enabled
+    finally:
+        db.close()
 
 @app.patch("/settings")
 async def update_settings(data: SettingsUpdate):
-    db = SessionLocal()
-    settings = db.query(Settings).first()
+    # Run blocking DB update in thread
+    changes, provider, tts_voice, tts_enabled, ww_enabled = await asyncio.to_thread(_sync_update_settings, data)
     
-    changes = []
-    
-    if data.user_name is not None: 
-        settings.user_name = data.user_name
-        changes.append("user_name")
-        
-    if data.assistant_persona is not None: 
-        settings.assistant_persona = data.assistant_persona
-        changes.append("persona")
-        
-    if data.ai_provider is not None: 
-        settings.ai_provider = data.ai_provider
-        changes.append("provider")
-
-    if data.ai_model is not None: settings.ai_model = data.ai_model
-    
-    if data.local_backend is not None: settings.local_backend = data.local_backend
-    
-    if data.api_keys is not None:
-        settings.api_keys = json.dumps(data.api_keys)
-        
+    # Apply side effects (IO/Hardware)
     if data.tts_voice is not None:
-        settings.tts_voice = data.tts_voice
-        tts.tts.set_voice(data.tts_voice) # Apply immediately
+        tts.tts.set_voice(tts_voice)
 
     if data.tts_enabled is not None:
-        settings.tts_enabled = data.tts_enabled
-        tts.tts.set_enabled(settings.tts_enabled)
+        tts.tts.set_enabled(tts_enabled)
         
     if data.wake_word_enabled is not None:
-        settings.wake_word_enabled = data.wake_word_enabled
         if ww:
-            if settings.wake_word_enabled:
+            if ww_enabled:
                 ww.start()
             else:
                 ww.stop()
-        
-    if data.wake_word_sensitivity is not None:
-        settings.wake_word_sensitivity = data.wake_word_sensitivity
 
-    db.commit()
-    
     # Reload graph and LLM if persona, user_name or provider changed
     if any(x in changes for x in ["persona", "user_name", "provider"]):
-        # Pass the latest values from the DB or payload
-        initialize_llm(settings.ai_provider)
+        # Heavy operation: initialize_llm
+        await asyncio.to_thread(initialize_llm, provider)
         if "provider" in changes:
-            await broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": settings.ai_provider}})
+            await broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": provider}})
 
-    db.close()
     return {"status": "updated", "changes": changes}
 
 import utils.downloader as downloader
 
 @app.get("/setup/status")
-def get_setup_status():
+async def get_setup_status(db: Session = Depends(get_db)):
     """Verifica status detalhado da instalação local."""
-    db = SessionLocal()
-    settings = db.query(Settings).first()
-    current_local_backend = settings.local_backend if settings else "auto"
-    db.close()
+    
+    def _get_status():
+        settings = db.query(Settings).first()
+        current_local_backend = settings.local_backend if settings else "auto"
 
-    engine_ok = downloader.check_engine_installed()
-    models_path = Path(__file__).parent / "models"
-    models_ok = any(models_path.glob("*.gguf"))
+        engine_ok = downloader.check_engine_installed()
+        models_path = Path(__file__).parent / "models"
+        models_ok = any(models_path.glob("*.gguf"))
+        
+        # Informações detalhadas
+        install_info = downloader.get_installed_info()
+        hw_info = downloader.get_hardware_info()
+        installed_backends = downloader.get_all_installed_backends()
+        
+        latest_v = downloader.get_latest_llama_version()
+        
+        return {
+            "engine_installed": engine_ok,
+            "models_installed": models_ok,
+            "detected_hardware": hw_info.get("gpu_name") or "Não Detectada",
+            "cpu_name": hw_info.get("cpu_name"),
+            "recommended_build": hw_info.get("backend"),
+            "available_builds": downloader.get_available_builds(latest_v),
+            "latest_version": latest_v,
+            "installed_version": install_info.get("version") if install_info else None,
+            "installed_build": install_info.get("build_type") if install_info else None,
+            "installed_backends": installed_backends,
+            "current_local_backend": current_local_backend
+        }
     
-    # Informações detalhadas
-    install_info = downloader.get_installed_info()
-    hw_info = downloader.get_hardware_info()
-    installed_backends = downloader.get_all_installed_backends()
-    
-    latest_v = downloader.get_latest_llama_version()
-    
-    return {
-        "engine_installed": engine_ok,
-        "models_installed": models_ok,
-        "detected_hardware": hw_info.get("gpu_name") or "Não Detectada",
-        "cpu_name": hw_info.get("cpu_name"),
-        "recommended_build": hw_info.get("backend"),
-        "available_builds": downloader.get_available_builds(latest_v),
-        "latest_version": latest_v,
-        "installed_version": install_info.get("version") if install_info else None,
-        "installed_build": install_info.get("build_type") if install_info else None,
-        "installed_backends": installed_backends,
-        "current_local_backend": current_local_backend
-    }
+    return await asyncio.to_thread(_get_status)
 
 class InstallRequest(BaseModel):
     backend: str | None = None
@@ -551,14 +794,16 @@ async def uninstall_engine(backend: str | None = None):
     return {"status": "error", "message": "Falha ao remover arquivos"}
 
 @app.get("/extensions")
-def list_extensions():
+@require_ai_loaded
+async def list_extensions():
     """Retorna a lista de extensões instaladas e ativas."""
     extension_manager.load_all()
     return extension_manager.get_active_manifests()
 
 
 @app.get("/extensions/registry")
-def get_registry():
+@require_ai_loaded
+async def get_registry():
     """Busca extensões disponíveis na nuvem."""
     from services.extensions.installer import extension_installer
     return extension_installer.fetch_registry()
@@ -568,6 +813,7 @@ class InstallExtensionRequest(BaseModel):
     download_url: str
 
 @app.post("/extensions/install")
+@require_ai_loaded
 async def install_extension(req: InstallExtensionRequest):
     """Instala uma nova extensão."""
     from services.extensions.installer import extension_installer
@@ -578,14 +824,25 @@ async def install_extension(req: InstallExtensionRequest):
     return {"status": "error", "message": "Falha na instalação"}
 
 @app.post("/extensions/toggle")
+@require_ai_loaded
 async def toggle_extension(req: ExtensionToggle):
     """Ativa ou desativa uma extensão."""
-    db = SessionLocal()
-    ext = db.query(Extension).filter(Extension.id == req.id).first()
-    if ext:
-        ext.is_enabled = req.enabled
-        db.commit()
-        db.close()
+    def _toggle_db(id, enabled):
+        db = SessionLocal()
+        try:
+            ext = db.query(Extension).filter(Extension.id == id).first()
+            found = False
+            if ext:
+                ext.is_enabled = enabled
+                db.commit()
+                found = True
+            return found
+        finally:
+            db.close()
+            
+    found = await asyncio.to_thread(_toggle_db, req.id, req.enabled)
+    
+    if found:
         extension_manager.load_all()
         # Broadcast the change
         await broadcast_to_sockets({
@@ -593,21 +850,17 @@ async def toggle_extension(req: ExtensionToggle):
             "data": extension_manager.get_active_manifests()
         })
         return {"status": "ok"}
-    db.close()
     return {"status": "error", "message": "Extensão não encontrada"}
 
 
 # --- GAMING MODE ROUTES ---
 @app.get("/system/gaming-apps")
-def list_gaming_apps():
-    db = SessionLocal()
+async def list_gaming_apps(db: Session = Depends(get_db)):
     apps = db.query(GamingApp).all()
-    db.close()
     return [{"id": a.id, "name": a.name, "executable": a.executable, "is_active": a.is_active} for a in apps]
 
 @app.post("/system/gaming-apps")
-def add_gaming_app(data: GamingAppCreate):
-    db = SessionLocal()
+async def add_gaming_app(data: GamingAppCreate, db: Session = Depends(get_db)):
     try:
         new_app = GamingApp(name=data.name, executable=data.executable.lower())
         db.add(new_app)
@@ -618,20 +871,21 @@ def add_gaming_app(data: GamingAppCreate):
     except Exception as e:
         db.rollback()
         return {"status": "error", "message": str(e)}
-    finally:
-        db.close()
 
 @app.delete("/system/gaming-apps/{app_id}")
-def delete_gaming_app(app_id: int):
-    db = SessionLocal()
-    app = db.query(GamingApp).filter(GamingApp.id == app_id).first()
-    if app:
-        db.delete(app)
-        db.commit()
-        resource_manager.start()
-        db.close()
+async def delete_gaming_app(app_id: int, db: Session = Depends(get_db)):
+    def _delete_app():
+        app = db.query(GamingApp).filter(GamingApp.id == app_id).first()
+        if app:
+            db.delete(app)
+            db.commit()
+            resource_manager.start()
+            return True
+        return False
+    
+    success = await asyncio.to_thread(_delete_app)
+    if success:
         return {"status": "ok"}
-    db.close()
     return {"status": "error", "message": "App não encontrado"}
 
 
@@ -646,11 +900,80 @@ async def get_hardware_stats():
         "vram_usage": 0 # TODO: Implement GPU check
     }
 
+@app.post("/memory/compact")
+async def compact_memory():
+    """Force memory compaction and cleanup."""
+    print("[Main] Compacting memory...")
+    try:
+        # Force garbage collection
+        gc.collect()
+        
+        # Clear embeddings cache
+        if ai_stack_loaded:
+            try:
+                from ai.embeddings import embeddings
+                embeddings.clear_all_cache()
+            except:
+                pass
+        
+        # Get memory stats
+        import psutil
+        process = psutil.Process()
+        mem_info = process.memory_info()
+        
+        result = {
+            "status": "ok",
+            "memory_after_compact_mb": mem_info.rss / (1024 * 1024),
+            "gaming_mode": is_gaming_mode
+        }
+        print(f"[Main] Memory compacted. New size: {result['memory_after_compact_mb']:.1f}MB")
+        return result
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/memory/stats")
+async def get_memory_stats():
+    """Get detailed memory statistics."""
+    try:
+        import psutil
+        process = psutil.Process()
+        mem_info = process.memory_info()
+        
+        result = {
+            "python_process_mb": mem_info.rss / (1024 * 1024),
+            "gaming_mode": is_gaming_mode,
+            "ai_stack_loaded": ai_stack_loaded
+        }
+        
+        # Get embeddings stats if loaded
+        if ai_stack_loaded:
+            try:
+                from ai.embeddings import embeddings
+                emb_stats = embeddings.memory_stats()
+                result["embeddings"] = emb_stats
+            except:
+                pass
+        
+        return result
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     active_websockets.append(websocket)
     try:
+        # Ensure AI stack is loaded for extensions
+        if not ai_stack_loaded:
+            initialize_ai_stack()
+        
+        # Envia o último evento de progresso para o novo cliente (catch-up)
+        if last_init_event["progress"] < 100:
+            await websocket.send_json({
+                "type": "init_progress",
+                "data": last_init_event
+            })
+        
         # Envia as extensões logo ao conectar para o frontend sincronizar itens de barra lateral
         await websocket.send_json({
             "type": "extensions_sync",
@@ -665,10 +988,16 @@ async def websocket_endpoint(websocket: WebSocket):
 try:
     with open(Path(__file__).parent / "pyproject.toml", "rb") as f:
         data = tomllib.load(f)
-        tools.version = data.get("project", {}).get("version", "0.0.0")
-except:
-    tools.version = "0.0.0"
+        app_version = data.get("project", {}).get("version", "0.0.0")
+except Exception:
+    app_version = "0.0.0"
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # Make reload conditional on environment variable for optimization
+    should_reload = os.getenv("MOMAI_DEBUG", "false").lower() == "true"
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", 8000))
+    
+    print(f"[Main] Starting MomAI Core on {host}:{port} (Reload: {should_reload})")
+    uvicorn.run("main:app", host=host, port=port, reload=should_reload)

@@ -9,6 +9,9 @@ from concurrent.futures import ThreadPoolExecutor
 from huggingface_hub import hf_hub_download
 import numpy as np
 from functools import lru_cache
+import logging
+
+logger = logging.getLogger("momai.embeddings")
 
 MODELS_DIR = Path(__file__).parent.parent / "models"
 MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
@@ -194,6 +197,102 @@ class EmbeddingEngine:
             return [[0.0] * 1024] * len(texts)
         except:
             return [self._embed_sync(t) for t in texts]
+
+    def stop(self):
+        """
+        Stops the embeddings llama-server gracefully.
+        First attempts graceful termination (2 seconds), then force-kills if needed.
+        """
+        if self._process is None or self._process is True:
+            # _process can be True (healthcheck found running server) or None (not started)
+            logger.info("[Embeddings] Server already stopped or never started.")
+            return
+
+        logger.warning("[Embeddings] Stopping embeddings server on port 8081...")
+        try:
+            # Attempt graceful termination
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=2)
+                logger.info("[Embeddings] Server stopped gracefully.")
+            except subprocess.TimeoutExpired:
+                # If graceful fails, force kill
+                logger.warning("[Embeddings] Graceful shutdown timeout. Force-killing...")
+                self._process.kill()
+                try:
+                    self._process.wait(timeout=1)
+                    logger.info("[Embeddings] Server force-killed successfully.")
+                except subprocess.TimeoutExpired:
+                    logger.error("[Embeddings] Force-kill timeout!")
+        except Exception as e:
+            logger.error(f"[Embeddings] Error stopping server: {e}")
+        finally:
+            self._process = None
+            self._cache.clear()
+            logger.info("[Embeddings] Cache cleared.")
+
+    def restart(self):
+        """
+        Restarts the embeddings server.
+        Useful after gaming mode ends to restore service.
+        """
+        logger.info("[Embeddings] Restarting embeddings server...")
+        self.stop()
+        time.sleep(0.5)  # Brief pause to ensure port is free
+        self.load()
+        logger.info("[Embeddings] Embeddings server restarted.")
+
+    def __del__(self):
+        """
+        Destructor to ensure cleanup if garbage collected.
+        Fallback mechanism to prevent zombie processes.
+        """
+        try:
+            if self._process is not None and self._process is not True:
+                logger.warning("[Embeddings] Destructor cleanup: stopping server...")
+                self._process.kill()
+                self._process = None
+        except:
+            pass
+
+    def clear_all_cache(self):
+        """
+        Clear all cache and free memory.
+        Called during garbage collection or gaming mode.
+        """
+        logger.info("[Embeddings] Clearing cache and freeing memory...")
+        try:
+            cache_size = len(self._cache)
+            self._cache.clear()
+            self._model = None
+            
+            # Force Python garbage collection
+            import gc
+            gc.collect()
+            
+            logger.info(f"[Embeddings] Cleared {cache_size} cache entries.")
+        except Exception as e:
+            logger.error(f"[Embeddings] Error clearing cache: {e}")
+
+    def memory_stats(self):
+        """
+        Get memory statistics for monitoring.
+        Returns dict with cache size and process memory.
+        """
+        try:
+            import psutil
+            process = psutil.Process()
+            mem_info = process.memory_info()
+            
+            return {
+                "cache_size": len(self._cache),
+                "process_memory_mb": mem_info.rss / (1024 * 1024),
+                "process_running": self._process is not None and self._process is not True,
+                "port": self._port
+            }
+        except Exception as e:
+            logger.error(f"[Embeddings] Error getting memory stats: {e}")
+            return {"error": str(e)}
 
 # Singleton instance
 embeddings = EmbeddingEngine()

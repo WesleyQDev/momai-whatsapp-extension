@@ -1,49 +1,23 @@
 ---
 title: "MomAI"
 sidebarTitle: "Introdução"
-description: "Automação local e privada para quem cansou de fazer a mesma coisa todo dia."
-
+description: "Bem-vindo à documentação oficial da MomAI, a assistente pessoal extensível para desktops."
 ---
 
-<img className="block dark:hidden" src="/images/example.png" alt="MomAI Logo" />
-<img className="hidden dark:block" src="/images/example.png" alt="MomAI Logo" />
+MomAI é uma aplicação web construída em Electron e Python, focada no usuário doméstico — aquela pessoa que deseja automatizar tarefas do computador ou simplesmente conversar com uma assistente privada, mas com um diferencial importante:
 
-## Uma Companheira, não apenas uma Ferramenta
+- Sem comprometer sua privacidade
+- Você tem controle total das automações
+- Nenhuma assinatura obrigatória
 
-A maioria das IAs hoje vive na nuvem, consome seus dados e te entrega um chat frio. A MomAI nasceu de uma necessidade diferente: a de ter uma **assistente pessoal de verdade**.
-
-Ela não foi feita para ser um "playground" de desenvolvedores ou um serviço de infraestrutura. O foco aqui é o **usuário final** — a pessoa que quer que o computador seja mais útil, que as tarefas chatas sumam e que a privacidade seja absoluta. 
-
-### Como nos filmes, mas do seu jeito
-Sabe como nos filmes as IAs parecem ser capazes de fazer de tudo? A ideia da MomAI é permitir que ela cresça conforme a sua necessidade. Através das extensões, a assistente pode aprender a organizar seus arquivos, gerenciar lembretes ou até automatizar tarefas simples que você faz todo dia. Com o tempo e com a ajuda da comunidade, as possibilidades crescem organicamente.
-
-É sobre o script que você esquece de rodar, a planilha que você odeia comparar e a tranquilidade de saber que sua assistente está ali, no seu hardware, cuidando da sua rotina sem te vigiar.
+Sabe como nos filmes as IAs parecem capazes de fazer qualquer coisa? A ideia da MomAI é permitir que ela evolua conforme suas necessidades. Através de extensões, a assistente pode "aprender" novas habilidades.
 
 ## O que diferencia a MomAI?
 
-- **Local-First por Necessidade**: Privacidade não é um selo marketing, é a base. Processamos o máximo possível (Voz, Embeddings, LLM) no seu hardware. *Nota: Atualmente, a síntese de fala (TTS) utiliza o Edge TTS, que exige conexão e vem desativado por padrão, mas novas opções 100% locais estão a caminho.*
-- **Ação sobre Texto**: Enquanto outros assistentes sugerem o que fazer, a MomAI tenta fazer. Ela tem acesso (controlado por você) aos seus arquivos e sistema.
-- **Ecossistema de Especialistas**: Em vez de uma IA que "acha que sabe tudo", usamos agentes que sabem fazer coisas específicas (pesquisar, agendar, manipular arquivos).
+- **Privacidade em primeiro lugar.** Processamos o máximo possível (voz, embeddings, LLM) localmente no seu hardware.
+- **Ação, não apenas sugestão.** Enquanto outros assistentes apenas sugerem o que fazer, a MomAI age. Ela tem acesso controlado (por você) às ferramentas fornecidas pelas extensões.
+- **Agentes especializados.** Em vez de uma IA que "acha que sabe tudo", utilizamos agentes focados em tarefas específicas (pesquisar, agendar, manipular arquivos).
 
-## O que você vai encontrar aqui?
-
-<CardGroup cols={2}>
-  <Card title="Assistente de Voz Real" icon="microphone">
-    Ativação por palavra-chave ("Sistema") e fala fluida, sem precisar olhar
-    para a tela.
-  </Card>
-  <Card title="Controle de Sistema" icon="computer">
-    Capacidade de interagir com arquivos, monitorar hardware e gerenciar
-    processos.
-  </Card>
-  <Card title="Privacidade e Controle" icon="user-shield">
-    Suporte a modelos locais (GGUF) para que seus dados permaneçam onde devem: com você.
-  </Card>
-  <Card title="Arquitetura de Agentes" icon="sitemap">
-    Um sistema baseado em LangGraph que permite que a IA tome decisões lógicas e
-    use ferramentas.
-  </Card>
-</CardGroup>
 
 ## Por onde começar?
 
@@ -51,7 +25,11 @@ Sabe como nos filmes as IAs parecem ser capazes de fazer de tudo? A ideia da Mom
   <Card title="Entenda a Filosofia" icon="heart" href="/pt-BR/por-que-momai">
     Descubra por que criamos uma assistente focada em pessoas, não em dados.
   </Card>
-  <Card title="Guia para Desenvolvedores" icon="code" href="/pt-BR/como-funciona">
-    Entenda a engenharia que torna a MomAI invisível e poderosa.
+  <Card
+    title="Guia para Desenvolvedores"
+    icon="code"
+    href="/pt-BR/como-funciona"
+  >
+    Entenda a arquitetura que torna a MomAI invisível e poderosa.
   </Card>
 </CardGroup>
