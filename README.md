@@ -9,19 +9,7 @@
 
 ## O que é MomAI?
 
-MomAI é uma aplicação web construída em Electron e Python, focada no usuário doméstico — aquela pessoa que deseja automatizar tarefas do computador ou simplesmente conversar com uma assistente privada, mas com um diferencial importante:
-
-- **Sem comprometer sua privacidade**
-- **Você tem controle total das automações**
-- **Nenhuma assinatura obrigatória**
-
-Sabe como nos filmes as IAs parecem capazes de fazer qualquer coisa? A ideia da MomAI é permitir que ela evolua conforme suas necessidades. Através de extensões, a assistente pode "aprender" novas habilidades.
-
-### O que diferencia a MomAI?
-
-- **Privacidade em primeiro lugar.** Processamos o máximo possível (voz, embeddings, LLM) localmente no seu hardware.
-- **Ação, não apenas sugestão.** Enquanto outros assistentes apenas sugerem o que fazer, a MomAI age. Ela tem acesso controlado (por você) às ferramentas fornecidas pelas extensões.
-- **Agentes especializados.** Em vez de uma IA que "acha que sabe tudo", utilizamos agentes focados em tarefas específicas (pesquisar, agendar, manipular arquivos).
+MomAI é uma assistente virtual de código aberto, **local-first** e focada em privacidade. Ela combina a inteligência dos LLMs modernos com a capacidade de executar ações reais no seu computador.
 
 ### Destaques da Versão Atual
 
@@ -32,10 +20,12 @@ Sabe como nos filmes as IAs parecem capazes de fazer qualquer coisa? A ideia da 
 - **Wake Word Local:** Diga "Sistema" para ativar a assistente sem precisar tocar no teclado.
 - **Interface Moderna:** Dashboard com monitoramento de recursos em tempo real e interface gráfica dinâmica.
 
-### Por onde começar?
+### Por que usar MomAI?
 
-- **[Entenda a Filosofia](https://wesleyqdev.github.io/momai/pt-BR/por-que-momai)**: Descubra por que criamos uma assistente focada em pessoas, não em dados.
-- **[Guia para Desenvolvedores](https://wesleyqdev.github.io/momai/pt-BR/como-funciona)**: Entenda a arquitetura que torna a MomAI invisível e poderosa.
+- **Privacidade** - Seus dados ficam no seu computador.
+- **Extensível** - Adicione apenas as funcionalidades (agentes e ferramentas) que você precisa.
+- **Código Aberto** - Licença MIT, totalmente gratuito.
+- **Multiplataforma** - Windows, Linux e Mac.
 
 ## Funcionalidades
 
