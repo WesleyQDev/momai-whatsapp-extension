@@ -5,18 +5,31 @@ description: "MomAi passou por várias evoluções ao longo do tempo. Veja o que
 
 ## Contexto histórico / Changelog
 
-
 <Update label="Janeiro de 2026" description="Roteamento Inteligente e Tool RAG">
-  Implementamos o **Semantic Router** usando LanceDB, permitindo que a MomAI identifique intenções do usuário em milissegundos sem consultar o LLM. Introduzimos o **Tool RAG**, uma arquitetura que carrega dinamicamente apenas as ferramentas necessárias, permitindo escala ilimitada de extensões. O sistema de voz foi aprimorado com **Wake Word ("Sistema")** local e streaming de áudio por sentenças, reduzindo drasticamente a latência de resposta.
+  Implementamos o **Semantic Router** usando LanceDB, permitindo que a MomAI
+  identifique intenções do usuário em milissegundos sem consultar o LLM.
+  Introduzimos o **Tool RAG**, uma arquitetura que carrega dinamicamente apenas
+  as ferramentas necessárias, permitindo escala ilimitada de extensões. O
+  sistema de voz foi aprimorado com **Wake Word ("Sistema")** local e streaming
+  de áudio por sentenças, reduzindo drasticamente a latência de resposta.
 </Update>
 
 <Update label="Dezembro de 2025" description="Nascimento da Identidade e Core">
-  A MomAI ganha sua identidade visual oficial. No âmbito técnico, consolidamos a arquitetura híbrida Electron + Python, estabelecendo o processamento local via Qwen3-4B-GGUF (rodando nativamente através do llama-cpp-python) para garantir total soberania de dados. Integramos suporte multi-LLM com Groq e Gemini, e implementamos as primeiras ferramentas (tools) de automação, permitindo que a IA interaja diretamente com o sistema operacional.
+  A MomAI ganha sua identidade visual oficial. No âmbito técnico, consolidamos a
+  arquitetura híbrida Electron + Python, estabelecendo o processamento local via
+  Qwen3-4B-GGUF (rodando nativamente através do llama-cpp-python) para garantir
+  total soberania de dados. Integramos suporte multi-LLM com Groq e Gemini, e
+  implementamos as primeiras ferramentas (tools) de automação, permitindo que a
+  IA interaja diretamente com o sistema operacional.
 </Update>
 
 <Update label="06 de dezembro de 2025" description="Criação do fortscript">
-  Criação do repositório fortscript. MomAI exige muitos recursos computacionais, não sendo viável manter alguns módulos ativos quando o usuário realiza tarefas pesadas como jogar ou editar vídeos. Fortscript é um projeto que atualmente é independente. MomAI usa essa biblioteca Python internamente para encerrar alguns módulos quando o usuário estiver realizando tarefas pesadas, ou quando o computador estiver com o consumo de RAM muito alto.
-  
+  Criação do repositório fortscript. MomAI exige muitos recursos computacionais,
+  não sendo viável manter alguns módulos ativos quando o usuário realiza tarefas
+  pesadas como jogar ou editar vídeos. Fortscript é um projeto que atualmente é
+  independente. MomAI usa essa biblioteca Python internamente para encerrar
+  alguns módulos quando o usuário estiver realizando tarefas pesadas, ou quando
+  o computador estiver com o consumo de RAM muito alto.
   [https://github.com/WesleyQDev/fortscript](https://github.com/WesleyQDev/fortscript)
 </Update>
 
@@ -25,17 +38,19 @@ description: "MomAi passou por várias evoluções ao longo do tempo. Veja o que
 </Update>
 
 <Update label="15 de novembro de 2025" description="Início da documentação">
-  Criação da documentação do projeto (a documentação começou a ser feito antes do próprio código), inicialmente desenvolvida em Obsidian.
+  Criação da documentação do projeto (a documentação começou a ser feito antes
+  do próprio código), inicialmente desenvolvida em Obsidian.
 </Update>
 
 <Update label="Agosto de 2025" description="Pesquisa e Prototipagem">
-  Pesquisa e elaboração de pequenos projetos, cada um testando algo diferente que uma assistente em um computador pode fazer.
+  Pesquisa e elaboração de pequenos projetos, cada um testando algo diferente
+  que uma assistente em um computador pode fazer.
 </Update>
 
 <Update label="Junho de 2025" description="Projeto Emi">
-  Projeto pessoal: Emi, um bot pessoal low code usando n8n para diversas automatizações.
+  Projeto pessoal: Emi, um bot pessoal low code usando n8n para diversas
+  automatizações.
 </Update>
-
 
 ## Próximos Passos
 
