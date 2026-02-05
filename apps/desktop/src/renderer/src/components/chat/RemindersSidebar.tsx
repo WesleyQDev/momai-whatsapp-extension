@@ -21,7 +21,7 @@ export default function RemindersSidebar() {
       if (retryCount > 5) {
         console.error('Erro ao buscar próximos lembretes', e)
       }
-      setRetryCount(prev => prev + 1)
+      setRetryCount((prev) => prev + 1)
     }
   }
 

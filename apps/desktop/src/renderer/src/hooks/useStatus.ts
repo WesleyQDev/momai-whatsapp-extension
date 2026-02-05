@@ -7,7 +7,7 @@ export function useStatus() {
   const [isOnline, setIsOnline] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [hasUpdate, setHasUpdate] = useState(false)
-  
+
   const [initMessage, setInitMessage] = useState<string>('Iniciando...')
   const [initProgress, setInitProgress] = useState<number>(0)
   const [initVersion, setInitVersion] = useState<string>('v0.0.0')
@@ -20,14 +20,14 @@ export function useStatus() {
   // Polling de fallback para progresso de init (caso WebSocket demore)
   const checkInitProgress = useCallback(async () => {
     if (hasReceivedWSEvent || initProgress >= 100) return
-    
+
     try {
       const data = await (fetchInitStatus() as any)
-      
+
       setInitMessage(data.message)
       setInitProgress(data.progress)
       if (data.version) setInitVersion(data.version)
-      
+
       if (data.progress >= 100) {
         setIsBooting(false)
       }
@@ -42,7 +42,7 @@ export function useStatus() {
       setStatusInfo(data)
       setLocalMode(data.mode)
       setIsOnline(data.status === 'ok')
-      
+
       // Se o status da API está OK, garantimos que o boot terminou
       if (data.status === 'ok') {
         setIsBooting(false)
@@ -60,7 +60,7 @@ export function useStatus() {
       }
       setStatusInfo(null)
       setIsOnline(false)
-      setRetryCount(prev => prev + 1)
+      setRetryCount((prev) => prev + 1)
     }
   }, [isBooting, retryCount])
 
@@ -98,17 +98,17 @@ export function useStatus() {
   useEffect(() => {
     let statusInterval: NodeJS.Timeout
     let initInterval: NodeJS.Timeout
-    
+
     const startPolling = () => {
       checkStatus()
       const pollInterval = isBooting ? 1000 : 5000
       statusInterval = setInterval(checkStatus, pollInterval)
     }
-    
+
     if (isBooting && initProgress < 100) {
       initInterval = setInterval(checkInitProgress, 500)
     }
-    
+
     startPolling()
     return () => {
       clearInterval(statusInterval)

@@ -1,0 +1,378 @@
+---
+title: "Crie sua própria"
+sidebarTitle: "Criando Extensão"
+description: "Tutorial: uma extensão de TODO do zero."
+---
+
+Neste tutorial, vamos criar uma extensão completa que adiciona a capacidade de gerenciar uma lista de tarefas (TODO).
+
+## Pré-requisitos
+
+- MomAI instalada em modo desenvolvimento
+- Python 3.11+
+- Conhecimento básico de Python
+
+## 1. Criar Estrutura
+
+<Steps>
+  <Step title="Criar Pasta">
+    Crie a pasta da extensão:
+    ```bash
+    mkdir -p apps/core/agents/extensions/todo-manager
+    cd apps/core/agents/extensions/todo-manager
+    ```
+  </Step>
+
+  <Step title="Criar Arquivos">
+    Crie os arquivos necessários:
+    ```bash
+    touch manifest.json plugin.py
+    ```
+  </Step>
+</Steps>
+
+## 2. Definir o Manifesto
+
+Edite `manifest.json`:
+
+```json
+{
+  "id": "todo-manager",
+  "name": "Gerenciador de Tarefas",
+  "author": "SeuNome",
+  "version": "1.0.0",
+  "description": "Crie e gerencie listas de tarefas com a MomAI.",
+  "icon": "CheckSquare",
+  "intents": [
+    "criar tarefa",
+    "adicionar tarefa",
+    "nova tarefa",
+    "listar tarefas",
+    "ver minhas tarefas",
+    "marcar tarefa como concluída",
+    "completar tarefa",
+    "remover tarefa",
+    "deletar tarefa"
+  ],
+  "features": {
+    "sidebar": true,
+    "agent": "GeneralAgent"
+  },
+  "permissions": {
+    "filesystem": ["read", "write"]
+  }
+}
+```
+
+<Info>
+  O campo `intents` é crucial. Essas frases serão indexadas e usadas pelo
+  Roteador Semântico para direcionar comandos para sua extensão.
+</Info>
+
+## 3. Implementar as Ferramentas
+
+Edite `plugin.py`:
+
+```python
+"""
+Extensão Todo Manager para MomAI.
+Gerencia uma lista de tarefas persistida em arquivo JSON.
+"""
+
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import Optional
+from langchain_core.tools import tool
+from services.extensions.hooks import hookimpl
+
+# Caminho do arquivo de tarefas
+TODO_FILE = Path.home() / ".momai" / "todos.json"
+
+
+def _load_todos() -> list[dict]:
+    """Carrega tarefas do arquivo."""
+    if not TODO_FILE.exists():
+        TODO_FILE.parent.mkdir(parents=True, exist_ok=True)
+        return []
+
+    with open(TODO_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_todos(todos: list[dict]) -> None:
+    """Salva tarefas no arquivo."""
+    with open(TODO_FILE, "w", encoding="utf-8") as f:
+        json.dump(todos, f, ensure_ascii=False, indent=2)
+
+
+@tool
+def criar_tarefa(titulo: str, descricao: Optional[str] = None) -> str:
+    """
+    Cria uma nova tarefa na lista.
+
+    Args:
+        titulo: Título da tarefa (obrigatório)
+        descricao: Descrição detalhada (opcional)
+
+    Returns:
+        Confirmação da criação
+    """
+    todos = _load_todos()
+
+    nova_tarefa = {
+        "id": len(todos) + 1,
+        "titulo": titulo,
+        "descricao": descricao or "",
+        "concluida": False,
+        "criada_em": datetime.now().isoformat()
+    }
+
+    todos.append(nova_tarefa)
+    _save_todos(todos)
+
+    return f"✅ Tarefa criada: **{titulo}**"
+
+
+@tool
+def listar_tarefas(mostrar_concluidas: bool = False) -> str:
+    """
+    Lista todas as tarefas.
+
+    Args:
+        mostrar_concluidas: Se True, mostra também tarefas já concluídas
+
+    Returns:
+        Lista formatada de tarefas
+    """
+    todos = _load_todos()
+
+    if not todos:
+        return "📋 Nenhuma tarefa cadastrada."
+
+    if not mostrar_concluidas:
+        todos = [t for t in todos if not t["concluida"]]
+
+    if not todos:
+        return "🎉 Todas as tarefas foram concluídas!"
+
+    linhas = ["📋 **Suas Tarefas:**\n"]
+    for todo in todos:
+        status = "✅" if todo["concluida"] else "⬜"
+        linhas.append(f"{status} {todo['id']}. {todo['titulo']}")
+        if todo["descricao"]:
+            linhas.append(f"   _{todo['descricao']}_")
+
+    return "\n".join(linhas)
+
+
+@tool
+def concluir_tarefa(id_tarefa: int) -> str:
+    """
+    Marca uma tarefa como concluída.
+
+    Args:
+        id_tarefa: ID da tarefa a ser concluída
+
+    Returns:
+        Confirmação da conclusão
+    """
+    todos = _load_todos()
+
+    for todo in todos:
+        if todo["id"] == id_tarefa:
+            if todo["concluida"]:
+                return f"⚠️ Tarefa **{todo['titulo']}** já estava concluída."
+
+            todo["concluida"] = True
+            todo["concluida_em"] = datetime.now().isoformat()
+            _save_todos(todos)
+            return f"🎉 Tarefa concluída: **{todo['titulo']}**"
+
+    return f"❌ Tarefa com ID {id_tarefa} não encontrada."
+
+
+@tool
+def remover_tarefa(id_tarefa: int) -> str:
+    """
+    Remove uma tarefa da lista.
+
+    Args:
+        id_tarefa: ID da tarefa a ser removida
+
+    Returns:
+        Confirmação da remoção
+    """
+    todos = _load_todos()
+
+    for i, todo in enumerate(todos):
+        if todo["id"] == id_tarefa:
+            removida = todos.pop(i)
+            _save_todos(todos)
+            return f"🗑️ Tarefa removida: **{removida['titulo']}**"
+
+    return f"❌ Tarefa com ID {id_tarefa} não encontrada."
+
+
+# === HOOKS ===
+
+@hookimpl
+def register_tools():
+    """Registra as ferramentas no Tool RAG."""
+    return [
+        criar_tarefa,
+        listar_tarefas,
+        concluir_tarefa,
+        remover_tarefa
+    ]
+
+
+@hookimpl
+def register_sidebar_items():
+    """Adiciona ícone na barra lateral."""
+    return [{
+        "id": "todo-view",
+        "icon": "CheckSquare",
+        "label": "Tarefas",
+        "view": "TodoView"
+    }]
+```
+
+## 4. Testar a Extensão
+
+<Steps>
+  <Step title="Reiniciar a MomAI">
+    O ExtensionManager carrega extensões na inicialização. Reinicie o backend:
+    ```bash
+    cd apps/core
+    python main.py
+    ```
+  </Step>
+
+<Step title="Verificar Carregamento">
+  Nos logs, você deve ver: ```bash [INFO] Extensão carregada: todo-manager
+  v1.0.0 [INFO] Indexadas 9 intenções para todo-manager [INFO] Registradas 4
+  ferramentas para todo-manager ```
+</Step>
+
+  <Step title="Testar Comandos">
+    No chat da MomAI, teste:
+    ```bash
+    "Criar tarefa: Estudar Python"
+    "Listar minhas tarefas"
+    "Marcar tarefa 1 como concluída"
+    ```
+  </Step>
+</Steps>
+
+## 5. Adicionar Interface (Opcional)
+
+Para extensões com `"sidebar": true`, você pode criar uma view React personalizada.
+
+Crie `apps/desktop/src/renderer/views/extensions/TodoView.tsx`:
+
+```tsx
+import { useState, useEffect } from "react";
+import { useWebSocket } from "@/hooks/useWebSocket";
+
+interface Todo {
+  id: number;
+  titulo: string;
+  descricao: string;
+  concluida: boolean;
+}
+
+export function TodoView() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const { send } = useWebSocket();
+
+  useEffect(() => {
+    // Carregar tarefas ao montar
+    send({ type: "extension.action", action: "list_todos" });
+  }, []);
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">📋 Minhas Tarefas</h1>
+
+      <ul className="space-y-2">
+        {todos.map((todo) => (
+          <li
+            key={todo.id}
+            className={`p-3 rounded-lg ${
+              todo.concluida ? "bg-green-100" : "bg-gray-100"
+            }`}
+          >
+            <span className={todo.concluida ? "line-through" : ""}>
+              {todo.titulo}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## 6. Publicar a Extensão
+
+<Steps>
+  <Step title="Criar Repositório">
+    Publique sua extensão no GitHub com a estrutura:
+    
+    ```
+    todo-manager/
+    ├── manifest.json
+    ├── plugin.py
+    ├── README.md
+    └── LICENSE
+    ```
+  </Step>
+  
+  <Step title="Adicionar ao Registry">
+    Abra um PR no repositório MomAI adicionando sua extensão ao registry:
+    
+    ```json
+    {
+      "id": "todo-manager",
+      "repo": "seu-usuario/todo-manager",
+      "verified": false
+    }
+    ```
+  </Step>
+</Steps>
+
+## Boas Práticas
+
+<Columns cols={2}>
+  <Card title="Docstrings Claras" icon="file-lines">
+    A descrição das ferramentas é usada pelo Tool RAG. Seja específico sobre o
+    que cada função faz.
+  </Card>
+  <Card title="Tratamento de Erros" icon="shield">
+    Sempre trate exceções e retorne mensagens amigáveis ao usuário.
+  </Card>
+  <Card title="Permissões Mínimas" icon="lock">
+    Declare apenas as permissões que realmente precisa. Menos permissões = mais
+    confiança.
+  </Card>
+  <Card title="Intenções Variadas" icon="comments">
+    Adicione múltiplas formas de expressar a mesma intenção para melhor
+    detecção.
+  </Card>
+</Columns>
+
+## Próximos Passos
+
+<Columns cols={2}>
+  <Card title="Contribuir" icon="code-branch" href="/pt-BR/contribuindo">
+    Compartilhe sua extensão com a comunidade.
+  </Card>
+  <Card
+    title="Arquitetura"
+    icon="diagram-project"
+    href="/pt-BR/arquitetura/visao-geral"
+  >
+    Entenda melhor como a MomAI funciona.
+  </Card>
+</Columns>

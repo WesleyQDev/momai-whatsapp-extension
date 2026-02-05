@@ -351,9 +351,11 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
             >
               {tab.icon}
               {tab.label}
-              {tab.id === 'updates' && localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-              )}
+              {tab.id === 'updates' &&
+                localDetails.installed_version !== localDetails.latest_version &&
+                localDetails.latest_version && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                )}
             </button>
           ))}
         </div>
@@ -532,26 +534,34 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                               Motor Llama.cpp não encontrado
                             </span>
                             <span className="text-[9px] text-text-muted font-medium">
-                              Versão: <span className="text-accent">{localDetails.latest_version || '...'}</span> 
-                              {' • '} 
-                              Download: <span className="text-text font-bold italic">
-                                {settings.local_backend === 'auto' 
-                                  ? `Auto (${localDetails.recommended_build?.toUpperCase()})` 
+                              Versão:{' '}
+                              <span className="text-accent">
+                                {localDetails.latest_version || '...'}
+                              </span>
+                              {' • '}
+                              Download:{' '}
+                              <span className="text-text font-bold italic">
+                                {settings.local_backend === 'auto'
+                                  ? `Auto (${localDetails.recommended_build?.toUpperCase()})`
                                   : settings.local_backend.toUpperCase()}
                               </span>
                             </span>
                           </div>
                         </div>
                         <button
-                          onClick={() => handleInstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
+                          onClick={() =>
+                            handleInstallEngine(
+                              settings.local_backend === 'auto' ? undefined : settings.local_backend
+                            )
+                          }
                           className="px-3 py-1.5 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all"
                         >
                           Instalar Agora
                         </button>
                       </div>
                       <p className="text-[10px] text-text-muted leading-relaxed">
-                        O motor local é necessário para processar IA de forma privada no seu computador. 
-                        O download tem aprox. 30MB.
+                        O motor local é necessário para processar IA de forma privada no seu
+                        computador. O download tem aprox. 30MB.
                       </p>
                     </div>
                   )}
@@ -563,7 +573,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         <span className="text-text">{installProgress}%</span>
                       </div>
                       <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-accent transition-all duration-300 ease-out"
                           style={{ width: `${installProgress}%` }}
                         />
@@ -576,30 +586,60 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       <div className="flex items-center justify-between p-3 rounded-xl bg-accent/5 border border-accent/20">
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-2">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent">
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              className="text-accent"
+                            >
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
-                            <span className="text-[11px] font-black text-text uppercase">Motor Pronto</span>
+                            <span className="text-[11px] font-black text-text uppercase">
+                              Motor Pronto
+                            </span>
                           </div>
                           <span className="text-[9px] text-text-muted font-medium">
                             v{localDetails.installed_version} • {localDetails.installed_build}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          {localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version && (
-                            <button
-                              onClick={() => handleInstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
-                              className="mr-2 px-2 py-1 bg-accent/20 text-accent text-[9px] font-black uppercase rounded hover:bg-accent hover:text-white transition-all"
-                            >
-                              Atualizar para {localDetails.latest_version}
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => handleUninstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
+                          {localDetails.installed_version !== localDetails.latest_version &&
+                            localDetails.latest_version && (
+                              <button
+                                onClick={() =>
+                                  handleInstallEngine(
+                                    settings.local_backend === 'auto'
+                                      ? undefined
+                                      : settings.local_backend
+                                  )
+                                }
+                                className="mr-2 px-2 py-1 bg-accent/20 text-accent text-[9px] font-black uppercase rounded hover:bg-accent hover:text-white transition-all"
+                              >
+                                Atualizar para {localDetails.latest_version}
+                              </button>
+                            )}
+                          <button
+                            onClick={() =>
+                              handleUninstallEngine(
+                                settings.local_backend === 'auto'
+                                  ? undefined
+                                  : settings.local_backend
+                              )
+                            }
                             className="p-2 text-text-muted hover:text-red-500 transition-colors"
                             title="Remover motor"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                            >
                               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                             </svg>
                           </button>
@@ -610,8 +650,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
                   {installStatus === 'error' && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-red-500">Erro na instalação. Verifique sua conexão.</span>
-                      <button 
+                      <span className="text-[10px] font-bold text-red-500">
+                        Erro na instalação. Verifique sua conexão.
+                      </span>
+                      <button
                         onClick={() => checkLocalStatus()}
                         className="text-[10px] font-black uppercase text-accent"
                       >
@@ -664,7 +706,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
                   <div className="flex flex-col">
-                    <span className="text-[13px] font-bold text-text uppercase tracking-tight">Ativação por Voz</span>
+                    <span className="text-[13px] font-bold text-text uppercase tracking-tight">
+                      Ativação por Voz
+                    </span>
                     <span className="text-[10px] text-text-muted font-medium italic">
                       Diga "Sistema" • Vosk v0.3 (Local)
                     </span>
@@ -714,18 +758,25 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                           key={catalog.code}
                           onClick={() => setExpandedLang(catalog.code)}
                           className={`w-full flex items-center justify-between p-3 rounded-lg border text-[10px] font-black uppercase tracking-tight transition-all ${
-                            expandedLang === catalog.code 
-                              ? 'bg-accent/10 border-accent/40 text-accent shadow-sm' 
+                            expandedLang === catalog.code
+                              ? 'bg-accent/10 border-accent/40 text-accent shadow-sm'
                               : 'bg-black/10 border-transparent text-text-muted hover:bg-black/20'
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                             <div className={`w-1.5 h-1.5 rounded-full ${expandedLang === catalog.code ? 'bg-accent animate-pulse' : 'bg-text-muted/30'}`} />
-                             {catalog.lang}
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full ${expandedLang === catalog.code ? 'bg-accent animate-pulse' : 'bg-text-muted/30'}`}
+                            />
+                            {catalog.lang}
                           </div>
-                          <svg 
-                            width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-                             className={`transition-transform duration-300 ${expandedLang === catalog.code ? '-rotate-90' : ''}`}
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            className={`transition-transform duration-300 ${expandedLang === catalog.code ? '-rotate-90' : ''}`}
                           >
                             <polyline points="9 18 15 12 9 6" />
                           </svg>
@@ -736,37 +787,58 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     {/* Coluna de Vozes (Dinâmica) */}
                     <div className="flex-1 p-3 rounded-xl bg-black/10 border border-border/40 overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
                       <div className="grid grid-cols-1 gap-1.5">
-                        {voiceCatalog.find(c => c.code === expandedLang)?.voices.map((v) => (
-                          <button
-                            key={v.id}
-                            onClick={() => updateField('tts_voice', v.id, true)}
-                            className={`flex items-center justify-between p-3 rounded-lg border text-[11px] font-bold transition-all ${
-                              settings.tts_voice === v.id 
-                                ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20 translate-x-1' 
-                                : 'bg-input border-border/40 text-text-muted hover:bg-black/20'
-                            }`}
-                          >
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="tracking-tight">{v.name}</span>
-                              <span className={`text-[8px] uppercase font-black tracking-tighter ${settings.tts_voice === v.id ? 'text-white/70' : 'text-text-muted opacity-60'}`}>
-                                {v.traits}
-                              </span>
-                            </div>
-                            {settings.tts_voice === v.id && (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
-                          </button>
-                        ))}
-                        
+                        {voiceCatalog
+                          .find((c) => c.code === expandedLang)
+                          ?.voices.map((v) => (
+                            <button
+                              key={v.id}
+                              onClick={() => updateField('tts_voice', v.id, true)}
+                              className={`flex items-center justify-between p-3 rounded-lg border text-[11px] font-bold transition-all ${
+                                settings.tts_voice === v.id
+                                  ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20 translate-x-1'
+                                  : 'bg-input border-border/40 text-text-muted hover:bg-black/20'
+                              }`}
+                            >
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="tracking-tight">{v.name}</span>
+                                <span
+                                  className={`text-[8px] uppercase font-black tracking-tighter ${settings.tts_voice === v.id ? 'text-white/70' : 'text-text-muted opacity-60'}`}
+                                >
+                                  {v.traits}
+                                </span>
+                              </div>
+                              {settings.tts_voice === v.id && (
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                >
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
+                            </button>
+                          ))}
+
                         {!expandedLang && (
                           <div className="h-full flex flex-col items-center justify-center text-center p-4 opacity-40">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-2">
+                            <svg
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              className="mb-2"
+                            >
                               <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
                               <path d="M12 12L2.7 7.1" />
                             </svg>
-                            <span className="text-[10px] font-medium italic">Selecione um idioma</span>
+                            <span className="text-[10px] font-medium italic">
+                              Selecione um idioma
+                            </span>
                           </div>
                         )}
                       </div>
@@ -792,13 +864,24 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 <div className="p-5 rounded-xl border bg-input border-border flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                       </svg>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[13px] font-black text-text uppercase tracking-tight">MomAI Core</span>
-                      <span className="text-[10px] text-text-muted font-medium">Versão do Sistema: v0.1.0</span>
+                      <span className="text-[13px] font-black text-text uppercase tracking-tight">
+                        MomAI Core
+                      </span>
+                      <span className="text-[10px] text-text-muted font-medium">
+                        Versão do Sistema: v0.1.0
+                      </span>
                     </div>
                   </div>
                   <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">
@@ -810,17 +893,30 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 <div className="p-5 rounded-xl border bg-input border-border space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? 'bg-accent/20 text-accent animate-pulse' : 'bg-black/20 text-text-muted'}`}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? 'bg-accent/20 text-accent animate-pulse' : 'bg-black/20 text-text-muted'}`}
+                      >
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                           <polyline points="7 10 12 15 17 10" />
                           <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[13px] font-black text-text uppercase tracking-tight">Motor Llama.cpp</span>
+                        <span className="text-[13px] font-black text-text uppercase tracking-tight">
+                          Motor Llama.cpp
+                        </span>
                         <span className="text-[10px] text-text-muted font-medium">
-                          {localDetails.installed_version ? `Instalado: v${localDetails.installed_version}` : 'Não Instalado'}
+                          {localDetails.installed_version
+                            ? `Instalado: v${localDetails.installed_version}`
+                            : 'Não Instalado'}
                         </span>
                       </div>
                     </div>
@@ -829,9 +925,14 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       <span className="text-[10px] font-black text-accent uppercase tracking-widest animate-pulse">
                         Atualizando... {installProgress}%
                       </span>
-                    ) : localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? (
+                    ) : localDetails.installed_version !== localDetails.latest_version &&
+                      localDetails.latest_version ? (
                       <button
-                        onClick={() => handleInstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)}
+                        onClick={() =>
+                          handleInstallEngine(
+                            settings.local_backend === 'auto' ? undefined : settings.local_backend
+                          )
+                        }
                         className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20"
                       >
                         Atualizar para {localDetails.latest_version}
@@ -845,21 +946,24 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
                   {installStatus === 'installing' && (
                     <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-accent transition-all duration-300 ease-out"
                         style={{ width: `${installProgress}%` }}
                       />
                     </div>
                   )}
 
-                  {localDetails.latest_version && localDetails.installed_version !== localDetails.latest_version && (
-                    <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
-                      <p className="text-[10px] text-text-muted leading-relaxed italic">
-                        Uma nova versão do motor Llama.cpp (v{localDetails.latest_version}) está disponível. 
-                        A atualização inclui otimizações para {localDetails.recommended_build?.toUpperCase()} e correções de estabilidade.
-                      </p>
-                    </div>
-                  )}
+                  {localDetails.latest_version &&
+                    localDetails.installed_version !== localDetails.latest_version && (
+                      <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                        <p className="text-[10px] text-text-muted leading-relaxed italic">
+                          Uma nova versão do motor Llama.cpp (v{localDetails.latest_version}) está
+                          disponível. A atualização inclui otimizações para{' '}
+                          {localDetails.recommended_build?.toUpperCase()} e correções de
+                          estabilidade.
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
@@ -876,24 +980,35 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   </span>
                 </div>
                 <p className="text-[11px] text-text-muted font-medium">
-                  Gerenciamento inteligente via <b>FortScript</b> para suspender serviços pesados durante o uso intensivo.
+                  Gerenciamento inteligente via <b>FortScript</b> para suspender serviços pesados
+                  durante o uso intensivo.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-accent/5 border border-accent/20 flex gap-4">
-                   <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M6 12h4M14 8h-4v8h4M15 12h3" />
-                        <rect x="2" y="6" width="20" height="12" rx="2" />
-                      </svg>
-                   </div>
-                   <div className="flex flex-col justify-center">
-                      <span className="text-[12px] font-black text-text uppercase">Monitoramento FortScript Ativo</span>
-                      <p className="text-[10px] text-text-muted leading-relaxed">
-                        A tecnologia <b>FortScript</b> detecta processos pesados e libera VRAM/CPU instantaneamente para garantir máxima performance.
-                      </p>
-                   </div>
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <path d="M6 12h4M14 8h-4v8h4M15 12h3" />
+                      <rect x="2" y="6" width="20" height="12" rx="2" />
+                    </svg>
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <span className="text-[12px] font-black text-text uppercase">
+                      Monitoramento FortScript Ativo
+                    </span>
+                    <p className="text-[10px] text-text-muted leading-relaxed">
+                      A tecnologia <b>FortScript</b> detecta processos pesados e libera VRAM/CPU
+                      instantaneamente para garantir máxima performance.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -905,17 +1020,19 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       type="text"
                       placeholder="Nome amigável (ex: Fortnite)"
                       value={newApp.name}
-                      onChange={e => setNewApp(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setNewApp((prev) => ({ ...prev, name: e.target.value }))}
                       className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none focus:border-accent/40"
                     />
                     <input
                       type="text"
                       placeholder="Executável (ex: rdr2.exe)"
                       value={newApp.executable}
-                      onChange={e => setNewApp(prev => ({ ...prev, executable: e.target.value }))}
+                      onChange={(e) =>
+                        setNewApp((prev) => ({ ...prev, executable: e.target.value }))
+                      }
                       className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none focus:border-accent/40"
                     />
-                    <button 
+                    <button
                       onClick={handleAddGamingApp}
                       className="px-4 bg-accent text-white rounded-lg text-xs font-black uppercase hover:opacity-90 transition-all"
                     >
@@ -931,20 +1048,34 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   <div className="grid grid-cols-1 gap-2">
                     {gamingApps.length === 0 ? (
                       <div className="py-8 text-center border border-dashed border-border rounded-xl">
-                        <span className="text-[11px] text-text-muted font-medium italic">Nenhum aplicativo configurado.</span>
+                        <span className="text-[11px] text-text-muted font-medium italic">
+                          Nenhum aplicativo configurado.
+                        </span>
                       </div>
                     ) : (
-                      gamingApps.map(app => (
-                        <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-border">
+                      gamingApps.map((app) => (
+                        <div
+                          key={app.id}
+                          className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-border"
+                        >
                           <div className="flex flex-col">
                             <span className="text-[12px] font-bold text-text">{app.name}</span>
-                            <span className="text-[10px] text-accent font-mono">{app.executable}</span>
+                            <span className="text-[10px] text-accent font-mono">
+                              {app.executable}
+                            </span>
                           </div>
-                          <button 
+                          <button
                             onClick={() => handleDeleteGamingApp(app.id)}
                             className="p-2 text-text-muted hover:text-red-500 transition-colors"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                            >
                               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                             </svg>
                           </button>

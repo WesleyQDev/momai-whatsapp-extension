@@ -1,0 +1,231 @@
+---
+title: "O sistema de plugins"
+sidebarTitle: "Conceitos"
+description: "O núcleo faz o básico. Extensões fazem a mágica."
+---
+
+O sistema de extensões da MomAI permite adicionar novas funcionalidades sem modificar o núcleo. Inspirado no modelo do Obsidian, cada extensão é autocontida em uma pasta com manifesto e código Python.
+
+## Por que Extensões?
+
+<Columns cols={2}>
+  <Card title="Modularidade" icon="cubes">
+    O núcleo permanece leve. Você instala apenas o que precisa.
+  </Card>
+  <Card title="Segurança" icon="shield">
+    Permissões declaradas no manifesto são auditadas antes da execução.
+  </Card>
+  <Card title="Escalabilidade" icon="chart-line">
+    Tool RAG permite centenas de extensões sem impacto na performance.
+  </Card>
+  <Card title="Comunidade" icon="users">
+    Qualquer desenvolvedor pode criar e compartilhar extensões.
+  </Card>
+</Columns>
+
+## Anatomia de uma Extensão
+
+```
+minha-extensao/
+├── manifest.json    # Metadados e permissões
+├── plugin.py        # Lógica Python e hooks
+├── requirements.txt # Dependências (opcional)
+└── assets/          # Recursos (opcional)
+```
+
+### manifest.json
+
+Define a identidade e capacidades da extensão:
+
+```json
+{
+  "id": "minha-extensao",
+  "name": "Minha Extensão",
+  "author": "SeuNome",
+  "version": "1.0.0",
+  "description": "Faz algo incrível.",
+  "icon": "Sparkles",
+  "intents": ["executar minha ação", "fazer algo especial"],
+  "features": {
+    "sidebar": true,
+    "agent": "GeneralAgent"
+  },
+  "permissions": {
+    "network": ["api.exemplo.com"],
+    "filesystem": ["read"],
+    "system": []
+  }
+}
+```
+
+### plugin.py
+
+Implementa os hooks do sistema:
+
+```python
+from langchain_core.tools import tool
+from services.extensions.hooks import hookimpl
+
+@tool
+def minha_ferramenta(parametro: str) -> str:
+    """Descrição clara para o Tool RAG encontrar esta função."""
+    return f"Resultado: {parametro}"
+
+@hookimpl
+def register_tools():
+    """Registra ferramentas no sistema."""
+    return [minha_ferramenta]
+
+@hookimpl
+def register_intents():
+    """Registra intenções para roteamento semântico."""
+    return ["executar minha ação", "fazer algo especial"]
+```
+
+## Ciclo de Vida
+
+<Steps>
+  <Step title="Descoberta">
+    Na inicialização, o `ExtensionManager` varre as pastas de extensões e lê os manifestos.
+  </Step>
+
+  <Step title="Validação">
+    O sistema verifica se o código usa apenas as permissões declaradas. Imports suspeitos geram alertas.
+  </Step>
+
+  <Step title="Indexação">
+    Intenções e descrições de ferramentas são vetorizadas e indexadas no LanceDB.
+  </Step>
+
+  <Step title="Registro">
+    Hooks são conectados ao sistema de plugins (pluggy). Itens de sidebar são registrados.
+  </Step>
+
+  <Step title="Execução">
+    Quando o Roteador Semântico detecta uma intenção da extensão, as ferramentas são carregadas e executadas.
+  </Step>
+</Steps>
+
+## Sistema de Hooks
+
+Hooks disponíveis para extensões:
+
+| Hook                       | Descrição                               |
+| -------------------------- | --------------------------------------- |
+| `register_tools()`         | Retorna lista de ferramentas LangChain  |
+| `register_intents()`       | Retorna lista de frases para roteamento |
+| `register_sidebar_items()` | Adiciona ícones na barra lateral        |
+| `on_startup()`             | Executado quando a MomAI inicia         |
+| `on_shutdown()`            | Executado quando a MomAI fecha          |
+| `on_message(text)`         | Intercepta todas as mensagens           |
+
+## Tool RAG: Como Funciona
+
+O Tool RAG é o que permite ter muitas extensões sem sobrecarregar o LLM:
+
+```
+1. Usuário: "Envie um email para João"
+
+2. Semantic Router detecta intenção relacionada a email
+
+3. Tool RAG busca no LanceDB ferramentas relevantes:
+   - enviar_email (score: 0.95)
+   - criar_rascunho (score: 0.82)
+   - listar_emails (score: 0.71)
+
+4. Apenas essas 3 ferramentas são passadas ao LLM
+
+5. LLM decide usar enviar_email e gera os parâmetros
+```
+
+<Info>
+  Sem Tool RAG, se você tivesse 100 extensões com 5 ferramentas cada, o LLM
+  receberia 500 definições de ferramentas em cada chamada. Com Tool RAG, recebe
+  apenas 3-5 relevantes.
+</Info>
+
+## Permissões
+
+As permissões controlam o que a extensão pode fazer:
+
+<Tabs>
+  <Tab title="network">
+    Acesso à rede. Declare domínios específicos:
+    
+    ```json
+    "permissions": {
+      "network": ["api.github.com", "*.google.com"]
+    }
+    ```
+  </Tab>
+  <Tab title="filesystem">
+    Acesso a arquivos. Opções: `read`, `write`, `all`
+    
+    ```json
+    "permissions": {
+      "filesystem": ["read", "write"]
+    }
+    ```
+  </Tab>
+  <Tab title="system">
+    Acesso ao sistema. Opções: `hardware_read`, `process_list`, `execute`
+    
+    ```json
+    "permissions": {
+      "system": ["hardware_read"]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Se sua extensão importar bibliotecas como `requests` ou `socket` sem declarar
+  permissão `network`, a MomAI bloqueará o carregamento e alertará o usuário.
+</Warning>
+
+## Safe Mode
+
+Por padrão, a MomAI opera em Safe Mode:
+
+- **Extensões oficiais** (`author: "WesleyQDev"`) são carregadas automaticamente
+- **Extensões de terceiros** requerem que o usuário desative o Safe Mode nas configurações
+
+Para instalar extensões de terceiros:
+
+1. Vá em Configurações → Extensões
+2. Desative "Safe Mode"
+3. Reinicie a MomAI
+
+## Locais de Instalação
+
+<Tabs>
+  <Tab title="Oficiais">
+    ```bash
+    apps/core/agents/extensions/
+    ```
+    Vêm com a MomAI e são mantidas pelo projeto.
+  </Tab>
+  <Tab title="Usuário">
+    ```bash
+    # Windows
+    %APPDATA%/MomAI/extensions/
+
+    # Linux
+    ~/.config/MomAI/extensions/
+
+    # macOS
+    ~/Library/Application Support/MomAI/extensions/
+    ```
+    Instaladas pelo usuário.
+  </Tab>
+</Tabs>
+
+## Próximos Passos
+
+<Card
+  title="Criar Sua Extensão"
+  icon="hammer"
+  href="/pt-BR/extensoes/criando-extensao"
+>
+  Tutorial passo a passo para desenvolver uma extensão completa.
+</Card>

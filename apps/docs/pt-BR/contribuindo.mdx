@@ -1,0 +1,245 @@
+---
+title: "Quer ajudar?"
+sidebarTitle: "Contribuindo"
+description: "A MomAI é open source. Toda ajuda conta."
+---
+
+A MomAI é um projeto de código aberto e toda contribuição é bem-vinda! Seja corrigindo bugs, melhorando documentação ou criando novas funcionalidades.
+
+## Formas de Contribuir
+
+<Columns cols={2}>
+  <Card title="Reportar Bugs" icon="bug">
+    Encontrou um problema? Abra uma issue no GitHub descrevendo o bug, passos
+    para reproduzir e seu ambiente.
+  </Card>
+  <Card title="Sugerir Melhorias" icon="lightbulb">
+    Tem uma ideia? Abra uma issue com a tag "enhancement" descrevendo sua
+    proposta.
+  </Card>
+  <Card title="Código" icon="code">
+    Corrija bugs, implemente features ou melhore a performance. PRs são sempre
+    bem-vindos!
+  </Card>
+  <Card title="Documentação" icon="book">
+    Corrija erros, adicione exemplos ou traduza para outros idiomas.
+  </Card>
+</Columns>
+
+## Configurando o Ambiente
+
+<Steps>
+  <Step title="Fork e Clone">
+    ```bash
+    # Fork no GitHub, depois:
+    git clone https://github.com/SEU-USUARIO/MomAI.git
+    cd MomAI
+    ```
+  </Step>
+
+<Step title="Instalar Dependências Frontend">
+  ```bash # Requer Node.js 20+ e pnpm pnpm install ```
+</Step>
+
+  <Step title="Configurar Backend Python">
+    ```bash
+    cd apps/core
+    python -m venv .venv
+
+    # Windows
+    .venv\Scripts\activate
+    # Linux/macOS
+    source .venv/bin/activate
+
+    pip install -e ".[dev]"
+    ```
+
+  </Step>
+
+  <Step title="Executar Testes">
+    ```bash
+    # Backend
+    cd apps/core
+    pytest
+
+    # Frontend
+    cd apps/desktop
+    pnpm test
+    ```
+
+  </Step>
+</Steps>
+
+## Estrutura do Projeto
+
+```
+MomAI/
+├── apps/
+│   ├── core/           # Backend Python
+│   │   ├── ai/         # Orquestração, LLM, embeddings
+│   │   ├── database/   # SQLite, LanceDB
+│   │   ├── services/   # Extensões, voz, sistema
+│   │   ├── tools/      # Ferramentas do núcleo
+│   │   └── agents/     # Agentes nativos e extensões
+│   ├── desktop/        # Frontend Electron + React
+│   │   └── src/
+│   │       ├── main/       # Processo principal Electron
+│   │       ├── preload/    # Bridge de APIs
+│   │       └── renderer/   # Aplicação React
+│   ├── docs/           # Esta documentação (Mintlify)
+│   └── fortscript/     # Biblioteca de gerenciamento de recursos
+└── packages/           # Pacotes compartilhados
+```
+
+## Guia de Estilo
+
+### Python (Backend)
+
+- **Formatter:** Ruff
+- **Linter:** Ruff
+- **Type Hints:** Obrigatório em funções públicas
+- **Docstrings:** Google style
+
+```python
+def processar_mensagem(texto: str, contexto: dict | None = None) -> str:
+    """Processa uma mensagem do usuário.
+
+    Args:
+        texto: Mensagem do usuário.
+        contexto: Contexto adicional da conversa.
+
+    Returns:
+        Resposta processada.
+
+    Raises:
+        ValueError: Se o texto estiver vazio.
+    """
+    if not texto:
+        raise ValueError("Texto não pode estar vazio")
+    ...
+```
+
+### TypeScript (Frontend)
+
+- **Formatter:** Prettier
+- **Linter:** ESLint
+- **Framework:** React 19 com hooks
+
+```tsx
+interface ChatMessageProps {
+  content: string;
+  role: "user" | "assistant";
+  timestamp: Date;
+}
+
+export function ChatMessage({ content, role, timestamp }: ChatMessageProps) {
+  return (
+    <div className={`message ${role}`}>
+      <p>{content}</p>
+      <time>{timestamp.toLocaleTimeString()}</time>
+    </div>
+  );
+}
+```
+
+## Fluxo de Contribuição
+
+<Steps>
+  <Step title="Criar Branch">
+    ```bash
+    git checkout -b feature/minha-feature
+    # ou
+    git checkout -b fix/meu-bugfix
+    ```
+  </Step>
+
+<Step title="Desenvolver">
+  Implemente sua mudança seguindo os guias de estilo. Adicione testes quando
+  aplicável.
+</Step>
+
+  <Step title="Testar">
+    ```bash
+    # Backend
+    cd apps/core
+    ruff check .
+    pytest
+
+    # Frontend
+    cd apps/desktop
+    pnpm lint
+    pnpm test
+    ```
+
+  </Step>
+
+<Step title="Commit">
+  Use commits semânticos: ```bash git commit -m "feat: adicionar suporte a
+  lembretes recorrentes" git commit -m "fix: corrigir crash ao carregar
+  extensões" git commit -m "docs: atualizar guia de instalação" ```
+</Step>
+
+  <Step title="Pull Request">
+    1. Push para seu fork
+    2. Abra PR para `main`
+    3. Descreva as mudanças
+    4. Aguarde review
+  </Step>
+</Steps>
+
+## Convenções de Commit
+
+| Prefixo     | Uso                                |
+| ----------- | ---------------------------------- |
+| `feat:`     | Nova funcionalidade                |
+| `fix:`      | Correção de bug                    |
+| `docs:`     | Documentação                       |
+| `style:`    | Formatação (sem mudança de código) |
+| `refactor:` | Refatoração                        |
+| `test:`     | Testes                             |
+| `chore:`    | Manutenção geral                   |
+
+## Áreas que Precisam de Ajuda
+
+<Tabs>
+  <Tab title="Backend">
+    - Melhorar performance do Tool RAG - Adicionar mais provedores de LLM -
+    Implementar cache de embeddings - Testes de integração
+  </Tab>
+  <Tab title="Frontend">
+    - Acessibilidade (ARIA) - Temas personalizados - Animações e transições -
+    Componentes de extensão
+  </Tab>
+  <Tab title="Documentação">
+    - Tradução para inglês - Mais exemplos de extensões - Vídeos tutoriais - FAQ
+  </Tab>
+</Tabs>
+
+## Comunidade
+
+<Columns cols={2}>
+  <Card
+    title="GitHub Issues"
+    icon="github"
+    href="https://github.com/WesleyQDev/MomAI/issues"
+  >
+    Reporte bugs e sugira melhorias.
+  </Card>
+  <Card
+    title="Discussions"
+    icon="comments"
+    href="https://github.com/WesleyQDev/MomAI/discussions"
+  >
+    Tire dúvidas e discuta ideias.
+  </Card>
+</Columns>
+
+## Créditos
+
+A MomAI foi inspirada e utiliza conhecimento de projetos como:
+
+- [Vocalis](https://github.com/shaakz/vocalis) — Arquitetura de assistente por voz
+- [Obsidian](https://obsidian.md/) — Sistema de plugins comunitário
+- [LangGraph](https://langchain-ai.github.io/langgraph/) — Orquestração de agentes
+
+Agradecimento especial ao **Eduardo Mendes (Dunossauro)** — seu conteúdo sobre Python foi referência durante o desenvolvimento.

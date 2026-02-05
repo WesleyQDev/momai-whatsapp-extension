@@ -1,8 +1,8 @@
 ﻿import { useState, useEffect, useMemo } from 'react'
-import { 
-  ChevronLeftIcon, 
-  ChevronRightIcon, 
-  CalendarIcon, 
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CalendarIcon,
   PlusIcon,
   TrashIcon,
   PencilSquareIcon,
@@ -135,37 +135,37 @@ export default function RemindersView() {
 
     // Previous month padding
     for (let i = firstDayOfMonth - 1; i >= 0; i--) {
-        const d = new Date(year, month - 1, daysInPrevMonth - i)
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-        days.push({
-            date: d,
-            isCurrentMonth: false,
-            hasEvents: remindersMap.has(key)
-        })
+      const d = new Date(year, month - 1, daysInPrevMonth - i)
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      days.push({
+        date: d,
+        isCurrentMonth: false,
+        hasEvents: remindersMap.has(key)
+      })
     }
 
     // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
-        const d = new Date(year, month, i)
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-        days.push({
-            date: d,
-            isCurrentMonth: true,
-            hasEvents: remindersMap.has(key)
-        })
+      const d = new Date(year, month, i)
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      days.push({
+        date: d,
+        isCurrentMonth: true,
+        hasEvents: remindersMap.has(key)
+      })
     }
 
     // Next month padding (to fill 42 cells grid - 6 rows x 7 cols)
     const remainingCells = 42 - days.length
     for (let i = 1; i <= remainingCells; i++) {
-        const d = new Date(year, month + 1, i)
-        // Check next month events? sure
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-        days.push({
-            date: d,
-            isCurrentMonth: false,
-            hasEvents: remindersMap.has(key)
-        })
+      const d = new Date(year, month + 1, i)
+      // Check next month events? sure
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      days.push({
+        date: d,
+        isCurrentMonth: false,
+        hasEvents: remindersMap.has(key)
+      })
     }
 
     return days
@@ -194,13 +194,13 @@ export default function RemindersView() {
     // Default to 1 hour from now or 9 AM of selected date if it's future
     let schedule = new Date(baseDate)
     const now = new Date()
-    
+
     if (isSameDay(baseDate, now)) {
-        // If today, set to next hour
-        schedule = new Date(now.getTime() + 3600000)
+      // If today, set to next hour
+      schedule = new Date(now.getTime() + 3600000)
     } else {
-        // If another day, set to 09:00 AM
-        schedule.setHours(9, 0, 0, 0)
+      // If another day, set to 09:00 AM
+      schedule.setHours(9, 0, 0, 0)
     }
 
     setFormData({
@@ -277,7 +277,8 @@ export default function RemindersView() {
             {selectedDate.getDate()}
           </h2>
           <h3 className="text-lg text-text font-bold uppercase tracking-wide">
-            {selectedDate.toLocaleDateString('pt-BR', { month: 'long' })} <span className="text-text-muted font-normal">{selectedDate.getFullYear()}</span>
+            {selectedDate.toLocaleDateString('pt-BR', { month: 'long' })}{' '}
+            <span className="text-text-muted font-normal">{selectedDate.getFullYear()}</span>
           </h3>
           <p className="text-xs text-text-muted mt-2 uppercase font-black tracking-[0.2em] border-l-2 border-accent/50 pl-2">
             {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' })}
@@ -288,11 +289,11 @@ export default function RemindersView() {
           {selectedDayReminders.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center opacity-40 text-center space-y-4">
               <div className="p-4 bg-input rounded-full">
-                  <ClockIcon className="w-8 h-8 text-text-muted" />
+                <ClockIcon className="w-8 h-8 text-text-muted" />
               </div>
               <div className="space-y-1">
-                  <p className="text-sm font-bold text-text">Tudo limpo por aqui</p>
-                  <p className="text-xs text-text-muted">Nenhum lembrete para este dia</p>
+                <p className="text-sm font-bold text-text">Tudo limpo por aqui</p>
+                <p className="text-xs text-text-muted">Nenhum lembrete para este dia</p>
               </div>
             </div>
           ) : (
@@ -335,13 +336,17 @@ export default function RemindersView() {
                 </div>
                 <h4
                   className={`font-bold text-sm leading-snug ${
-                    r.is_active ? 'text-text' : 'text-text-muted line-through decoration-2 decoration-text-muted/50'
+                    r.is_active
+                      ? 'text-text'
+                      : 'text-text-muted line-through decoration-2 decoration-text-muted/50'
                   }`}
                 >
                   {r.title}
                 </h4>
                 {r.content && (
-                  <p className="text-xs text-text-muted mt-1.5 line-clamp-2 leading-relaxed opacity-80">{r.content}</p>
+                  <p className="text-xs text-text-muted mt-1.5 line-clamp-2 leading-relaxed opacity-80">
+                    {r.content}
+                  </p>
                 )}
                 {r.repeat_interval && (
                   <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border/50">
@@ -462,8 +467,8 @@ export default function RemindersView() {
                         isToday
                           ? 'bg-accent text-bg shadow-lg shadow-accent/30 scale-110'
                           : cell.isCurrentMonth
-                          ? 'text-text group-hover:bg-input/50'
-                          : 'text-text-muted'
+                            ? 'text-text group-hover:bg-input/50'
+                            : 'text-text-muted'
                       }`}
                     >
                       {cell.date.getDate()}

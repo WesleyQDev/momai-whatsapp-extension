@@ -1,0 +1,171 @@
+---
+title: "Bota pra rodar"
+sidebarTitle: "Instalação"
+description: "Instala em 5 minutos. Sério."
+---
+
+## O que você precisa
+
+**Minimo** - RAM: 8 GB - CPU: 4 cores - Armazenamento: 10 GB livres - - Windows 10+ ou Linux
+
+**Recomendado** - RAM 16 GB+ - GPU: Vulkan compatível - Armazenamento: SSD com
+20 GB
+
+<Warning>
+  Para melhor performance, uma GPU com suporte a Vulkan é altamente recomendada.
+  Sem GPU, o modelo roda em CPU, que é mais lento.
+</Warning>
+
+## Download
+
+<Steps>
+  <Step title="Baixar o Instalador">
+    Acesse a página de releases e baixe o instalador para seu sistema
+    operacional:
+    <Card
+      title="Download MomAI"
+      icon="download"
+      href="https://wesleyqdev.github.io/momai/"
+    >
+      Página oficial de download com versões para Windows, Linux e macOS.
+    </Card>
+  </Step>
+
+  <Step title="Executar o Instalador">
+    <Tabs>
+      <Tab title="Windows">
+        1. Execute o arquivo `MomAI-Setup.exe` 2. Siga o assistente de instalação
+        3. A MomAI será instalada em `%LOCALAPPDATA%\MomAI`
+      </Tab>
+      <Tab title="Linux">
+        ```bash
+        # AppImage
+        chmod +x MomAI.AppImage
+        ./MomAI.AppImage
+
+        # Ou via .deb
+        sudo dpkg -i momai_*.deb
+        ```
+      </Tab>
+    </Tabs>
+
+  </Step>
+
+  <Step title="Configuração Inicial">
+    Na primeira execução, a MomAI irá:
+    1. **Baixar o modelo de IA** (~4 GB) - Qwen3-4B otimizado
+    2. **Baixar o modelo de embeddings** (~600 MB)
+    3. **Baixar o modelo de voz** (~50 MB) - Vosk português
+    4. **Detectar seu hardware** - CPU ou GPU Vulkan
+
+    <Info>
+      Este processo pode demorar alguns minutos dependendo da sua conexão.
+    </Info>
+
+  </Step>
+
+  <Step title="Pronto!">
+    Após a configuração, a MomAI estará pronta para uso. Diga **"Sistema"** ou
+    clique no ícone para começar.
+  </Step>
+</Steps>
+
+## Instalação para Desenvolvimento
+
+Se você quer contribuir ou modificar o código:
+
+<Steps>
+  <Step title="Clonar o Repositório">
+    ```bash
+    git clone https://github.com/WesleyQDev/MomAI.git
+    cd MomAI
+    ```
+  </Step>
+
+<Step title="Instalar Dependências do Frontend">
+  ```bash # Requer Node.js 20+ e pnpm pnpm install ```
+</Step>
+
+  <Step title="Configurar o Backend Python">
+    ```bash
+    cd apps/core
+
+    # Criar ambiente virtual
+    python -m venv .venv
+
+    # Ativar ambiente
+    # Windows: .venv\Scripts\activate
+    # Linux/macOS: source .venv/bin/activate
+
+    # Instalar dependências
+    pip install -e .
+    ```
+
+  </Step>
+
+  <Step title="Iniciar em Modo Desenvolvimento">
+    ```bash
+    # Terminal 1 - Backend
+    cd apps/core
+    python main.py
+
+    # Terminal 2 - Frontend
+    cd apps/desktop
+    pnpm run dev
+    ```
+
+  </Step>
+</Steps>
+
+## Estrutura de Pastas
+
+Após instalação, a MomAI cria a seguinte estrutura:
+
+```
+%APPDATA%/MomAI/           # Windows
+~/.config/MomAI/           # Linux
+~/Library/Application Support/MomAI/  # macOS
+├── momai.db               # Banco de dados SQLite
+├── checkpoints.db         # Estado dos agentes
+├── lancedb/               # Banco vetorial
+├── models/                # Modelos de IA baixados
+│   ├── Qwen3-4B-*.gguf
+│   └── embeddings-*.gguf
+├── extensions/            # Extensões de terceiros
+└── logs/                  # Logs de execução
+```
+
+## Solução de Problemas
+
+<Tabs>
+  <Tab title="Modelo não carrega">
+    **Sintoma:** A IA não responde ou mostra erro de modelo. **Solução:** 1.
+    Verifique se há espaço em disco suficiente 2. Delete a pasta `models/` e
+    reinicie a MomAI 3. O download será reiniciado automaticamente
+  </Tab>
+  <Tab title="GPU não detectada">
+    **Sintoma:** MomAI usa CPU mesmo tendo GPU. **Solução:** 1. Atualize os
+    drivers da GPU 2. Verifique se sua GPU suporta Vulkan 3. Nas configurações,
+    force o modo Vulkan
+  </Tab>
+  <Tab title="Voz não funciona">
+    **Sintoma:** Wake word "Sistema" não ativa. **Solução:** 1. Verifique
+    permissões de microfone 2. Nas configurações de áudio do sistema, confirme o
+    microfone padrão 3. Teste com outro microfone
+  </Tab>
+</Tabs>
+
+## Próximos Passos
+
+<Columns cols={2}>
+  <Card title="Início Rápido" icon="play" href="/pt-BR/inicio-rapido">
+    Aprenda os comandos básicos.
+  </Card>
+  <Card
+    title="Arquitetura"
+    icon="diagram-project"
+    href="/pt-BR/arquitetura/visao-geral"
+  >
+    Entenda como a MomAI funciona por dentro.
+  </Card>
+</Columns>

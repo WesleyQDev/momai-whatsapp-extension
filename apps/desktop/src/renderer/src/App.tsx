@@ -24,7 +24,8 @@ function App(): React.JSX.Element {
   const chat = useChat()
   const { graphState, handleGraphOption, closeGraph, clearHistory } = chat
 
-  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, initVersion, isReady } = useStatus()
+  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, initVersion, isReady } =
+    useStatus()
 
   // Notifica o Electron quando o sistema está pronto para redimensionar a janela
   useEffect(() => {
@@ -77,9 +78,9 @@ function App(): React.JSX.Element {
         }, 2000)
       }
     }
-    
+
     setTimeout(loadExtensions, 1500)
-    
+
     const handleSync = (e: any) => setExtensions(e.detail)
     window.addEventListener('momai_extensions_sync', handleSync)
 
@@ -204,10 +205,10 @@ function App(): React.JSX.Element {
       )}
 
       {/* SplashScreen */}
-      <SplashScreen 
-        isFullyReady={isReady} 
-        status={localMode} 
-        statusInfo={statusInfo} 
+      <SplashScreen
+        isFullyReady={isReady}
+        status={localMode}
+        statusInfo={statusInfo}
         initMessage={initMessage}
         initProgress={initProgress}
         initVersion={initVersion}

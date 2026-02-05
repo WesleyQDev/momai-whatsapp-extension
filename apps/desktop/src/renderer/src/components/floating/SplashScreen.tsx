@@ -40,18 +40,20 @@ export default function SplashScreen({
   return (
     <div
       className={`fixed inset-0 z-[999] bg-[#050505] flex items-center justify-center transition-all duration-700 ease-in-out ${
-        isFullyReady && !isVisible ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100 scale-100'
+        isFullyReady && !isVisible
+          ? 'opacity-0 scale-105 pointer-events-none'
+          : 'opacity-100 scale-100'
       }`}
     >
-       {/* Background Subtle Gradient */}
-       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--accent-rgb),0.1)_0%,transparent_70%)] animate-pulse" />
+      {/* Background Subtle Gradient */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--accent-rgb),0.1)_0%,transparent_70%)] animate-pulse" />
 
       <div className="relative flex flex-col items-center max-w-sm w-full px-10">
         {/* Big Logo */}
         <div className="relative w-24 h-24 mb-10">
           <div className="absolute inset-[-10px] border-t-2 border-accent/20 rounded-full animate-[spin_3s_linear_infinite]" />
           <div className="absolute inset-0 bg-accent/10 blur-3xl rounded-full animate-pulse" />
-          
+
           <div className="relative w-full h-full p-4 bg-black/40 backdrop-blur-md rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex items-center justify-center">
             <img
               src={icon}
@@ -67,9 +69,9 @@ export default function SplashScreen({
               MOM<span className="text-accent">AI</span>
             </h1>
             <div className="flex items-center justify-center gap-2">
-               <p className="text-[10px] text-gray-500 uppercase tracking-[0.5em] font-bold">
-                 Neural OS Loading
-               </p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-[0.5em] font-bold">
+                Neural OS Loading
+              </p>
             </div>
           </div>
 
@@ -82,12 +84,10 @@ export default function SplashScreen({
             </div>
 
             <div className="flex flex-col items-center gap-2 min-h-[50px]">
-               <p className="text-[11px] text-white/70 font-medium tracking-wide">
-                 {initMessage}
-               </p>
-               <span className="text-[10px] font-mono text-accent/60 font-bold">
-                 {displayProgress}%
-               </span>
+              <p className="text-[11px] text-white/70 font-medium tracking-wide">{initMessage}</p>
+              <span className="text-[10px] font-mono text-accent/60 font-bold">
+                {displayProgress}%
+              </span>
             </div>
           </div>
         </div>
@@ -100,4 +100,3 @@ export default function SplashScreen({
     </div>
   )
 }
-

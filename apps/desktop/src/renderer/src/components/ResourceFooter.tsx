@@ -20,7 +20,7 @@ export default function ResourceFooter() {
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
     let reconnectAttempts = 0
     let isBooting = true
-    
+
     // Desativa flag de boot após 15s
     const bootTimeout = setTimeout(() => {
       isBooting = false
@@ -29,7 +29,7 @@ export default function ResourceFooter() {
     const connect = () => {
       try {
         ws = new WebSocket('ws://127.0.0.1:8000/ws')
-        
+
         ws.onmessage = (event) => {
           const msg = JSON.parse(event.data)
           if (msg.type === 'resource_usage') {

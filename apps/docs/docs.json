@@ -1,42 +1,76 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "aspen",
   "name": "MomAI",
-  "seo": {
-    "metatags": {
-      "robots": "noindex"
+  "colors": {
+    "primary": "#8B5CF6",
+    "light": "#A78BFA",
+    "dark": "#7C3AED"
+  },
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "decoration": "gradient"
+  },
+  "favicon": "/logo/logo.png",
+  "logo": {
+    "light": "/logo/logo.png",
+    "dark": "/logo/logo.png",
+    "href": "https://github.com/WesleyQDev/MomAI"
+  },
+
+  "footer": {
+    "socials": {
+      "github": "https://github.com/WesleyQDev/MomAI"
     }
   },
-  "colors": {
-    "primary": "#6366f1",
-    "light": "#818cf8",
-    "dark": "#4f46e5"
+  "styling": {
+    "eyebrows": "section",
+    "codeblocks": "system",
+    "anchors": "sections"
   },
-  "favicon": "./icon.png",
+  "contextual": {
+    "options": ["copy", "chatgpt", "claude", "cursor"]
+  },
   "navigation": {
     "languages": [
       {
         "language": "pt-BR",
         "tabs": [
           {
-            "tab": "MomAI",
+            "tab": "Documentação",
             "groups": [
               {
-                "group": "MomAI",
+                "group": "Começando",
+                "icon": "rocket",
                 "pages": [
-                  "pt-BR/index",
-                  "pt-BR/por-que-momai",
-                  "pt-BR/evolucao"
+                  "pt-BR/introducao",
+                  "pt-BR/instalacao",
+                  "pt-BR/inicio-rapido"
+                ]
+              },
+              {
+                "group": "Arquitetura",
+                "icon": "diagram-project",
+                "pages": [
+                  "pt-BR/arquitetura/visao-geral",
+                  "pt-BR/arquitetura/backend",
+                  "pt-BR/arquitetura/frontend"
+                ]
+              },
+              {
+                "group": "Extensões",
+                "icon": "puzzle-piece",
+                "pages": [
+                  "pt-BR/extensoes/conceitos",
+                  "pt-BR/extensoes/criando-extensao"
                 ]
               },
               {
                 "group": "Comunidade",
-                "pages": [
-                  "pt-BR/como-colaborar",
-                  "pt-BR/frontend",
-                  "pt-BR/backend",
-                  "pt-BR/extensões"
-                ]
+                "icon": "users",
+                "pages": ["pt-BR/contribuindo", "pt-BR/changelog"]
               }
             ]
           },
@@ -68,7 +102,6 @@
         ]
       }
     ],
-
     "global": {
       "anchors": [
         {
@@ -77,45 +110,11 @@
           "icon": "github"
         },
         {
-          "anchor": "Baixar MomAI",
+          "anchor": "Download",
           "href": "https://wesleyqdev.github.io/momai/",
           "icon": "download"
         }
       ]
-    }
-  },
-  "logo": {
-    "light": "/logo/logo.png",
-    "dark": "/logo/logo.png"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "GitHub",
-        "href": "https://wesleyqdev.github.io/momai/",
-        "icon": "github"
-      },
-      {
-        "label": "Baixar MomAI",
-        "href": "https://wesleyqdev.github.io/momai/"
-      }
-    ]
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/WesleyQDev/MomAI"
     }
   }
 }

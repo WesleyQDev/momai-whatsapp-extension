@@ -1,0 +1,176 @@
+---
+title: "Primeiros comandos"
+sidebarTitle: "Início Rápido"
+description: "O básico pra começar a usar agora."
+---
+
+## Sua Primeira Conversa
+
+Após instalar a MomAI, você pode interagir de duas formas:
+
+<Columns cols={2}>
+  <Card title="Por Voz" icon="microphone">
+    Diga **"Sistema"** em voz alta para ativar o assistente. Aguarde o som de
+    confirmação e faça sua pergunta.
+  </Card>
+  <Card title="Por Texto" icon="keyboard">
+    Clique na caixa de texto ou pressione `Ctrl+Enter` para focar no chat e
+    digite sua mensagem.
+  </Card>
+</Columns>
+
+## Comandos Básicos
+
+### Lembretes
+
+<Tabs>
+  <Tab title="Criar Lembrete">
+    ```text
+    "Me lembre de tomar água em 30 minutos"
+    "Criar lembrete: reunião às 15h"
+    "Lembrete para amanhã às 9h: enviar relatório"
+    ```
+  </Tab>
+  <Tab title="Listar Lembretes">
+    ```text
+    "Quais são meus lembretes?"
+    "Mostre meus lembretes de hoje"
+    ```
+  </Tab>
+  <Tab title="Cancelar Lembrete">
+    ```text
+    "Cancele o lembrete da reunião"
+    "Apague todos os lembretes"
+    ```
+  </Tab>
+</Tabs>
+
+### Pesquisa na Web
+
+A MomAI utiliza o motor do **DuckDuckGo** para realizar buscas na web de forma privada. 
+A conexão é feita diretamente do seu computador local para os servidores do DuckDuckGo; nenhuma informação ou termo de pesquisa é enviado para os servidores da MomAI.
+
+```text
+"Pesquise sobre inteligência artificial"
+"Qual a previsão do tempo para hoje?"
+"Busque notícias sobre tecnologia"
+```
+
+
+## Interface Principal
+
+A interface da MomAI é dividida em áreas principais:
+
+<Steps>
+  <Step title="Barra Lateral">
+    Contém os ícones das extensões instaladas. Clique em um ícone para abrir a
+    visualização correspondente.
+  </Step>
+
+  <Step title="Área de Chat">
+    Onde as conversas acontecem. As mensagens são exibidas em tempo real com
+    streaming de tokens.
+  </Step>
+
+  <Step title="Rodapé de Status">
+    Mostra em tempo real:
+    - Uso de CPU e RAM
+    - Status do modelo de IA
+    - Indicador de voz (quando ativo)
+  </Step>
+</Steps>
+
+## Atalhos de Teclado
+
+| Atalho         | Ação                       |
+| -------------- | -------------------------- |
+| `Ctrl+Enter`   | Focar no chat              |
+| `Escape`       | Cancelar operação atual    |
+| `Ctrl+Shift+M` | Ativar/desativar microfone |
+| `Ctrl+,`       | Abrir configurações        |
+
+## Configurações Importantes
+
+Acesse as configurações clicando no ícone de engrenagem ou pressionando `Ctrl+,`.
+
+<Tabs>
+  <Tab title="Voz">
+    - **Wake Word:** Ativar/desativar detecção de "Sistema"
+    - **Voz de Resposta:** Escolher se a IA deve falar as respostas
+    - **Velocidade da Fala:** Ajustar velocidade do TTS
+  </Tab>
+  <Tab title="Modelo">
+    - **Aceleração:** CPU ou Vulkan (GPU)
+    - **Contexto:** Tamanho da janela de contexto
+    - **Temperatura:** Criatividade das respostas
+  </Tab>
+  <Tab title="Extensões">
+    - **Safe Mode:** Bloquear extensões não verificadas
+    - **Auto-update:** Atualizar extensões automaticamente
+  </Tab>
+</Tabs>
+
+## Modo Gaming (FortScript)
+
+A MomAI detecta automaticamente quando você está jogando ou executando aplicações pesadas e reduz o uso de recursos.
+
+```
+"Adicione GTA V à lista de jogos"
+"Mostre meus jogos monitorados"
+```
+
+Quando um jogo da lista é detectado:
+
+1. O modelo de IA é descarregado da memória
+2. O monitoramento de hardware é reduzido
+3. A MomAI entra em modo de baixo consumo
+
+<Tip>
+  Você pode configurar apps específicos para sempre serem tratados como jogos,
+  como editores de vídeo ou software 3D.
+</Tip>
+
+## Resolução de Problemas Comuns
+
+<Tabs>
+  <Tab title="IA não responde">
+    **Causa:** Modelo ainda carregando ou erro de memória.
+    **Solução:**
+    1. Aguarde a barra de status mostrar "Modelo carregado"
+    2. Se persistir, reinicie a aplicação
+    3. Verifique se há RAM suficiente
+  </Tab>
+  <Tab title="Voz não entende">
+    **Causa:** Ruído ambiente ou microfone mal configurado.
+    **Solução:**
+    1. Fale claramente e próximo ao microfone
+    2. Reduza ruídos de fundo
+    3. Verifique o volume de entrada do sistema
+  </Tab>
+  <Tab title="Respostas lentas">
+    **Causa:** Usando CPU em vez de GPU.
+    **Solução:**
+    1. Verifique se GPU Vulkan está habilitada
+    2. Feche outras aplicações pesadas
+    3. Considere um modelo menor se o hardware for limitado
+  </Tab>
+</Tabs>
+
+## Próximos Passos
+
+<Columns cols={2}>
+  <Card
+    title="Entenda a Arquitetura"
+    icon="diagram-project"
+    href="/pt-BR/arquitetura/visao-geral"
+  >
+    Saiba como a MomAI funciona por dentro.
+  </Card>
+  <Card
+    title="Crie Extensões"
+    icon="puzzle-piece"
+    href="/pt-BR/extensoes/conceitos"
+  >
+    Expanda as capacidades da MomAI.
+  </Card>
+</Columns>
