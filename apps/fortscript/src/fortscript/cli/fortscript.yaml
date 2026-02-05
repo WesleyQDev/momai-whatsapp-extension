@@ -6,4 +6,5 @@ heavy_processes:
   # - name: Fortnite
   #   process: fortnite
 
-ram_threshold: 90
+ram_threshold: 98
+ram_safe: 95

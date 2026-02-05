@@ -65,8 +65,8 @@ class AppsMonitoring:
 
 @dataclass
 class RamConfig:
-    threshold: int = 95
-    safe: int = 85
+    threshold: int = 98
+    safe: int = 95
 
     def __post_init__(self):
         if self.safe >= self.threshold:
@@ -135,8 +135,8 @@ class FortScript:
         )
         if ram_config is None:
             self.ram_config = RamConfig(
-                threshold=self.file_config.get('ram_threshold', 95),
-                safe=self.file_config.get('ram_safe', 85)
+                threshold=self.file_config.get('ram_threshold', 98),
+                safe=self.file_config.get('ram_safe', 95)
             )
         else:
             self.ram_config = ram_config
