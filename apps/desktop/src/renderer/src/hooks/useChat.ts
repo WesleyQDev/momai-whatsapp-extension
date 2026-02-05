@@ -32,7 +32,7 @@ export function useChat() {
   useEffect(() => {
     let retries = 0
     const maxRetries = 5
-    
+
     const loadHistory = async () => {
       try {
         const history = await fetchChatHistory(threadId)
@@ -56,7 +56,7 @@ export function useChat() {
         }
       }
     }
-    
+
     loadHistory()
   }, [threadId])
 
@@ -479,10 +479,12 @@ export function useChat() {
 
       reconnectAttempts++
       const delay = Math.min(500 * Math.pow(1.5, reconnectAttempts - 1), 10000) // Backoff mais rápido: 500ms -> 10s
-      
+
       // Suprimir log durante boot
       if (!isBooting || reconnectAttempts > 3) {
-        console.log(`Reconectando WebSocket em ${(delay / 1000).toFixed(1)}s... (tentativa ${reconnectAttempts})`)
+        console.log(
+          `Reconectando WebSocket em ${(delay / 1000).toFixed(1)}s... (tentativa ${reconnectAttempts})`
+        )
       }
 
       reconnectTimeout = setTimeout(connect, delay)

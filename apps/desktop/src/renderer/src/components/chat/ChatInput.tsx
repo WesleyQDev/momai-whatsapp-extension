@@ -13,9 +13,7 @@ interface ChatInputProps {
   onOpenSettings: (tab: 'general' | 'brain' | 'voice') => void
 }
 
-const MODES = [
-  { id: 'local', name: 'Local', icon: icon, setupKey: 'local_installed' }
-]
+const MODES = [{ id: 'local', name: 'Local', icon: icon, setupKey: 'local_installed' }]
 
 export default function ChatInput({
   text,
@@ -140,7 +138,9 @@ export default function ChatInput({
             type="button"
             className="bg-accent/90 hover:bg-accent text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-accent/10 disabled:opacity-30 disabled:scale-95 group"
             onClick={handleSend}
-            disabled={isLoading || isModeChanging || !localText.trim() || !isBrainReady || isBrainLoading}
+            disabled={
+              isLoading || isModeChanging || !localText.trim() || !isBrainReady || isBrainLoading
+            }
           >
             <svg
               width="16"

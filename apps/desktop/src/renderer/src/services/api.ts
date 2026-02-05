@@ -101,7 +101,11 @@ export async function fetchStatus(): Promise<StatusData> {
   return response.json()
 }
 
-export async function fetchInitStatus(): Promise<{ stage: string, message: string, progress: number }> {
+export async function fetchInitStatus(): Promise<{
+  stage: string
+  message: string
+  progress: number
+}> {
   const response = await fetch(`${API_URL}/init-status`)
   if (!response.ok) throw new Error('Erro ao buscar status de inicialização')
   return response.json()
@@ -148,7 +152,6 @@ export interface Extension {
     ui_schema?: any[]
   }
 }
-
 
 export async function fetchExtensions(): Promise<Extension[]> {
   const response = await fetch(`${API_URL}/extensions`)

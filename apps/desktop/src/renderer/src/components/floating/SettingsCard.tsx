@@ -674,7 +674,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   </span>
                 </div>
                 <p className="text-[10px] text-text-muted leading-relaxed">
-                  O MomAI opera exclusivamente com modelos locais. Seus dados e conversas nunca saem deste computador. Motores em nuvem foram removidos para garantir sua privacidade absoluta.
+                  O MomAI opera exclusivamente com modelos locais. Seus dados e conversas nunca saem
+                  deste computador. Motores em nuvem foram removidos para garantir sua privacidade
+                  absoluta.
                 </p>
               </div>
             </div>
