@@ -172,31 +172,6 @@ init_error = None
 _init_lock = threading.Lock()
 chat_history = {} # Temporary history for fallback
 
-def get_api_key(provider: str) -> str | None:
-    """
-    Retrieves an API key from the database.
-
-    Args:
-        provider (str): 'groq' or 'gemini'.
-
-    Returns:
-        str | None: The API key if found.
-    """
-    from database.models import SessionLocal, Settings
-    db = SessionLocal()
-    try:
-        s = db.query(Settings).first()
-        if s and s.api_keys:
-            import json
-            keys_str = str(s.api_keys)
-            keys = json.loads(keys_str)
-            return keys.get(provider)
-    except Exception as e:
-        print(f"[AI_core] Error fetching API key for {provider}: {e}")
-    finally:
-        db.close()
-    return None
-
 llm_ready_event = threading.Event()
 
 def initialize_llm(mode: str, on_init_progress=None):
@@ -269,24 +244,8 @@ def _initialize_llm_task(mode: str, on_init_progress=None):
                 filename="Qwen3-4B-Instruct-2507-Q6_K.gguf",
                 on_progress=report_progress
             )
-        elif mode == "groq":
-            report_progress("Conectando ao Groq Cloud...")
-            key = get_api_key("groq")
-            if not key:
-                raise ValueError("API Key do Groq não encontrada nas configurações.")
-            from langchain_groq import ChatGroq
-            new_llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=key)
-        elif mode == "gemini":
-            report_progress("Conectando ao Google Gemini...")
-            key = get_api_key("gemini")
-            if key:
-                import os
-                os.environ["GOOGLE_API_KEY"] = key
-            else:
-                raise ValueError("API Key do Gemini não encontrada.")
-            new_llm = init_chat_model("gemini-2.5-flash-lite", model_provider="google_genai")
         else:
-            raise ValueError(f"Provedor de IA desconhecido: {mode}")
+            raise ValueError(f"Provedor de IA desconhecido: {mode}. MomAI agora opera exclusivamente em modo Local.")
 
         if new_llm:
             print(f"[AI_core] Modelo {mode} instanciado. Reconstruindo Grafo...")

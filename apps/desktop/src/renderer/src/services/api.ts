@@ -28,8 +28,6 @@ export interface StatusData {
   is_loading: boolean
   setup: {
     local_installed: boolean
-    groq_ready: boolean
-    gemini_ready: boolean
     installed_version?: string
     latest_version?: string
   }

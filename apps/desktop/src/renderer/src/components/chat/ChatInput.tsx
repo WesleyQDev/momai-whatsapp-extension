@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import icon from '../../assets/icon.png'
-import geminiIcon from '../../assets/gemini-color.svg'
-import groqIcon from '../../assets/groq.svg'
 import { StatusData } from '../../services/api'
 
 interface ChatInputProps {
@@ -16,9 +14,7 @@ interface ChatInputProps {
 }
 
 const MODES = [
-  { id: 'local', name: 'Local', icon: icon, setupKey: 'local_installed' },
-  { id: 'genai', name: 'Gemini', icon: geminiIcon, setupKey: 'gemini_ready' },
-  { id: 'groq', name: 'Groq', icon: groqIcon, setupKey: 'groq_ready' }
+  { id: 'local', name: 'Local', icon: icon, setupKey: 'local_installed' }
 ]
 
 export default function ChatInput({
@@ -32,24 +28,12 @@ export default function ChatInput({
   onOpenSettings
 }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [localText, setLocalText] = useState(text)
-  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Sync local text with external text (e.g. when text is cleared after sending)
   useEffect(() => {
     setLocalText(text)
   }, [text])
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   useEffect(() => {
     // Focus on mount
@@ -114,12 +98,9 @@ export default function ChatInput({
         />
 
         <div className="flex items-center justify-between px-2 pb-0.5">
-          <div className="flex gap-2 relative" ref={dropdownRef}>
-            <button
-              type="button"
-              disabled={isLoading || isModeChanging}
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all disabled:opacity-50 ${!isSelectedModeReady ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-bg/40 border-border/20 text-text-muted hover:text-text hover:bg-bg/60'}`}
+          <div className="flex gap-2 relative">
+            <div
+              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all ${!isSelectedModeReady ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-bg/40 border-border/20 text-text-muted'}`}
             >
               <img
                 src={selectedMode.icon}
@@ -132,99 +113,27 @@ export default function ChatInput({
               {!isSelectedModeReady && (
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
               )}
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`}
-              >
-                <path d="M18 15l-6-6-6 6" />
-              </svg>
-            </button>
-
-            {isDropdownOpen && (
-              <div className="absolute bottom-full left-0 mb-2 w-56 bg-card border border-border/30 rounded-2xl shadow-2xl p-1.5 animate-zoom-in overflow-hidden backdrop-blur-xl">
-                {MODES.map((mode) => {
-                  // @ts-ignore
-                  const isReady = statusInfo?.setup?.[mode.setupKey] ?? true
-                  return (
-                    <div key={mode.id} className="relative group/item">
-                      <button
-                        onClick={() => {
-                          if (isReady) {
-                            onModeChange(mode.id)
-                            setIsDropdownOpen(false)
-                          }
-                        }}
-                        disabled={!isReady}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${currentMode === mode.id ? 'bg-accent/10 text-accent' : isReady ? 'text-text-muted hover:bg-text/5 hover:text-text' : 'text-text-muted/30 cursor-not-allowed'}`}
-                      >
-                        <img
-                          src={mode.icon}
-                          className={`w-4 h-4 rounded-sm object-contain ${!isReady ? 'opacity-20 grayscale' : ''}`}
-                          alt=""
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold uppercase tracking-wide">
-                            {mode.name}
-                          </span>
-                          {!isReady && (
-                            <span className="text-[9px] text-amber-500/60 font-bold uppercase tracking-tighter">
-                              Indisponível
-                            </span>
-                          )}
-                        </div>
-
-                        {currentMode === mode.id && isReady && (
-                          <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                        )}
-                      </button>
-
-                      {!isReady && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onOpenSettings('brain')
-                            setIsDropdownOpen(false)
-                          }}
-                          title={mode.id === 'local' ? 'Baixar Motor' : 'Configurar API'}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-all shadow-sm opacity-0 group-hover/item:opacity-100"
-                        >
-                          {mode.id === 'local' ? (
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                              <polyline points="7 10 12 15 17 10"></polyline>
-                              <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                          ) : (
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path d="M12 2v2M12 18v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
-                            </svg>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+              {!isSelectedModeReady && (
+                <button
+                  onClick={() => onOpenSettings('brain')}
+                  className="ml-1 p-1 hover:bg-amber-500/20 rounded transition-colors"
+                  title="Configurar Local"
+                >
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           <button

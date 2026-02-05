@@ -551,9 +551,7 @@ async def get_status(db: Session = Depends(get_db)):
         "setup": {
             "local_installed": engine_ok,
             "installed_version": install_info.get("version") if install_info else None,
-            "latest_version": latest_v,
-            "groq_ready": bool(api_keys.get("groq")),
-            "gemini_ready": bool(api_keys.get("gemini"))
+            "latest_version": latest_v
         }
     }
 

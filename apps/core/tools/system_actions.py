@@ -74,18 +74,18 @@ def open_model_selector():
     """Opens the AI model selector."""
     return show_interface.invoke({
         "view": "side",
-        "content": "### Select AI Model\n\nChoose the brain I should use.",
-        "options": ["Local", "Groq", "Gemini"],
+        "content": "### Modelo Local\n\nNo momento o MomAI opera exclusivamente de forma local e privada.",
+        "options": ["Local"],
         "bypass_wake_word": True
     })
 
 @tool
-def switch_ai_model(mode: Literal['local', 'groq', 'gemini']):
-    """Switches the current AI model provider."""
+def switch_ai_model(mode: Literal['local']):
+    """Switches the current AI model provider. Only 'local' is supported."""
     import ai.orchestrator as orchestrator
     try:
-        orchestrator.initialize_llm(mode)
-        return f"OK: Switching to {mode}"
+        orchestrator.initialize_llm("local")
+        return f"OK: Switching to local"
     except Exception as e:
         return f"Error: {str(e)}"
 

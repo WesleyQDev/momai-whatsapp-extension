@@ -175,9 +175,7 @@ export function useChat() {
       console.log('[useChat] IA confirmou troca de modelo:', detail)
 
       const modelNames: Record<string, string> = {
-        local: 'MomLocal',
-        genai: 'Gemini (Cloud)',
-        groq: 'Groq (Cloud)'
+        local: 'MomLocal (Qwen)'
       }
 
       const modelName = modelNames[detail] || detail
@@ -217,9 +215,7 @@ export function useChat() {
     const handleModelStartChange = (e: any) => {
       const { detail } = e
       const modelNames: Record<string, string> = {
-        local: 'MomLocal',
-        genai: 'Gemini (Cloud)',
-        groq: 'Groq (Cloud)'
+        local: 'MomLocal (Qwen)'
       }
       const modelName = modelNames[detail] || detail
       const loadingContent = `Brain changed to: **${modelName}** ⏳`

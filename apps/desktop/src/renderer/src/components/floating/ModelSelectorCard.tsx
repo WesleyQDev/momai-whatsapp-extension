@@ -11,7 +11,7 @@ export default function ModelSelectorCard({ onSelect }: ModelSelectorCardProps) 
 
   useEffect(() => {
     if (timeLeft <= 0) {
-      onSelect('groq')
+      onSelect('local')
       return
     }
 
@@ -24,29 +24,10 @@ export default function ModelSelectorCard({ onSelect }: ModelSelectorCardProps) 
 
   const models = [
     {
-      id: 'groq',
-      name: 'Groq Cloud',
-      description: 'Ultra-rápido, Qwen 3 32B (Recomendado).',
-      highlight: true,
-      icon: (
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-        </svg>
-      )
-    },
-    {
       id: 'local',
-      name: 'MomLocal',
-      description: 'Llama.cpp offline, total privacidade.',
+      name: 'MomLocal (Qwen)',
+      description: 'Llama.cpp offline, total privacidade e soberania.',
+      highlight: true,
       icon: (
         <svg
           width="24"
@@ -66,47 +47,28 @@ export default function ModelSelectorCard({ onSelect }: ModelSelectorCardProps) 
           <line x1="15" y1="20" x2="15" y2="23"></line>
         </svg>
       )
-    },
-    {
-      id: 'genai',
-      name: 'Google Gemini',
-      description: 'Inteligência superior (Flash 1.5).',
-      icon: (
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-        </svg>
-      )
     }
   ]
 
   const progress = (timeLeft / totalTime) * 100
 
   return (
-    <FloatingCard title="Inicialização do Sistema" onClose={() => onSelect('groq')}>
+    <FloatingCard title="Inicialização do Sistema" onClose={() => onSelect('local')}>
       <div className="flex flex-col gap-6 scale-in-center">
         <div className="space-y-2">
           <h3 className="text-xl font-semibold text-white tracking-tight">
-            Escolha meu Cérebro, Senhor
+            Motor de Inteligência Local
           </h3>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Selecione o motor de processamento para esta sessão. Se nada for escolhido, iniciarei
-            com <span className="text-accent font-bold uppercase">Groq</span>.
+            O MomAI opera exclusivamente com processamento local para sua total privacidade.
+            Utilizando <span className="text-accent font-bold uppercase">Qwen 3 4B</span>.
           </p>
         </div>
 
         {/* Progress Bar Container */}
         <div className="space-y-2">
           <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            <span>Auto-seleção: Groq</span>
+            <span>Auto-seleção: Local</span>
             <span>{timeLeft}s</span>
           </div>
           <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">

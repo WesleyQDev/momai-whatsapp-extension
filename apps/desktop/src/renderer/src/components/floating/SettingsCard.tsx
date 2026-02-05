@@ -187,13 +187,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
     return Promise.resolve()
   }
 
-  const updateApiKey = (provider: string, value: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      api_keys: { ...prev.api_keys, [provider]: value }
-    }))
-  }
-
   const voiceCatalog = [
     {
       lang: 'Português (Brasil)',
@@ -664,30 +657,25 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {['groq', 'genai'].map((p) => (
-                  <div key={p} className="p-4 rounded-xl border border-border bg-input space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] font-black uppercase text-text">
-                        {p === 'groq' ? 'Groq' : 'Gemini'}
-                      </span>
-                      <button
-                        onClick={() => updateField('ai_provider', p, true)}
-                        className={`text-[9px] font-black uppercase ${settings.ai_provider === p ? 'text-accent' : 'text-text-muted opacity-40'}`}
-                      >
-                        {settings.ai_provider === p ? 'Ativo' : 'Selecionar'}
-                      </button>
-                    </div>
-                    <input
-                      type="password"
-                      value={settings.api_keys?.[p === 'genai' ? 'gemini' : p] || ''}
-                      onChange={(e) => updateApiKey(p === 'genai' ? 'gemini' : p, e.target.value)}
-                      onBlur={() => saveSettings(settings)}
-                      className="w-full bg-black/20 border border-border rounded-lg px-3 py-1.5 text-[11px] font-mono text-text outline-none focus:border-accent/40"
-                      placeholder="API Key..."
-                    />
-                  </div>
-                ))}
+              <div className="p-4 rounded-xl border border-border bg-input/50 space-y-2">
+                <div className="flex items-center gap-2 text-accent">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <span className="text-[11px] font-black uppercase tracking-wider">
+                    Privacidade Total
+                  </span>
+                </div>
+                <p className="text-[10px] text-text-muted leading-relaxed">
+                  O MomAI opera exclusivamente com modelos locais. Seus dados e conversas nunca saem deste computador. Motores em nuvem foram removidos para garantir sua privacidade absoluta.
+                </p>
               </div>
             </div>
           )}
