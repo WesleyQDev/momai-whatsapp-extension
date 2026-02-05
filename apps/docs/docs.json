@@ -46,6 +46,7 @@
                 "icon": "rocket",
                 "pages": [
                   "pt-BR/introducao",
+                  "pt-BR/por-que-momai",
                   "pt-BR/instalacao",
                   "pt-BR/inicio-rapido"
                 ]
@@ -70,7 +71,10 @@
               {
                 "group": "Comunidade",
                 "icon": "users",
-                "pages": ["pt-BR/contribuindo", "pt-BR/changelog"]
+                "pages": [
+                  "pt-BR/contribuindo",
+                  "pt-BR/updates"
+                ]
               }
             ]
           },
