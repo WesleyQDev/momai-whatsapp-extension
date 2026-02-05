@@ -72,7 +72,7 @@ export default function ResourceFooter() {
   }
 
   return (
-    <footer className="h-6 bg-black/40 border-t border-white/5 flex items-center justify-between px-4 select-none animate-in fade-in slide-in-from-bottom-2 duration-700">
+    <footer className="h-6 bg-black/40 border-t border-white/5 flex items-center justify-between px-4 select-none relative z-[300] animate-in fade-in slide-in-from-bottom-2 duration-700">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 group">
           <span className="text-[9px] font-black text-text-muted/40 uppercase tracking-widest group-hover:text-accent transition-colors">

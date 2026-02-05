@@ -26,6 +26,7 @@ class WakeWordDetector:
         self.bypass_condition = bypass_condition
         self.running = False
         self.thread = None
+        self.lock = threading.Lock()
 
         # Vosk Configuration - Small Model
         model_path = "vosk-model-small-pt-0.3"
@@ -88,7 +89,7 @@ class WakeWordDetector:
                                 # If keyword detected in partial, STOP TTS IMMEDIATELY
                                 try:
                                     import services.voice.tts as tts
-                                    if tts.tts.pygame.mixer.Channel(0).get_busy():
+                                    if tts.is_speaking():
                                         logger.info(f"[WakeWord] Interruption detected via partial: '{p_text}'")
                                         tts.stop_all()
                                 except:
@@ -172,11 +173,12 @@ class WakeWordDetector:
 
     def start(self):
         """Starts the detection thread."""
-        if not self.running:
-            self.running = True
-            self.thread = threading.Thread(
-                target=self._listen_loop, daemon=True)
-            self.thread.start()
+        with self.lock:
+            if not self.running:
+                self.running = True
+                self.thread = threading.Thread(
+                    target=self._listen_loop, daemon=True)
+                self.thread.start()
 
     def stop(self):
         """Stops the detection thread."""

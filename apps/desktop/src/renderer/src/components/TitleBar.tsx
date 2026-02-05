@@ -21,7 +21,7 @@ export default function TitleBar({ onClearHistory, activeRoute }: TitleBarProps)
 
   return (
     <div
-      className="h-7 bg-bg flex justify-between items-center select-none w-full border-b border-border relative z-[100]"
+      className="h-7 bg-bg flex justify-between items-center select-none w-full border-b border-border relative z-[300]"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       <div className="px-3 text-[10px] text-text-muted font-bold tracking-tight flex items-center gap-2 opacity-80">

@@ -24,7 +24,14 @@ function App(): React.JSX.Element {
   const chat = useChat()
   const { graphState, handleGraphOption, closeGraph, clearHistory } = chat
 
-  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady } = useStatus()
+  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, initVersion, isReady } = useStatus()
+
+  // Notifica o Electron quando o sistema está pronto para redimensionar a janela
+  useEffect(() => {
+    if (isReady) {
+      window.electron.ipcRenderer.send('app-ready')
+    }
+  }, [isReady])
 
   const [showSettings, setShowSettings] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -203,6 +210,7 @@ function App(): React.JSX.Element {
         statusInfo={statusInfo} 
         initMessage={initMessage}
         initProgress={initProgress}
+        initVersion={initVersion}
       />
 
       {/* Update Notification */}

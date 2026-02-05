@@ -10,6 +10,7 @@ export function useStatus() {
   
   const [initMessage, setInitMessage] = useState<string>('Iniciando...')
   const [initProgress, setInitProgress] = useState<number>(0)
+  const [initVersion, setInitVersion] = useState<string>('v0.0.0')
   const [isBooting, setIsBooting] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
   const [hasReceivedWSEvent, setHasReceivedWSEvent] = useState(false)
@@ -21,10 +22,11 @@ export function useStatus() {
     if (hasReceivedWSEvent || initProgress >= 100) return
     
     try {
-      const data = await fetchInitStatus()
+      const data = await (fetchInitStatus() as any)
       
       setInitMessage(data.message)
       setInitProgress(data.progress)
+      if (data.version) setInitVersion(data.version)
       
       if (data.progress >= 100) {
         setIsBooting(false)
@@ -64,10 +66,11 @@ export function useStatus() {
 
   useEffect(() => {
     const handleInitProgress = (e: any) => {
-      const { message, progress } = e.detail
+      const { message, progress, version } = e.detail
       setHasReceivedWSEvent(true)
       setInitMessage(message)
       setInitProgress(progress)
+      if (version) setInitVersion(version)
 
       if (progress >= 100) {
         setIsBooting(false)
@@ -121,6 +124,7 @@ export function useStatus() {
     hasUpdate,
     initMessage,
     initProgress,
+    initVersion,
     isReady,
     isBooting,
     refreshStatus: checkStatus,

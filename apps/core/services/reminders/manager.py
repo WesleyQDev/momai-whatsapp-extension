@@ -158,3 +158,31 @@ class ReminderManager:
             if self.scheduler.get_job(job_id):
                 self.scheduler.remove_job(job_id)
         db.close()
+
+    def update_reminder(self, reminder_id, **kwargs):
+        """
+        Updates an existing reminder.
+        """
+        db = SessionLocal()
+        try:
+            reminder = db.query(Reminder).filter(Reminder.id == reminder_id).first()
+            if not reminder:
+                return None
+            
+            for key, value in kwargs.items():
+                if hasattr(reminder, key) and value is not None:
+                    setattr(reminder, key, value)
+            
+            # Ensure it's active if updated
+            reminder.is_active = True
+            
+            db.commit()
+            db.refresh(reminder)
+            
+            self._schedule_job(reminder)
+            return reminder
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()

@@ -4,7 +4,7 @@ from tools.system_actions import TOOLS
 from ai.embeddings import embeddings
 from services.extensions.manager import extension_manager
 
-def index_all_system_tools():
+async def index_all_system_tools():
     """Indexa as ferramentas nativas e de extensões no LanceDB."""
     print("[Indexer] Indexing tools from registry...")
     
@@ -27,10 +27,10 @@ def index_all_system_tools():
             "metadata": json.dumps({"source": "plugin"})
         })
     
-    vector_db.add_tools(tools_to_index)
+    await vector_db.add_tools(tools_to_index)
     print(f"[Indexer] {len(tools_to_index)} tools indexed.")
 
-def index_initial_intents():
+async def index_initial_intents():
     """Lê as intenções de todos os manifestos (builtin e extensões) e as indexa."""
     print("[Indexer] Indexing intents from all plugins...")
     
@@ -50,7 +50,7 @@ def index_initial_intents():
             })
     
     if intents:
-        vector_db.add_intents(intents)
+        await vector_db.add_intents(intents)
         print(f"[Indexer] {len(intents)} intents indexed dynamically.")
     else:
         print("[Indexer] No intents found to index.")

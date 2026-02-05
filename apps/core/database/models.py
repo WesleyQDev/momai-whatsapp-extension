@@ -34,7 +34,7 @@ class Settings(Base):
     local_backend = Column(String, default="auto") # auto, cuda, vulkan, cpu
     
     # Audio
-    tts_voice = Column(String, default="pt-BR-FranciscaNeural")
+    tts_voice = Column(String, default="pf_dora")
     tts_enabled = Column(Boolean, default=False)
     wake_word_enabled = Column(Boolean, default=True)
     wake_word_sensitivity = Column(Integer, default=5) # 1-10

@@ -46,55 +46,60 @@ class ResourceManager:
         
         self.fs = None
         self.thread = None
+        self.lock = threading.Lock()
         self.is_gaming = False
         self.on_notify_callback = None # Callback to notify the UI (via websocket)
         self.initialized = True
 
     def start(self):
         """Initializes FortScript monitoring in a separate thread."""
-        if not FortScript:
-            print("[ResourceManager] FortScript not found. Monitoring disabled.")
-            logger.error("[ResourceManager] FortScript not found. Monitoring disabled.")
-            return
-
-        db = SessionLocal()
-        try:
-            # 1. Carrega apps configurados pelo usuário
-            apps = db.query(GamingApp).filter(GamingApp.is_active == True).all()
-            heavy_processes = [
-                {"name": app.name, "process": app.executable} 
-                for app in apps
-            ]
-
-            if not heavy_processes:
-                print("[ResourceManager] No active game apps configured. Monitoring on standby.")
-                logger.info("[ResourceManager] No active game apps configured. Monitoring on standby.")
+        with self.lock:
+            if self.thread and self.thread.is_alive():
                 return
 
-            # 2. Configure Callbacks
-            callbacks = Callbacks(
-                on_pause=self._enter_gaming_mode,
-                on_resume=self._exit_gaming_mode
-            )
+            if not FortScript:
+                print("[ResourceManager] FortScript not found. Monitoring disabled.")
+                logger.error("[ResourceManager] FortScript not found. Monitoring disabled.")
+                return
 
-            # 3. Instancia FortScript
-            self.fs = FortScript(
-                heavy_process=heavy_processes,
-                callbacks=callbacks,
-                projects=[], # Não gerenciamos scripts externos aqui
-                new_console=False
-            )
+            db = SessionLocal()
+            try:
+                # 1. Carrega apps configurados pelo usuário
+                apps = db.query(GamingApp).filter(GamingApp.is_active == True).all()
+                heavy_processes = [
+                    {"name": app.name, "process": app.executable} 
+                    for app in apps
+                ]
 
-            # 4. Inicia em Thread
-            self.thread = threading.Thread(target=self.fs.run, daemon=True, name="FortScript-Monitor")
-            self.thread.start()
-            print(f"[ResourceManager] FortScript monitoring started for {len(heavy_processes)} applications.")
-            logger.info(f"[ResourceManager] Monitoring started for {len(heavy_processes)} applications.")
+                if not heavy_processes:
+                    print("[ResourceManager] No active game apps configured. Monitoring on standby.")
+                    logger.info("[ResourceManager] No active game apps configured. Monitoring on standby.")
+                    return
 
-        except Exception as e:
-            logger.error(f"[ResourceManager] Error starting: {e}")
-        finally:
-            db.close()
+                # 2. Configure Callbacks
+                callbacks = Callbacks(
+                    on_pause=self._enter_gaming_mode,
+                    on_resume=self._exit_gaming_mode
+                )
+
+                # 3. Instancia FortScript
+                self.fs = FortScript(
+                    heavy_process=heavy_processes,
+                    callbacks=callbacks,
+                    projects=[], # Não gerenciamos scripts externos aqui
+                    new_console=False
+                )
+
+                # 4. Inicia em Thread
+                self.thread = threading.Thread(target=self.fs.run, daemon=True, name="FortScript-Monitor")
+                self.thread.start()
+                print(f"[ResourceManager] FortScript monitoring started for {len(heavy_processes)} applications.")
+                logger.info(f"[ResourceManager] Monitoring started for {len(heavy_processes)} applications.")
+
+            except Exception as e:
+                logger.error(f"[ResourceManager] Error starting: {e}")
+            finally:
+                db.close()
 
     def _enter_gaming_mode(self):
         """Action executed when a game is detected."""

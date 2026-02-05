@@ -304,12 +304,12 @@ function killPythonBackend(): void {
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
-    minWidth: 450,
-    minHeight: 500,
+    width: 450,
+    height: 600,
     show: false,
     frame: false,
+    resizable: false,
+    center: true,
     icon: join(__dirname, '../../resources/icon.png'),
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -337,6 +337,16 @@ function createWindow(): void {
     }
   })
   ipcMain.on('window-close', () => app.quit())
+
+  // Transição de Splash para App principal
+  ipcMain.on('app-ready', () => {
+    if (mainWindow) {
+      mainWindow.setResizable(true)
+      mainWindow.setMinimumSize(450, 500)
+      mainWindow.setSize(900, 670, true)
+      mainWindow.center()
+    }
+  })
 
   // Tray configuration
   if (!tray) {

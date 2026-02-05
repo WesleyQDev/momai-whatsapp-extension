@@ -194,11 +194,53 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
     }))
   }
 
-  const voices = [
-    { id: 'pt-BR-FranciscaNeural', name: 'Francisca (Suave)' },
-    { id: 'pt-BR-AntonioNeural', name: 'Antonio (Calmo)' },
-    { id: 'pt-BR-ThalitaNeural', name: 'Thalita (Jovial)' }
+  const voiceCatalog = [
+    {
+      lang: 'Português (Brasil)',
+      code: 'p',
+      voices: [
+        { id: 'pf_dora', name: 'Dora (Sugerida)', traits: 'Feminina' },
+        { id: 'pm_alex', name: 'Alex', traits: 'Masculina' },
+        { id: 'pm_santa', name: 'Santa', traits: 'Masculina' }
+      ]
+    },
+    {
+      lang: 'English (US)',
+      code: 'a',
+      voices: [
+        { id: 'af_heart', name: 'Heart', traits: 'Feminina' },
+        { id: 'af_bella', name: 'Bella', traits: 'Feminina' },
+        { id: 'am_adam', name: 'Adam', traits: 'Masculino' },
+        { id: 'am_fenrir', name: 'Fenrir', traits: 'Masculino' }
+      ]
+    },
+    {
+      lang: 'English (UK)',
+      code: 'b',
+      voices: [
+        { id: 'bf_alice', name: 'Alice', traits: 'Feminina' },
+        { id: 'bm_george', name: 'George', traits: 'Masculino' }
+      ]
+    },
+    {
+      lang: 'Español',
+      code: 'e',
+      voices: [
+        { id: 'ef_dora', name: 'Dora', traits: 'Feminina' },
+        { id: 'em_alex', name: 'Alex', traits: 'Masculino' }
+      ]
+    },
+    {
+      lang: 'Italiano',
+      code: 'i',
+      voices: [
+        { id: 'if_sara', name: 'Sara', traits: 'Feminina' },
+        { id: 'im_nicola', name: 'Nicola', traits: 'Masculino' }
+      ]
+    }
   ]
+
+  const [expandedLang, setExpandedLang] = useState<string | null>('p')
 
   if (isLoading)
     return (
@@ -624,7 +666,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   <div className="flex flex-col">
                     <span className="text-[13px] font-bold text-text uppercase tracking-tight">Ativação por Voz</span>
                     <span className="text-[10px] text-text-muted font-medium italic">
-                      Diga "Sistema"
+                      Diga "Sistema" • Vosk v0.3 (Local)
                     </span>
                   </div>
                   <button
@@ -640,9 +682,14 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 </div>
 
                 <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
-                  <span className="text-[13px] font-bold text-text uppercase tracking-tight">
-                    Saída de Áudio (TTS)
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-[13px] font-bold text-text uppercase tracking-tight">
+                      Saída de Áudio (TTS)
+                    </span>
+                    <span className="text-[10px] text-text-muted font-medium italic">
+                      Kokoro-82M (Local Neural)
+                    </span>
+                  </div>
                   <button
                     onClick={() => updateField('tts_enabled', !settings.tts_enabled, true)}
                     className={`w-10 h-5 rounded-full flex items-center px-1 transition-all ${settings.tts_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
@@ -654,24 +701,76 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 </div>
 
                 <div
-                  className={`space-y-2 transition-opacity ${!settings.tts_enabled ? 'opacity-30 pointer-events-none' : ''}`}
+                  className={`space-y-3 transition-opacity ${!settings.tts_enabled ? 'opacity-30 pointer-events-none' : ''}`}
                 >
                   <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
                     Catálogo de Vozes
                   </label>
-                  <div className="grid gap-1.5">
-                    {voices.map((v) => (
-                      <button
-                        key={v.id}
-                        onClick={() => updateField('tts_voice', v.id, true)}
-                        className={`flex items-center justify-between p-3 rounded-lg border text-xs font-bold transition-all ${settings.tts_voice === v.id ? 'bg-accent/10 border-accent/40 text-accent' : 'bg-input border-border text-text-muted'}`}
-                      >
-                        {v.name}
-                        {settings.tts_voice === v.id && (
-                          <div className="w-1 h-1 rounded-full bg-accent" />
+                  <div className="flex gap-4 h-[240px]">
+                    {/* Coluna de Idiomas */}
+                    <div className="w-[180px] space-y-1.5 overflow-y-auto custom-scrollbar pr-2">
+                      {voiceCatalog.map((catalog) => (
+                        <button
+                          key={catalog.code}
+                          onClick={() => setExpandedLang(catalog.code)}
+                          className={`w-full flex items-center justify-between p-3 rounded-lg border text-[10px] font-black uppercase tracking-tight transition-all ${
+                            expandedLang === catalog.code 
+                              ? 'bg-accent/10 border-accent/40 text-accent shadow-sm' 
+                              : 'bg-black/10 border-transparent text-text-muted hover:bg-black/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                             <div className={`w-1.5 h-1.5 rounded-full ${expandedLang === catalog.code ? 'bg-accent animate-pulse' : 'bg-text-muted/30'}`} />
+                             {catalog.lang}
+                          </div>
+                          <svg 
+                            width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+                             className={`transition-transform duration-300 ${expandedLang === catalog.code ? '-rotate-90' : ''}`}
+                          >
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Coluna de Vozes (Dinâmica) */}
+                    <div className="flex-1 p-3 rounded-xl bg-black/10 border border-border/40 overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {voiceCatalog.find(c => c.code === expandedLang)?.voices.map((v) => (
+                          <button
+                            key={v.id}
+                            onClick={() => updateField('tts_voice', v.id, true)}
+                            className={`flex items-center justify-between p-3 rounded-lg border text-[11px] font-bold transition-all ${
+                              settings.tts_voice === v.id 
+                                ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20 translate-x-1' 
+                                : 'bg-input border-border/40 text-text-muted hover:bg-black/20'
+                            }`}
+                          >
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="tracking-tight">{v.name}</span>
+                              <span className={`text-[8px] uppercase font-black tracking-tighter ${settings.tts_voice === v.id ? 'text-white/70' : 'text-text-muted opacity-60'}`}>
+                                {v.traits}
+                              </span>
+                            </div>
+                            {settings.tts_voice === v.id && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                        
+                        {!expandedLang && (
+                          <div className="h-full flex flex-col items-center justify-center text-center p-4 opacity-40">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-2">
+                              <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
+                              <path d="M12 12L2.7 7.1" />
+                            </svg>
+                            <span className="text-[10px] font-medium italic">Selecione um idioma</span>
+                          </div>
                         )}
-                      </button>
-                    ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

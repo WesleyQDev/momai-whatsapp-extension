@@ -197,14 +197,19 @@ def get_api_key(provider: str) -> str | None:
         db.close()
     return None
 
-def initialize_llm(mode: str):
+llm_ready_event = threading.Event()
+
+def initialize_llm(mode: str, on_init_progress=None):
     """
     Initializes the LLM in a separate thread.
 
     Args:
         mode (str): The provider mode ('local', 'groq', 'gemini').
+        on_init_progress (callable, optional): Callback for initialization progress.
     """
     global is_loading, llm_mode, init_error
+    
+    llm_ready_event.clear()
     
     if mode == "waiting":
         llm_mode = "waiting"
@@ -217,12 +222,12 @@ def initialize_llm(mode: str):
     llm_mode = mode 
     init_error = None
 
-    thread = threading.Thread(target=_initialize_llm_task, args=(mode,))
+    thread = threading.Thread(target=_initialize_llm_task, args=(mode, on_init_progress))
     thread.daemon = True
     thread.start()
 
 
-def _initialize_llm_task(mode: str):
+def _initialize_llm_task(mode: str, on_init_progress=None):
     """Tarefa interna para inicializar o LLM e reconstruir o grafo."""
     global llm, llm_with_tools, llm_mode, momai_graph, is_loading, init_error
     
@@ -231,6 +236,9 @@ def _initialize_llm_task(mode: str):
 
     def report_progress(status: str):
         print(f"[AI_core] {status}")
+        if on_init_progress:
+            on_init_progress(status)
+            
         if main.main_loop:
             asyncio.run_coroutine_threadsafe(
                 main.broadcast_to_sockets({
@@ -318,6 +326,8 @@ def _initialize_llm_task(mode: str):
                 asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": mode}}), main.main_loop)
                 main.set_graph_state(None, False)
             
+            llm_ready_event.set()
+            
         else:
             raise Exception(f"Provedor {mode} não retornou uma instância válida.")
 
@@ -326,6 +336,7 @@ def _initialize_llm_task(mode: str):
         print(f"[AI_core] Erro Crítico de Inicialização: {err_msg}")
         init_error = err_msg
         is_loading = False
+        llm_ready_event.set() # Unblock even on error
         
         if main.main_loop:
             asyncio.run_coroutine_threadsafe(
@@ -573,8 +584,10 @@ async def generate(message: ChatMessage):
                               yield f"data: {json.dumps({'status': status})}\n\n"
 
     except Exception as e:
+        import traceback
         error_msg = str(e)
         print(f"[AI_core] Erro de Stream: {error_msg}")
+        traceback.print_exc()
         
         if "429" in error_msg or "rate_limit" in error_msg.lower():
             friendly_error = "Sir, I have reached the Groq processing limit for this minute. Please wait a few seconds before trying again."

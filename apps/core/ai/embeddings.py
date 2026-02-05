@@ -153,20 +153,31 @@ class EmbeddingEngine:
                 timeout=10
             )
             data = response.json()
-            
-            # Case 1: Response is a direct list (common in recent llama.cpp versions)
-            if isinstance(data, list) and len(data) > 0:
-                return data[0].get('embedding', [0.0] * 1024)
-            
-            # Case 2: OpenAI format {'data': [{'embedding': ...}]}
+            vec = []
+
+            # Case: OpenAI format {'data': [{'embedding': ...}]}
             if isinstance(data, dict) and 'data' in data and isinstance(data['data'], list):
-                return data['data'][0]['embedding']
+                vec = data['data'][0]['embedding']
             
-            # Case 3: Simple format {'embedding': [...]} 
-            if isinstance(data, dict):
-                return data.get('embedding', [0.0] * 1024)
-                
-            return [0.0] * 1024
+            # Case: Simple format {'embedding': [...]} 
+            elif isinstance(data, dict) and 'embedding' in data:
+                vec = data['embedding']
+            
+            # Case: Direct list [0.1, 0.2, ...] or [[0.1, ...]]
+            elif isinstance(data, list) and len(data) > 0:
+                if isinstance(data[0], list):
+                    vec = data[0]
+                elif isinstance(data[0], dict):
+                    vec = data[0].get('embedding', [])
+                else:
+                    vec = data
+
+            if not vec or len(vec) < 10:
+                return [0.0] * 1024
+            
+            # Ensure float32 to avoid Arrow cast errors
+            return np.array(vec, dtype=np.float32).tolist()
+
         except Exception as e:
             print(f"[Embeddings] Erro ao obter embedding: {e}")
             return [0.0] * 1024 # Fallback vector
@@ -186,15 +197,24 @@ class EmbeddingEngine:
                 timeout=30
             )
             data = response.json()
+            results = []
             
-            # Handle list of results
-            if isinstance(data, list):
-                return [r.get('embedding', [0.0] * 1024) for r in data]
+            # Case: OpenAI format {'data': [{'embedding': ...}]}
+            if isinstance(data, dict) and 'data' in data:
+                results = [r['embedding'] for r in data['data']]
+            
+            # Case: Simple list of embeddings
+            elif isinstance(data, list):
+                for item in data:
+                    if isinstance(item, list):
+                        results.append(item)
+                    elif isinstance(item, dict):
+                        results.append(item.get('embedding', [0.0] * 1024))
+            
+            if not results:
+                return [[0.0] * 1024] * len(texts)
                 
-            if isinstance(data, dict) and 'results' in data:
-                return [r['embedding'] for r in data['results']]
-                
-            return [[0.0] * 1024] * len(texts)
+            return [np.array(v, dtype=np.float32).tolist() for v in results]
         except:
             return [self._embed_sync(t) for t in texts]
 

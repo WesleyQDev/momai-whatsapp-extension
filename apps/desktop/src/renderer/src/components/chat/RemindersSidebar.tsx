@@ -26,14 +26,9 @@ export default function RemindersSidebar() {
   }
 
   useEffect(() => {
-    // Delay inicial de 2s para dar tempo do backend iniciar
-    const initialDelay = setTimeout(fetchActive, 2000)
-    
-    const interval = setInterval(fetchActive, 10000)
-    return () => {
-      clearTimeout(initialDelay)
-      clearInterval(interval)
-    }
+    fetchActive() // Busca imediata ao montar
+    const interval = setInterval(fetchActive, 10000) // Atualiza a cada 10s
+    return () => clearInterval(interval)
   }, [])
 
   if (reminders.length === 0) return null

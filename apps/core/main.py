@@ -40,7 +40,7 @@ class EndpointFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # Global version variable
-app_version = "0.0.0"
+app_version = "0.1.0-alpha"
 
 # Configure Root Logger to ensure print statements and logs are visible
 root_logger = logging.getLogger()
@@ -161,7 +161,8 @@ async def send_init_event(stage: str, message: str, progress: int = 0):
     last_init_event = {
         "stage": stage,
         "message": message,
-        "progress": progress
+        "progress": progress,
+        "version": app_version
     }
     
     # Broadcast para WebSockets conectados
@@ -230,138 +231,124 @@ def notify_economy_change(status: str):
 
 
 
+async def init_system_task():
+    """Tarefa de segundo plano para inicializar o sistema sem travar o servidor."""
+    global reminder_manager, ww
+    
+    try:
+        # Evento 1: API iniciada
+        await send_init_event("api", "Protocolos de sistema iniciados", 10)
+        
+        # Startup: Database and Migrations
+        init_db()
+        await send_init_event("api", "Banco de dados conectado", 15)
+        
+        # Initialize AI stack (lazy loading)
+        initialize_ai_stack()
+        await send_init_event("brain", "Módulos de IA carregados", 35)
+        
+        # Microkernel Startup: Load all agents (Builtin + Extensions)
+        extension_manager.load_all()
+        ext_count = len(extension_manager.get_active_manifests())
+        await send_init_event("extensions", f"{ext_count} extensões carregadas", 50)
+        
+        # Knowledge Base sync
+        try:
+            from utils.indexer import index_all_system_tools, index_initial_intents
+            await send_init_event("brain", "Indexando ferramentas...", 55)
+            await index_all_system_tools()
+            await send_init_event("brain", "Indexando intenções...", 60)
+            await index_initial_intents()
+        except Exception as e:
+            print(f"[Main] Indexing error: {e}")
+        
+        db = SessionLocal()
+        settings = db.query(Settings).first()
+        if not settings:
+            settings = Settings()
+            db.add(settings)
+            db.commit()
+            db.refresh(settings)
+
+        # Apply Settings
+        await send_init_event("brain", "Aplicando configurações...", 70)
+        tts.tts.set_voice(settings.tts_voice)
+        tts.tts.set_enabled(settings.tts_enabled)
+        orchestrator.SYSTEM_PROMPT = settings.assistant_persona
+        
+        # Resource monitor
+        resource_manager.on_notify_callback = notify_economy_change
+        resource_manager.start()
+        await send_init_event("extensions", "Monitor de recursos ativado", 75)
+
+        from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
+        async with AsyncSqliteSaver.from_conn_string(CHECKPOINT_PATH) as saver:
+            orchestrator.checkpointer = saver
+            await send_init_event("brain", "Iniciando cérebro principal...", 80)
+
+            def on_brain_init(status):
+                if main_loop:
+                    asyncio.run_coroutine_threadsafe(send_init_event("brain", status, 82), main_loop)
+
+            orchestrator.initialize_llm(settings.ai_provider, on_init_progress=on_brain_init)
+            await asyncio.to_thread(orchestrator.llm_ready_event.wait, timeout=60.0)
+            await send_init_event("brain", "Cérebro inicializado", 85)
+            
+            reminder_manager = ReminderManager(
+                broadcast_callback=broadcast_to_sockets,
+                tts_callback=tts.speak_sentence
+            )
+            reminder_manager.start()
+
+            def on_wake_word(text):
+                if main_loop: asyncio.run_coroutine_threadsafe(process_voice_command(text), main_loop)
+
+            def should_bypass_wake_word():
+                state = get_graph_state()
+                return state["view"] is not None and state["bypass_wake_word"]
+
+            await send_init_event("brain", "Iniciando detector de voz...", 92)
+            ww = WakeWordDetector(keyword="Sistema", callback=on_wake_word, bypass_condition=should_bypass_wake_word)
+            if settings.wake_word_enabled: ww.start()
+            
+            if settings.tts_enabled:
+                await send_init_event("voice", "Sincronizando voz local...", 95)
+                await asyncio.to_thread(tts.tts.wait_until_ready, timeout=15.0)
+
+            await send_init_event("ready", "Sistema operacional pronto.", 100)
+        db.close()
+    except Exception as e:
+        print(f"[InitTask] Erro fatal: {e}")
+        await send_init_event("error", f"Erro: {str(e)}", 0)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global main_loop, reminder_manager, ww
+    global main_loop
     main_loop = asyncio.get_running_loop()
     
-    # Evento 1: API iniciada
-    await send_init_event("api", "Protocolos de sistema iniciados", 10)
-    
-    # Startup: Database and Migrations
-    init_db()
-    await send_init_event("api", "Banco de dados conectado", 15)
-    
-    # NOVO: Initialize AI stack (lazy loading)
-    print("[Main] Initializing AI stack...")
-    await send_init_event("brain", "Carregando módulos de inteligência...", 25)
-    initialize_ai_stack()
-    await send_init_event("brain", "Módulos de IA carregados", 35)
-    
-    # Microkernel Startup: Load all agents (Builtin + Extensions)
-    await send_init_event("extensions", "Descobrindo extensões...", 40)
-    extension_manager.load_all()
-    ext_count = len(extension_manager.get_active_manifests())
-    await send_init_event("extensions", f"{ext_count} extensões carregadas", 50)
-    
-    # Auto-Indexing Knowledge Base (LanceDB)
-    try:
-        from utils.indexer import index_all_system_tools, index_initial_intents
-        print("[Main] Updating Knowledge Base (LanceDB)...")
-        await send_init_event("brain", "Indexando ferramentas do sistema...", 55)
-        index_all_system_tools()
-        await send_init_event("brain", "Indexando intenções...", 60)
-        index_initial_intents()
-        await send_init_event("brain", "Base de conhecimento atualizada", 65)
-    except Exception as e:
-        print(f"[Main] Indexing error: {e}")
-    
-    # Simple migration: ensure new columns exist
-    db = SessionLocal()
-    try:
-        db.execute(text("ALTER TABLE settings ADD COLUMN local_backend TEXT DEFAULT 'auto'"))
-        db.commit()
-    except:
-        pass # Column likely already exists
-    
-    try:
-        db.execute(text("ALTER TABLE messages ADD COLUMN activities TEXT DEFAULT NULL"))
-        db.commit()
-    except:
-        pass # Column likely already exists
-    
-    try:
-        db.execute(text("ALTER TABLE messages ADD COLUMN graph_data TEXT DEFAULT NULL"))
-        db.commit()
-    except:
-        pass # Column likely already exists
-    
-    # Ensure default settings exist and apply them
-    settings = db.query(Settings).first()
-    if not settings:
-        settings = Settings()
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
-    
-    # Apply Settings
-    await send_init_event("brain", "Aplicando configurações...", 70)
-    tts.tts.set_voice(settings.tts_voice)
-    tts.tts.set_enabled(settings.tts_enabled)
-    orchestrator.SYSTEM_PROMPT = settings.assistant_persona
-    
+    # Start background init
+    asyncio.create_task(init_system_task())
     
     # Start resource usage broadcaster
     asyncio.create_task(broadcast_resource_usage())
 
-    # Start Gaming Mode Monitor (FortScript)
-    resource_manager.on_notify_callback = notify_economy_change
-    resource_manager.start()
-    await send_init_event("extensions", "Monitor de recursos ativado", 75)
+    def monitor_parent():
+        """Exits if parent process (Electron) dies."""
+        parent = psutil.Process(os.getpid()).parent()
+        if parent:
+            parent.wait()
+            os._exit(0)
 
-    from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
+    if sys.platform == "win32":
+        threading.Thread(target=monitor_parent, daemon=True).start()
+
+    yield
     
-    print(f"[Main] Connecting to checkpointer: {CHECKPOINT_PATH}")
-    async with AsyncSqliteSaver.from_conn_string(CHECKPOINT_PATH) as saver:
-        orchestrator.checkpointer = saver
-
-        # Initialize LLM with default provider
-        print(f"[Main] Initializing with default provider: {settings.ai_provider}")
-        await send_init_event("brain", "Iniciando cérebro principal...", 80)
-        orchestrator.initialize_llm(settings.ai_provider)
-        await send_init_event("brain", "Cérebro inicializado", 85)
-        
-        await send_init_event("extensions", "Ativando lembretes...", 88)
-        reminder_manager = ReminderManager(
-            broadcast_callback=broadcast_to_sockets,
-            tts_callback=tts.speak_sentence
-        )
-        reminder_manager.start()
-
-        def on_wake_word(text):
-            if main_loop and main_loop.is_running():
-                asyncio.run_coroutine_threadsafe(process_voice_command(text), main_loop)
-
-        def should_bypass_wake_word():
-            state = get_graph_state()
-            return state["view"] is not None and state["bypass_wake_word"]
-
-        print("[FastAPI] Starting Wake Word Detector...")
-        await send_init_event("brain", "Iniciando detector de voz...", 92)
-        ww = WakeWordDetector(keyword="Sistema", callback=on_wake_word, bypass_condition=should_bypass_wake_word)
-        
-        if settings.wake_word_enabled:
-            ww.start()
-        else:
-            print("[WakeWord] Disabled in settings.")
-        
-        await send_init_event("ready", "Sistema operacional. Bem-vindo.", 100)
-        await send_init_event("socket", "WebSocket pronto", 100)
-            
-        db.close()
-
-        def monitor_parent():
-            """Exits if parent process (Electron) dies."""
-            parent = psutil.Process(os.getpid()).parent()
-            if parent:
-                parent.wait()
-                os._exit(0)
-
-        if sys.platform == "win32":
-            threading.Thread(target=monitor_parent, daemon=True).start()
-
-        yield
-        
+    # Shutdown
+    if ww: ww.stop()
+    if reminder_manager: reminder_manager.stop()
+    resource_manager.stop()
+    
     # Shutdown
     print("[FastAPI] Shutting down...")
     
@@ -458,6 +445,14 @@ class ReminderCreate(BaseModel):
     repeat_interval: str | None = None
     repeat_value: int | None = None
 
+class ReminderUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
+    scheduled_time: datetime | None = None
+    repeat_interval: str | None = None
+    repeat_value: int | None = None
+    is_active: bool | None = None
+
 class SettingsUpdate(BaseModel):
     user_name: str | None = None
     assistant_persona: str | None = None
@@ -487,6 +482,7 @@ async def get_init_status():
         "stage": last_init_event["stage"],
         "message": last_init_event["message"],
         "progress": last_init_event["progress"],
+        "version": app_version,
         "ai_stack_loaded": ai_stack_loaded,
         "is_ready": last_init_event["progress"] >= 100
     }
@@ -608,6 +604,16 @@ async def create_reminder_route(data: ReminderCreate):
 async def delete_reminder_route(reminder_id: int):
     await asyncio.to_thread(reminder_manager.delete_reminder, reminder_id)
     return {"status": "deleted"}
+
+@app.patch("/reminders/{reminder_id}")
+@require_ai_loaded
+async def update_reminder_route(reminder_id: int, data: ReminderUpdate):
+    updated = await asyncio.to_thread(reminder_manager.update_reminder, 
+        reminder_id, **data.model_dump(exclude_unset=True)
+    )
+    if not updated:
+        return {"status": "error", "message": "Reminder not found"}
+    return updated
 
 @app.get("/settings")
 async def get_settings(db: Session = Depends(get_db)):
