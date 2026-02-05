@@ -71,10 +71,7 @@
               {
                 "group": "Comunidade",
                 "icon": "users",
-                "pages": [
-                  "pt-BR/contribuindo",
-                  "pt-BR/updates"
-                ]
+                "pages": ["pt-BR/contribuindo", "pt-BR/updates"]
               }
             ]
           },
