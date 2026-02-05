@@ -89,17 +89,19 @@ def register_intents():
     Na inicialização, o `ExtensionManager` varre as pastas de extensões e lê os manifestos.
   </Step>
 
-  <Step title="Validação">
-    O sistema verifica se o código usa apenas as permissões declaradas. Imports suspeitos geram alertas.
-  </Step>
+<Step title="Validação">
+  O sistema verifica se o código usa apenas as permissões declaradas. Imports
+  suspeitos geram alertas.
+</Step>
 
-  <Step title="Indexação">
-    Intenções e descrições de ferramentas são vetorizadas e indexadas no LanceDB.
-  </Step>
+<Step title="Indexação">
+  Intenções e descrições de ferramentas são vetorizadas e indexadas no LanceDB.
+</Step>
 
-  <Step title="Registro">
-    Hooks são conectados ao sistema de plugins (pluggy). Itens de sidebar são registrados.
-  </Step>
+<Step title="Registro">
+  Hooks são conectados ao sistema de plugins (pluggy). Itens de sidebar são
+  registrados.
+</Step>
 
   <Step title="Execução">
     Quando o Roteador Semântico detecta uma intenção da extensão, as ferramentas são carregadas e executadas.
@@ -217,6 +219,7 @@ Para instalar extensões de terceiros:
     ~/Library/Application Support/MomAI/extensions/
     ```
     Instaladas pelo usuário.
+
   </Tab>
 </Tabs>
 

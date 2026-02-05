@@ -1,0 +1,80 @@
+---
+title: "Por que MomAI?"
+sidebarTitle: "Por que MomAI?"
+description: "Contexto e decisões de design do projeto."
+---
+
+## Problema
+
+Assistentes baseados em LLM geralmente operam em modelo SaaS:
+
+| Aspecto         | Modelo Centralizado                | MomAI                      |
+| --------------- | ---------------------------------- | -------------------------- |
+| Processamento   | Servidores do provedor             | Local (CPU/GPU do usuário) |
+| Dados de rotina | Armazenados externamente           | SQLite local               |
+| Disponibilidade | Depende de API externa             | Offline-first              |
+| Customização    | Limitada ao que o provedor oferece | Extensões via pluggy       |
+
+O trade-off tradicional é: personalização exige envio de dados. A MomAI existe para testar se é viável inverter isso.
+
+---
+
+## Escopo do Núcleo
+
+O core não tenta ser um assistente generalista. Foca em três funções:
+
+- **Busca**: Pesquisa na web com síntese de resultados
+- **Agenda**: Lembretes e eventos persistidos localmente
+- **Visualização**: Geração de interfaces dinâmicas para exibir dados
+
+Automações de sistema, integração com apps externos e outras funcionalidades ficam no ecossistema de **extensões**.
+
+---
+
+## Decisões Técnicas
+
+**Por que Python?**
+
+- Ecossistema maduro para IA (LangGraph, llama-cpp-python)
+- Bibliotecas de áudio (Vosk, pydub)
+- Baixa barreira para contribuidores criarem extensões
+
+**Por que Electron?**
+
+- Distribuição cross-platform com uma única codebase
+- Integração nativa com sistema de notificações
+- Comunidade ativa e tooling estável
+
+**Por que LangGraph em vez de chains simples?**
+
+- Suporte a ciclos de decisão (tool calls iterativos)
+- Estado persistente durante a conversa
+- Melhor debuggability do fluxo de agentes
+
+---
+
+## Referências
+
+Projetos que influenciaram decisões de design:
+
+- [Vocalis](https://github.com/shaakz/vocalis) — Arquitetura de assistente por voz
+- [Obsidian](https://obsidian.md/) — Sistema de plugins comunitário
+
+---
+
+## Créditos
+
+Agradecimento ao **Eduardo Mendes (Dunossauro)** — seu conteúdo sobre Python e boas práticas foi referência durante o desenvolvimento.
+
+---
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+  <Card title="Configurar Backend" icon="server" href="/pt-BR/backend">
+    Instruções de instalação do núcleo.
+  </Card>
+  <Card title="Como Colaborar" icon="code-branch" href="/pt-BR/como-colaborar">
+    Guia de contribuição.
+  </Card>
+</CardGroup>
