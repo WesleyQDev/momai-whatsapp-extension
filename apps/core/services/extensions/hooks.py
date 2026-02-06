@@ -44,3 +44,27 @@ class ExtensionSpec:
         Called once when the extension is loaded during MomAI initialization.
         Use this for one-time initialization tasks like database setup or model loading.
         """
+
+    @hookspec
+    def on_enable(self) -> None:
+        """
+        Called when the extension is manually enabled.
+        """
+
+    @hookspec
+    def on_disable(self) -> None:
+        """
+        Called when the extension is manually disabled.
+        """
+
+    @hookspec
+    def on_install(self) -> None:
+        """
+        Called after the extension is downloaded and ready to be used.
+        """
+
+    @hookspec
+    def on_uninstall(self) -> None:
+        """
+        Called before the extension is removed from the system.
+        """

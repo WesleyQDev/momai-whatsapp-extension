@@ -16,8 +16,42 @@ import icon from '../../resources/icon.png?asset'
 
 let pythonProcess: ChildProcess | null = null
 let tray: Tray | null = null
+let overlayWindow: BrowserWindow | null = null
 let appQuitting = false
 let pythonStartTime: number = 0
+
+// ... (bootstrapPython code)
+
+function createOverlayWindow(): void {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    return
+  }
+
+  overlayWindow = new BrowserWindow({
+    width: 450,
+    height: 600,
+    show: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    hasShadow: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  // Set position to bottom right or custom
+  // overlayWindow.setPosition(...)
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/#/overlay`)
+  } else {
+    overlayWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'overlay' })
+  }
+}
 
 async function bootstrapPython(): Promise<{
   pythonExe: string
@@ -304,8 +338,8 @@ function killPythonBackend(): void {
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 450,
-    height: 600,
+    width: 360,
+    height: 240,
     show: false,
     frame: false,
     resizable: false,
@@ -337,6 +371,41 @@ function createWindow(): void {
     }
   })
   ipcMain.on('window-close', () => app.quit())
+
+  // Overlay IPC handlers
+  ipcMain.handle('get-window-state', () => {
+    return {
+      minimized: mainWindow.isMinimized(),
+      visible: mainWindow.isVisible()
+    }
+  })
+
+  ipcMain.on('open-overlay', (_, data) => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) createOverlayWindow()
+
+    // Position overlay relative to screen
+    if (overlayWindow) {
+      const { screen } = require('electron')
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width, height } = primaryDisplay.workAreaSize
+      // Position top right
+      overlayWindow.setPosition(width - 480, 50)
+      overlayWindow.showInactive() // Show without stealing focus fully? Or show()
+      overlayWindow.show()
+      overlayWindow.webContents.send('update-overlay-content', data)
+    }
+  })
+
+  ipcMain.on('close-overlay', () => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.hide()
+    }
+  })
+
+  ipcMain.on('overlay-action', (_, action) => {
+    // Forward action to main window to handle logic
+    mainWindow.webContents.send('trigger-action', action)
+  })
 
   // Transição de Splash para App principal
   ipcMain.on('app-ready', () => {

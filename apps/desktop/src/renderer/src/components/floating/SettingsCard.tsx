@@ -64,22 +64,23 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
       }
     }
 
-    const ws = new WebSocket('ws://127.0.0.1:8000/ws')
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data)
-      if (msg.type === 'setup_progress') {
-        setInstallProgress(msg.data.percent)
-      } else if (msg.type === 'setup_complete') {
-        setInstallStatus('installed')
-        setInstallProgress(100)
-        checkLocalStatus()
-      }
+    const handleSetupProgress = (e: any) => {
+      setInstallProgress(e.detail.percent)
+    }
+
+    const handleSetupComplete = () => {
+      setInstallStatus('installed')
+      setInstallProgress(100)
+      checkLocalStatus()
     }
 
     window.addEventListener('ai_model_changed', handleModelChange)
+    window.addEventListener('momai_setup_progress', handleSetupProgress)
+    window.addEventListener('momai_setup_complete', handleSetupComplete)
     return () => {
       window.removeEventListener('ai_model_changed', handleModelChange)
-      ws.close()
+      window.removeEventListener('momai_setup_progress', handleSetupProgress)
+      window.removeEventListener('momai_setup_complete', handleSetupComplete)
     }
   }, [])
 

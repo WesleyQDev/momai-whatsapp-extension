@@ -160,25 +160,58 @@ class TTSManager:
             # Check if we should wait for init
             if not self.ready_event.is_set():
                 logger.debug("[TTS] Waiting for initialization...")
+                if not self.ready_event.wait(timeout=10):
+                    logger.error("[TTS] Initialization timeout")
+                    return
 
-            if self.worker_thread and self.worker_thread.is_alive():
-                self.stop_event.clear()
+            # If thread exists and is alive, nothing to do
+            if self.worker_thread is not None and self.worker_thread.is_alive():
                 return
 
+            # Always clear any previous thread reference to avoid reuse
+            if self.worker_thread is not None:
+                logger.debug(f"[TTS] Cleaning up dead thread: {self.worker_thread.name}")
+                self.worker_thread = None
+
+            # Create and start a fresh thread
             logger.info("[TTS] Starting new worker thread...")
             self.stop_event.clear()
-            self.worker_thread = threading.Thread(
-                target=self._speech_worker, daemon=True, name="TTS-Worker")
+            
+            new_thread = threading.Thread(
+                target=self._speech_worker, daemon=True, name=f"TTS-Worker-{id(self)}")
+            
             try:
-                self.worker_thread.start()
+                # Start the thread first
+                new_thread.start()
+                
+                # Only assign to self.worker_thread after successful start
+                self.worker_thread = new_thread
+                logger.debug(f"[TTS] Thread started successfully: {new_thread.name}")
             except RuntimeError as e:
-                logger.error(f"[TTS] Thread start failed: {e}")
-                raise e
+                if "threads can only be started once" in str(e) or "started once" in str(e):
+                    logger.warning(f"[TTS] Thread start race condition intercepted: {e}")
+                    self.worker_thread = new_thread
+                else:
+                    logger.error(f"[TTS] Thread start failed: {e}")
+                    self.worker_thread = None
+                    raise e
 
     def stop(self):
         """Stops playback and clears the queue."""
         with self.state_lock:
             self.session_id += 1
+
+        # Use the same lock as start() to prevent race conditions
+        with self.start_lock:
+            # Signal thread to stop
+            self.stop_event.set()
+            
+            # Wait for thread to finish
+            if self.worker_thread and self.worker_thread.is_alive():
+                self.worker_thread.join(timeout=2)
+            
+            # Clear thread reference
+            self.worker_thread = None
 
         # Clear text queue
         try:
@@ -277,6 +310,7 @@ class TTSManager:
         self.text_queue.put(None)  # Sentinel
         if self.worker_thread:
             self.worker_thread.join(timeout=2)
+            self.worker_thread = None
         if self.pyaudio_instance:
             self.pyaudio_instance.terminate()
         logger.info("[TTS] System shut down.")

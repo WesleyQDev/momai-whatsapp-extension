@@ -8,16 +8,13 @@ import {
   PencilSquareIcon,
   ClockIcon
 } from '@heroicons/react/24/outline'
-
-interface Reminder {
-  id: number
-  title: string
-  content: string
-  scheduled_time: string
-  repeat_interval: string | null
-  repeat_value: number | null
-  is_active: boolean
-}
+import {
+  fetchReminders as fetchRemindersApi,
+  createReminder,
+  updateReminder,
+  deleteReminder,
+  type Reminder
+} from '../services/api'
 
 type RepeatInterval = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | null
 
@@ -88,8 +85,7 @@ export default function RemindersView() {
   // Fetch Data
   const fetchReminders = async () => {
     try {
-      const response = await fetch('http://localhost:8000/reminders')
-      const data = await response.json()
+      const data = await fetchRemindersApi()
       if (Array.isArray(data)) {
         setReminders(data)
       }
@@ -228,7 +224,7 @@ export default function RemindersView() {
   const handleDelete = async (id: number) => {
     if (!confirm('Excluir este lembrete permanentemente?')) return
     try {
-      await fetch(`http://localhost:8000/reminders/${id}`, { method: 'DELETE' })
+      await deleteReminder(id)
       setReminders((prev) => prev.filter((r) => r.id !== id))
     } catch (error) {
       console.error('Erro ao deletar:', error)
@@ -238,11 +234,6 @@ export default function RemindersView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const method = formData.id ? 'PATCH' : 'POST'
-      const url = formData.id
-        ? `http://localhost:8000/reminders/${formData.id}`
-        : 'http://localhost:8000/reminders'
-
       const payload = {
         title: formData.title,
         content: formData.content,
@@ -251,16 +242,14 @@ export default function RemindersView() {
         repeat_value: formData.repeat_interval ? formData.repeat_value : null
       }
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      if (response.ok) {
-        setIsModalOpen(false)
-        fetchReminders()
+      if (formData.id) {
+        await updateReminder(formData.id, payload)
+      } else {
+        await createReminder(payload)
       }
+
+      setIsModalOpen(false)
+      fetchReminders()
     } catch (error) {
       console.error('Erro ao salvar:', error)
     }
@@ -271,44 +260,50 @@ export default function RemindersView() {
   return (
     <div className="flex h-full w-full bg-bg text-text overflow-hidden">
       {/* --- Sidebar (Selected Day Details) --- */}
-      <aside className="w-80 bg-card border-r border-border flex flex-col shrink-0 z-20 shadow-xl">
-        <div className="p-6 border-b border-border bg-gradient-to-br from-card to-input/20">
-          <h2 className="text-4xl font-black uppercase tracking-tighter leading-none mb-1 text-accent">
-            {selectedDate.getDate()}
-          </h2>
-          <h3 className="text-lg text-text font-bold uppercase tracking-wide">
-            {selectedDate.toLocaleDateString('pt-BR', { month: 'long' })}{' '}
-            <span className="text-text-muted font-normal">{selectedDate.getFullYear()}</span>
-          </h3>
-          <p className="text-xs text-text-muted mt-2 uppercase font-black tracking-[0.2em] border-l-2 border-accent/50 pl-2">
-            {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' })}
-          </p>
+      <aside className="w-72 bg-card border-r border-border flex flex-col shrink-0 z-20">
+        <div className="p-4 border-b border-border bg-gradient-to-br from-card to-input/20">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-3xl font-bold uppercase tracking-tighter leading-none mb-1 text-accent">
+                {selectedDate.getDate()}
+              </h2>
+              <h3 className="text-sm text-text font-bold uppercase tracking-wide">
+                {selectedDate.toLocaleDateString('pt-BR', { month: 'long' })}{' '}
+                <span className="text-text-muted font-normal">{selectedDate.getFullYear()}</span>
+              </h3>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-text-muted uppercase font-bold tracking-widest px-2 py-1 bg-input/50 rounded">
+                {selectedDate.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3 bg-bg/50">
+        <div className="flex-1 overflow-y-auto p-3 custom-scrollbar space-y-2 bg-bg/50">
           {selectedDayReminders.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center opacity-40 text-center space-y-4">
-              <div className="p-4 bg-input rounded-full">
-                <ClockIcon className="w-8 h-8 text-text-muted" />
+            <div className="h-full flex flex-col items-center justify-center opacity-40 text-center space-y-3">
+              <div className="p-3 bg-white/5 rounded-full border border-white/5">
+                <ClockIcon className="w-6 h-6 text-text-muted" />
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-text">Tudo limpo por aqui</p>
-                <p className="text-xs text-text-muted">Nenhum lembrete para este dia</p>
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-text">Sem eventos</p>
+                <p className="text-[10px] text-text-muted">Nenhum lembrete para este dia</p>
               </div>
             </div>
           ) : (
             selectedDayReminders.map((r) => (
               <div
                 key={r.id}
-                className={`group relative p-4 rounded-xl border transition-all duration-200 ${
+                className={`group relative p-3 rounded-lg border transition-all duration-200 ${
                   r.is_active
-                    ? 'bg-card border-border hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5'
+                    ? 'bg-card border-border hover:border-accent/50 hover:shadow-sm'
                     : 'bg-input/10 border-transparent opacity-60 hover:opacity-100'
                 }`}
               >
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-1.5">
                   <span
-                    className={`text-[10px] font-black uppercase tracking-wider py-1 px-2 rounded-md ${
+                    className={`text-[9px] font-bold uppercase tracking-wider py-0.5 px-1.5 rounded ${
                       r.is_active ? 'bg-accent/10 text-accent' : 'bg-gray-500/10 text-gray-500'
                     }`}
                   >
@@ -320,38 +315,38 @@ export default function RemindersView() {
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleOpenEdit(r)}
-                      className="p-1.5 rounded-md hover:bg-input hover:text-accent transition-colors"
+                      className="p-1 rounded hover:bg-input hover:text-accent transition-colors"
                       title="Editar"
                     >
-                      <PencilSquareIcon className="w-4 h-4" />
+                      <PencilSquareIcon className="w-3 h-3" />
                     </button>
                     <button
                       onClick={() => handleDelete(r.id)}
-                      className="p-1.5 rounded-md hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                      className="p-1 rounded hover:bg-red-500/10 hover:text-red-500 transition-colors"
                       title="Excluir"
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <TrashIcon className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
                 <h4
-                  className={`font-bold text-sm leading-snug ${
+                  className={`font-semibold text-xs leading-snug ${
                     r.is_active
                       ? 'text-text'
-                      : 'text-text-muted line-through decoration-2 decoration-text-muted/50'
+                      : 'text-text-muted line-through decoration-text-muted/50'
                   }`}
                 >
                   {r.title}
                 </h4>
                 {r.content && (
-                  <p className="text-xs text-text-muted mt-1.5 line-clamp-2 leading-relaxed opacity-80">
+                  <p className="text-[10px] text-text-muted mt-1 line-clamp-2 leading-relaxed opacity-80">
                     {r.content}
                   </p>
                 )}
                 {r.repeat_interval && (
-                  <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border/50">
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
                     <svg
-                      className="w-3 h-3 text-accent"
+                      className="w-2.5 h-2.5 text-accent"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -363,7 +358,7 @@ export default function RemindersView() {
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                       />
                     </svg>
-                    <span className="text-[10px] uppercase font-bold text-accent/80 tracking-wide">
+                    <span className="text-[9px] uppercase font-bold text-accent/80 tracking-wide">
                       {translateInterval(r.repeat_interval, r.repeat_value)}
                     </span>
                   </div>
@@ -373,13 +368,13 @@ export default function RemindersView() {
           )}
         </div>
 
-        <div className="p-4 border-t border-border bg-card shadow-[0_-5px_20px_rgba(0,0,0,0.02)]">
+        <div className="p-3 border-t border-border bg-card">
           <button
             onClick={() => handleOpenCreate(selectedDate)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-accent text-bg px-4 rounded-xl font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-accent/20 group"
+            className="w-full flex items-center justify-center gap-2 py-2 bg-accent text-white px-4 rounded-lg font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow shadow-accent/20 group text-xs uppercase tracking-wide"
           >
-            <PlusIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-            NOVO LEMBRETE
+            <PlusIcon className="w-4 h-4" />
+            Novo Lembrete
           </button>
         </div>
       </aside>
@@ -387,44 +382,44 @@ export default function RemindersView() {
       {/* --- Main Calendar View --- */}
       <main className="flex-1 flex flex-col bg-bg relative min-w-0">
         {/* Toolbar */}
-        <header className="flex flex-wrap gap-4 items-center justify-between px-8 py-6 border-b border-border bg-card/30 backdrop-blur-sm z-10">
-          <h1 className="text-3xl font-black italic tracking-tight uppercase flex items-center gap-3">
-            <CalendarIcon className="w-8 h-8 text-accent" />
+        <header className="flex gap-4 items-center justify-between px-6 py-4 border-b border-border bg-card/30 backdrop-blur-sm z-10">
+          <h1 className="text-xl font-bold tracking-tight uppercase flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-accent" />
             <span className="text-text">
               {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
             </span>
           </h1>
 
-          <div className="flex items-center bg-card rounded-xl border border-border p-1 shadow-sm">
+          <div className="flex items-center bg-card rounded-lg border border-border p-0.5 shadow-sm">
             <button
               onClick={handlePrevMonth}
-              className="p-2 hover:bg-input rounded-lg text-text-muted hover:text-text transition-all active:scale-95"
+              className="p-1.5 hover:bg-input rounded-md text-text-muted hover:text-text transition-all"
             >
-              <ChevronLeftIcon className="w-5 h-5" />
+              <ChevronLeftIcon className="w-4 h-4" />
             </button>
             <button
               onClick={() => setCurrentDate(new Date())}
-              className="px-4 py-1 text-xs font-black uppercase tracking-widest text-text-muted hover:text-accent transition-colors border-x border-border/50 mx-1"
+              className="px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-accent transition-colors border-x border-border/50 mx-0.5"
             >
               Hoje
             </button>
             <button
               onClick={handleNextMonth}
-              className="p-2 hover:bg-input rounded-lg text-text-muted hover:text-text transition-all active:scale-95"
+              className="p-1.5 hover:bg-input rounded-md text-text-muted hover:text-text transition-all"
             >
-              <ChevronRightIcon className="w-5 h-5" />
+              <ChevronRightIcon className="w-4 h-4" />
             </button>
           </div>
         </header>
 
         {/* Grid */}
-        <div className="flex-1 flex flex-col p-6 overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col p-4 overflow-hidden min-h-0">
           {/* Week Headers */}
           <div className="grid grid-cols-7 mb-2 gap-2">
             {weekDays.map((day) => (
               <div
                 key={day}
-                className="text-center text-[10px] font-black uppercase text-text-muted/60 tracking-[0.2em] py-2 bg-input/10 rounded-lg"
+                className="text-center text-[10px] font-bold uppercase text-text-muted/60 tracking-wider py-1"
               >
                 {day}
               </div>
@@ -432,7 +427,7 @@ export default function RemindersView() {
           </div>
 
           {/* Days Grid */}
-          <div className="flex-1 grid grid-cols-7 grid-rows-6 gap-2 min-h-0">
+          <div className="flex-1 grid grid-cols-7 grid-rows-6 gap-1 min-h-0">
             {calendarData.map((cell, idx) => {
               const key = `${cell.date.getFullYear()}-${cell.date.getMonth()}-${cell.date.getDate()}`
               const isSelected = isSameDay(cell.date, selectedDate)
@@ -450,47 +445,49 @@ export default function RemindersView() {
                     }
                   }}
                   className={`
-                        relative flex flex-col rounded-xl border transition-all cursor-pointer overflow-hidden group select-none
-                        ${cell.isCurrentMonth ? 'bg-card shadow-sm' : 'bg-input/5 opacity-50 grayscale'}
+                        relative flex flex-col rounded-md border transition-all cursor-pointer overflow-hidden group select-none
+                        ${cell.isCurrentMonth ? 'bg-card' : 'bg-input/5 opacity-50'}
                         ${
                           isSelected
-                            ? 'ring-2 ring-accent border-transparent z-10 shadow-accent-glow'
-                            : 'border-border hover:border-accent/40'
+                            ? 'ring-1 ring-accent border-transparent z-10 bg-accent/5'
+                            : 'border-border/50 hover:border-accent/40'
                         }
-                        ${!cell.isCurrentMonth && !isSelected ? 'hover:opacity-80' : ''}
                       `}
                 >
                   {/* Date Header in Cell */}
-                  <div className="flex justify-between items-center p-2.5 shrink-0">
+                  <div className="flex justify-between items-start p-1.5 shrink-0">
                     <span
-                      className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-all ${
+                      className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-md transition-all ${
                         isToday
-                          ? 'bg-accent text-bg shadow-lg shadow-accent/30 scale-110'
+                          ? 'bg-accent text-white'
                           : cell.isCurrentMonth
-                            ? 'text-text group-hover:bg-input/50'
+                            ? 'text-text group-hover:text-accent'
                             : 'text-text-muted'
                       }`}
                     >
                       {cell.date.getDate()}
                     </span>
                     {dayReminders.length > 0 && (
-                      <span className="text-[10px] font-black text-text-muted bg-input/50 px-1.5 py-0.5 rounded-md">
+                      <span className="text-[9px] font-bold text-text-muted bg-input/80 px-1 rounded-sm">
                         {dayReminders.length}
                       </span>
                     )}
                   </div>
 
                   {/* Mini List in Cell */}
-                  <div className="flex-1 flex flex-col gap-1 px-2 pb-2 min-h-0 overflow-y-auto custom-scrollbar-none">
-                    {dayReminders.slice(0, 4).map((r) => (
-                      <div key={r.id} className="flex items-center gap-1.5 shrink-0 w-full">
+                  <div className="flex-1 flex flex-col gap-0.5 px-1.5 pb-1 min-h-0 overflow-hidden">
+                    {dayReminders.slice(0, 3).map((r) => (
+                      <div
+                        key={r.id}
+                        className="flex items-center gap-1 shrink-0 w-full overflow-hidden"
+                      >
                         <div
-                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          className={`w-1 h-1 rounded-full shrink-0 ${
                             r.is_active ? 'bg-accent' : 'bg-text-muted/50'
                           }`}
                         ></div>
                         <span
-                          className={`text-[9px] font-bold truncate flex-1 block ${
+                          className={`text-[9px] truncate flex-1 block ${
                             r.is_active ? 'text-text-muted' : 'text-text-muted/40 line-through'
                           }`}
                         >
@@ -498,16 +495,18 @@ export default function RemindersView() {
                         </span>
                       </div>
                     ))}
-                    {dayReminders.length > 4 && (
-                      <div className="text-[9px] font-black text-accent/70 pl-3 pt-0.5 uppercase tracking-wide">
-                        + {dayReminders.length - 4} mais
+                    {dayReminders.length > 3 && (
+                      <div className="text-[8px] font-bold text-accent/70 pl-2">
+                        + {dayReminders.length - 3}
                       </div>
                     )}
                   </div>
 
                   {/* Add Button on Hover */}
-                  <div className="absolute inset-0 bg-black/5 dark:bg-white/5 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <PlusIcon className="w-8 h-8 text-accent drop-shadow-md scale-75 group-hover:scale-100 transition-transform" />
+                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="p-0.5 rounded bg-accent/20 text-accent">
+                      <PlusIcon className="w-3 h-3" />
+                    </div>
                   </div>
                 </div>
               )
@@ -518,18 +517,16 @@ export default function RemindersView() {
 
       {/* --- Modal --- */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setIsModalOpen(false)}
-          ></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="absolute inset-0" onClick={() => setIsModalOpen(false)}></div>
           <form
             onSubmit={handleSubmit}
-            className="relative w-full max-w-lg bg-card border border-border rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            className="relative w-full max-w-md bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
           >
-            <div className="px-6 py-5 border-b border-border bg-input/20 flex justify-between items-center bg-pattern">
-              <h3 className="text-xl font-black uppercase tracking-tight italic text-text">
-                {formData.id ? 'Editar Lembrete' : 'Novo Lembrete'}
+            <div className="px-5 py-3 border-b border-border bg-input/20 flex justify-between items-center">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-text flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-accent" />
+                {formData.id ? 'Editar Lembrete' : 'Agendar Novo Lembrete'}
               </h3>
               <button
                 type="button"
@@ -540,51 +537,51 @@ export default function RemindersView() {
               </button>
             </div>
 
-            <div className="p-6 space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest pl-1">
-                  O que você precisa lembrar?
+            <div className="p-5 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-text-muted uppercase tracking-widest pl-1">
+                  Título
                 </label>
                 <input
                   required
                   autoFocus
                   type="text"
                   placeholder="Ex: Reunião com a equipe"
-                  className="w-full bg-input border border-border rounded-xl px-4 py-3 outline-none focus:border-accent text-lg font-bold placeholder:text-text-muted/30 transition-all"
+                  className="w-full bg-input border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-sm font-medium transition-all"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest pl-1">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-text-muted uppercase tracking-widest pl-1">
                   Detalhes (Opcional)
                 </label>
                 <textarea
                   rows={2}
-                  className="w-full bg-input border border-border rounded-xl px-4 py-3 outline-none focus:border-accent resize-none text-sm font-medium transition-all"
+                  className="w-full bg-input border border-border rounded-lg px-3 py-2 outline-none focus:border-accent resize-none text-xs text-text-muted transition-all"
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest pl-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-text-muted uppercase tracking-widest pl-1">
                     Data e Hora
                   </label>
                   <input
                     required
                     type="datetime-local"
-                    className="w-full bg-input border border-border rounded-xl px-4 py-3 outline-none focus:border-accent text-sm font-bold font-mono transition-all"
+                    className="w-full bg-input border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-xs font-mono font-bold transition-all"
                     value={formData.scheduled_time}
                     onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest pl-1">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-text-muted uppercase tracking-widest pl-1">
                     Repetição
                   </label>
                   <select
-                    className="w-full bg-input border border-border rounded-xl px-4 py-3 outline-none focus:border-accent text-sm font-medium transition-all appearance-none"
+                    className="w-full bg-input border border-border rounded-lg px-3 py-2 outline-none focus:border-accent text-xs transition-all appearance-none"
                     value={formData.repeat_interval || ''}
                     onChange={(e) =>
                       setFormData({
@@ -603,14 +600,14 @@ export default function RemindersView() {
                 </div>
               </div>
               {formData.repeat_interval && (
-                <div className="flex items-center gap-3 p-4 bg-accent/5 rounded-xl border border-accent/10">
-                  <span className="text-xs font-bold text-accent uppercase whitespace-nowrap">
-                    Repetir a cada:
+                <div className="flex items-center gap-2 p-3 bg-accent/5 rounded-lg border border-accent/10">
+                  <span className="text-[10px] font-bold text-accent uppercase whitespace-nowrap">
+                    A cada:
                   </span>
                   <input
                     type="number"
                     min="1"
-                    className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-center font-bold text-text outline-none focus:border-accent"
+                    className="w-12 bg-bg border border-border rounded px-1 py-0.5 text-center text-xs font-bold text-text outline-none focus:border-accent"
                     value={formData.repeat_value}
                     onChange={(e) =>
                       setFormData({
@@ -619,7 +616,7 @@ export default function RemindersView() {
                       })
                     }
                   />
-                  <span className="text-xs font-black text-accent uppercase tracking-wide">
+                  <span className="text-[10px] font-bold text-accent uppercase tracking-wide">
                     {translateInterval(formData.repeat_interval, formData.repeat_value).replace(
                       /\d+ /,
                       ''
@@ -629,17 +626,17 @@ export default function RemindersView() {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 p-5 bg-input/30 border-t border-border">
+            <div className="flex justify-end gap-2 p-3 bg-input/30 border-t border-border">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl border border-border text-text-muted hover:text-text hover:bg-input font-bold text-xs uppercase tracking-wide transition-all"
+                className="px-4 py-1.5 rounded-lg border border-border text-text-muted hover:text-text hover:bg-input font-bold text-[10px] uppercase tracking-wide transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-8 py-2.5 bg-accent text-bg font-black rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-accent/20 text-xs uppercase tracking-wide"
+                className="px-6 py-1.5 bg-accent text-bg font-bold rounded-lg hover:brightness-110 active:scale-95 transition-all shadow-sm text-[10px] uppercase tracking-wide"
               >
                 Salvar
               </button>

@@ -24,7 +24,8 @@ CHECKPOINT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chec
 checkpointer = None
 
 SYSTEM_PROMPT = """You are MomAI, a sophisticated and helpful virtual assistant.
-You prioritize local processing, user privacy, and efficiency. Always be polite, reliable, and ready to assist with any request on the system."""
+You prioritize local processing, user privacy, and efficiency.
+If the user asks for help or wants to know what you can do, ALWAYS trigger the 'get_capabilities' tool followed by 'show_interface' to display the feature list visually."""
 MAX_MESSAGES = 6 # Reduced from 8 to 6 to save tokens in Cloud models
 llm_mode = "waiting"
 chat_history = {} # Stores temporary history if needed
@@ -199,7 +200,10 @@ def initialize_llm(mode: str, on_init_progress=None):
 
     thread = threading.Thread(target=_initialize_llm_task, args=(mode, on_init_progress))
     thread.daemon = True
-    thread.start()
+    try:
+        thread.start()
+    except RuntimeError as e:
+        print(f"[AI_core] Thread start error: {e}")
 
 
 def _initialize_llm_task(mode: str, on_init_progress=None):
@@ -361,13 +365,26 @@ def clean_response(text: str) -> str:
 
 
 
+def safe_speak(text):
+    try:
+        import services.voice.tts as tts
+        tts.speak_sentence(text)
+    except RuntimeError as e:
+        logger.warning(f"[AI_core] TTS Speak Thread Error ignored: {e}")
+    except Exception as e:
+        logger.error(f"[AI_core] TTS Speak Error: {e}")
+
 async def generate(message: ChatMessage):
     """
     Main stream generator for chat responses.
     """
     import services.voice.tts as tts
-    tts.stop_all()
-    tts.start_workers()
+    try:
+        # Non-blocking stop attempt for previous speech
+        tts.stop_all()
+    except Exception as e:
+        logger.warning(f"[AI_core] TTS cleanup ignored: {e}")
+
     print(f"\n[AI_core] Nova Requisição: {message.content}")
 
     if is_loading or llm is None or momai_graph is None:
@@ -407,7 +424,11 @@ async def generate(message: ChatMessage):
         input_data = {"messages": [HumanMessage(content=message.content)]}
 
         async for event in momai_graph.astream_events(input_data, config=config, version="v2"):
-            if is_loading: break
+            if is_loading: break 
+
+            # DEBUG LOG
+            if event["event"] == "on_chain_start" and event["name"] == "LangGraph":
+                print(f"[AI_core] STARTING LANGGRAPH EXECUTION. Thread: {message.thread_id}")
 
             kind = event["event"]
             name = event["name"]
@@ -494,14 +515,14 @@ async def generate(message: ChatMessage):
                             tts_buffer = tts_buffer[match.end():]
                             if len(sentence) > 2:
                                 clean_sent = clean_text_for_tts(sentence)
-                                if clean_sent: tts.speak_sentence(clean_sent)
+                                if clean_sent: safe_speak(clean_sent)
                         elif len(tts_buffer) > 120: 
                             last_space = tts_buffer.rfind(" ")
                             if last_space != -1 and last_space > 60:
                                 sentence = tts_buffer[:last_space].strip()
                                 tts_buffer = tts_buffer[last_space:].strip()
                                 clean_sent = clean_text_for_tts(sentence)
-                                if clean_sent: tts.speak_sentence(clean_sent)
+                                if clean_sent: safe_speak(clean_sent)
                             else: break
                         else: break
 
@@ -520,7 +541,7 @@ async def generate(message: ChatMessage):
                                 full_content = content
                                 yield f"data: {json.dumps({'token': content})}\n\n"
                                 clean_sent = clean_text_for_tts(content)
-                                if clean_sent: tts.speak_sentence(clean_sent)
+                                if clean_sent: safe_speak(clean_sent)
 
             elif kind == "on_chain_end":
                 if name == "semantic_router":
@@ -551,7 +572,7 @@ async def generate(message: ChatMessage):
         if "429" in error_msg or "rate_limit" in error_msg.lower():
             friendly_error = "Sir, I have reached the Groq processing limit for this minute. Please wait a few seconds before trying again."
             yield f"data: {json.dumps({'error': friendly_error})}\n\n"
-            tts.speak_sentence("Sorry, Sir. I need a short break due to rate limits.")
+            safe_speak("Sorry, Sir. I need a short break due to rate limits.")
         else:
             yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
@@ -566,7 +587,7 @@ async def generate(message: ChatMessage):
         if tts_buffer.strip():
             clean_phrase = clean_text_for_tts(clean_response(tts_buffer)).strip()
             if len(clean_phrase) > 1:
-                tts.speak_sentence(clean_phrase)
+                safe_speak(clean_phrase)
 
         yield f"data: {json.dumps({'done': True})}\n\n"
         

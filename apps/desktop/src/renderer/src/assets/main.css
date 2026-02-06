@@ -51,7 +51,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-accent/20 rounded-full transition-colors hover:bg-accent/40;
+    @apply bg-white/5 rounded-full transition-colors hover:bg-white/10;
   }
 }
 

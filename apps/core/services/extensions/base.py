@@ -30,5 +30,30 @@ class MomAIExtension:
         return None
 
     @hookimpl
+    def on_startup(self):
+        """Called when MomAI boots and the extension is enabled."""
+        pass
+
+    @hookimpl
+    def on_enable(self):
+        """Called when the user enables the extension."""
+        pass
+
+    @hookimpl
+    def on_disable(self):
+        """Called before the extension is disabled."""
+        pass
+
+    @hookimpl
+    def on_install(self):
+        """Called immediately after installation."""
+        pass
+
+    @hookimpl
+    def on_uninstall(self):
+        """Called before files are removed."""
+        pass
+
+    @hookimpl
     def on_startup(self) -> None:
         pass

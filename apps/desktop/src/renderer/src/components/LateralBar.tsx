@@ -13,6 +13,7 @@ interface LateralBarProps {
   activeRoute: string
   onNavigate: (path: string) => void
   onOpenSettings?: () => void
+  isCompact?: boolean
 }
 
 interface ExtensionItem {
@@ -28,12 +29,7 @@ interface ExtensionItem {
   }
 }
 
-
-
-
-
-
-const iconMap:Record<string, any> = {
+const iconMap: Record<string, any> = {
   Cpu: CpuChipIcon,
   MessageSquare: ChatBubbleLeftRightIcon,
   Calendar: CalendarIcon,
@@ -41,38 +37,45 @@ const iconMap:Record<string, any> = {
   Layout: GlobeAltIcon
 }
 
-export default function LateralBar({ activeRoute, onNavigate, onOpenSettings }: LateralBarProps) {
+export default function LateralBar({
+  activeRoute,
+  onNavigate,
+  onOpenSettings,
+  isCompact = false
+}: LateralBarProps) {
   const [extensions, setExtensions] = useState<ExtensionItem[]>([])
 
   useEffect(() => {
     fetchExtensions().then((allExts) => {
       // Sort to ensure Chat is first
       const sorted = (allExts as any[]).sort((a, b) => {
-        if (a.id.includes('responder')) return -1;
-        if (b.id.includes('responder')) return 1;
-        return 0;
-      });
-      setExtensions(sorted.filter(e => e.features?.sidebar && e.enabled));
-    });
-
+        if (a.id.includes('responder')) return -1
+        if (b.id.includes('responder')) return 1
+        return 0
+      })
+      setExtensions(sorted.filter((e) => e.features?.sidebar && e.enabled))
+    })
 
     const handleSync = (e: any) => {
-       const allExts = e.detail as ExtensionItem[]
-       const sorted = allExts.sort((a, b) => {
-        if (a.id.includes('responder')) return -1;
-        if (b.id.includes('responder')) return 1;
-        return 0;
-      });
-       setExtensions(sorted.filter(e => e.features?.sidebar && (e as any).enabled))
-
+      const allExts = e.detail as ExtensionItem[]
+      const sorted = allExts.sort((a, b) => {
+        if (a.id.includes('responder')) return -1
+        if (b.id.includes('responder')) return 1
+        return 0
+      })
+      setExtensions(sorted.filter((e) => e.features?.sidebar && (e as any).enabled))
     }
     window.addEventListener('momai_extensions_sync', handleSync)
     return () => window.removeEventListener('momai_extensions_sync', handleSync)
   }, [])
 
   return (
-    <div className="w-16 bg-bg border-r border-border flex flex-col justify-between py-4 z-50">
-      <div className="flex flex-col items-center w-full gap-4 overflow-y-auto scrollbar-none">
+    <div
+      className={`${isCompact ? 'w-12 py-2' : 'w-16 py-4'} bg-bg border-r border-border flex flex-col justify-between z-50 transition-all duration-300`}
+    >
+      <div
+        className={`flex flex-col items-center w-full ${isCompact ? 'gap-2' : 'gap-4'} overflow-y-auto scrollbar-none`}
+      >
         {/* All items are now dynamic */}
         {extensions.map((ext) => {
           const IconComponent = iconMap[ext.icon || ''] || PuzzlePieceIcon
@@ -80,18 +83,21 @@ export default function LateralBar({ activeRoute, onNavigate, onOpenSettings }: 
           const route = isChat ? '/' : `/extensions/${ext.id}`
           const isActive = isChat ? activeRoute === '/' : activeRoute === `/extensions/${ext.id}`
 
-
           return (
             <button
               key={ext.id}
               onClick={() => onNavigate(route)}
               title={ext.name}
-              className={`group relative w-10 h-10 shrink-0 bg-transparent border-none flex items-center justify-center transition-all rounded-xl hover:bg-accent/10 ${isActive ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
+              className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${isActive ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
             >
               {isActive && (
-                <div className="absolute -left-3 w-1 h-6 bg-accent rounded-r-full animate-fade-in" />
+                <div
+                  className={`absolute ${isCompact ? '-left-2 h-4' : '-left-3 h-6'} w-1 bg-accent rounded-r-full animate-fade-in`}
+                />
               )}
-              <IconComponent className="w-5 h-5 transition-transform group-hover:scale-110" />
+              <IconComponent
+                className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform group-hover:scale-110`}
+              />
             </button>
           )
         })}
@@ -102,12 +108,16 @@ export default function LateralBar({ activeRoute, onNavigate, onOpenSettings }: 
         <button
           onClick={() => onNavigate('/extensions')}
           title="Loja de Extensões"
-          className={`group relative w-10 h-10 shrink-0 bg-transparent border-none flex items-center justify-center transition-all rounded-xl hover:bg-accent/10 ${activeRoute === '/extensions' ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
+          className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${activeRoute === '/extensions' ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
         >
           {activeRoute === '/extensions' && (
-            <div className="absolute -left-3 w-1 h-6 bg-accent rounded-r-full animate-fade-in" />
+            <div
+              className={`absolute ${isCompact ? '-left-2 h-4' : '-left-3 h-6'} w-1 bg-accent rounded-r-full animate-fade-in`}
+            />
           )}
-          <PuzzlePieceIcon className="w-5 h-5 transition-transform group-hover:scale-110" />
+          <PuzzlePieceIcon
+            className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform group-hover:scale-110`}
+          />
         </button>
       </div>
 
@@ -115,9 +125,9 @@ export default function LateralBar({ activeRoute, onNavigate, onOpenSettings }: 
         <button
           onClick={onOpenSettings}
           title="Configurações"
-          className="w-10 h-10 bg-transparent border-none text-text-muted cursor-pointer flex items-center justify-center transition-all rounded-xl hover:bg-white/5 hover:text-text"
+          className={`${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} bg-transparent border-none text-text-muted cursor-pointer flex items-center justify-center transition-all hover:bg-white/5 hover:text-text`}
         >
-          <Cog6ToothIcon className="w-5 h-5" />
+          <Cog6ToothIcon className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'}`} />
         </button>
       </div>
     </div>

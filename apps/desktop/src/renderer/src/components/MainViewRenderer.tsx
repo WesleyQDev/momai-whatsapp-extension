@@ -23,12 +23,8 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
         text={props.chat.text}
         onSendMessage={props.chat.sendMessage}
         messagesEndRef={props.chat.messagesEndRef}
-        currentMode={status.localMode}
-        onModeChange={status.changeMode}
-        isModeChanging={status.isUpdating}
         onReopenGraph={props.chat.reopenGraph}
         statusInfo={status.statusInfo}
-        onOpenSettings={props.onOpenSettings}
       />
     )
   },

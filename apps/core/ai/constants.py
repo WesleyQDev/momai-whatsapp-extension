@@ -45,7 +45,13 @@ INTERFACE USAGE GUIDELINES:
 - **User Request**: If the user explicitly asks to "show", "list in interface", "open side panel", etc., you **MUST** use `show_interface`.
 - **Decisions**: If you need user confirmation or simple choices, use `ask_confirmation` or `show_interface(view='side', ...)` (Center view is temporarily disabled).
 
-Use `get_capabilities` to inspect your own tools if needed, but ALWAYS display the result in the Side Interface using `show_interface`."""
+SPECIFIC CAPABILITIES FLOW:
+If the user asks "What can you do?", "What are your capabilities?", "Help", or similar commands (in any language):
+1. Call `get_capabilities()` to retrieve the raw list of tools/extensions.
+2. Translate/Format the list into the USER'S LANGUAGE.
+3. Call `show_interface(view='side', content=...)` with the formatted list.
+4. Reply briefly in chat: "Here is what I can do." (or translated equivalent).
+"""
 
 
 NO_TOOLS_WARNING = """

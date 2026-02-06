@@ -15,7 +15,9 @@ export function useStatus() {
   const [retryCount, setRetryCount] = useState(0)
   const [hasReceivedWSEvent, setHasReceivedWSEvent] = useState(false)
 
-  const isReady = initProgress >= 100 && !isBooting
+  const isBrainReady = statusInfo?.brain_ready ?? false
+  const isBrainLoading = statusInfo?.is_loading ?? false
+  const isReady = initProgress >= 100 && !isBooting && isBrainReady && !isBrainLoading
 
   // Polling de fallback para progresso de init (caso WebSocket demore)
   const checkInitProgress = useCallback(async () => {
@@ -43,8 +45,8 @@ export function useStatus() {
       setLocalMode(data.mode)
       setIsOnline(data.status === 'ok')
 
-      // Se o status da API está OK, garantimos que o boot terminou
-      if (data.status === 'ok') {
+      // Evita encerrar boot antes do modelo estar realmente pronto
+      if (data.status === 'ok' && data.brain_ready && !data.is_loading) {
         setIsBooting(false)
         setInitProgress(100)
       }
@@ -101,12 +103,12 @@ export function useStatus() {
 
     const startPolling = () => {
       checkStatus()
-      const pollInterval = isBooting ? 1000 : 5000
+      const pollInterval = isBooting ? 2000 : 8000
       statusInterval = setInterval(checkStatus, pollInterval)
     }
 
     if (isBooting && initProgress < 100) {
-      initInterval = setInterval(checkInitProgress, 500)
+      initInterval = setInterval(checkInitProgress, 1000)
     }
 
     startPolling()

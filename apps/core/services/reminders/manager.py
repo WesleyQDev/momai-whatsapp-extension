@@ -17,6 +17,9 @@ class ReminderManager:
     def start(self):
         """Starts the scheduler and loads existing reminders."""
         if not self.running:
+            # Recreate scheduler instance to avoid "threads can only be started once" 
+            # error after a previous shutdown()
+            self.scheduler = AsyncIOScheduler()
             self.scheduler.start()
             self.running = True
             logger.info("[Reminders] Scheduler started.")
@@ -25,7 +28,10 @@ class ReminderManager:
     def stop(self):
         """Stops the scheduler."""
         if self.running:
-            self.scheduler.shutdown()
+            try:
+                self.scheduler.shutdown()
+            except Exception as e:
+                logger.error(f"[Reminders] Error shutting down scheduler: {e}")
             self.running = False
 
     def _load_reminders_to_scheduler(self):

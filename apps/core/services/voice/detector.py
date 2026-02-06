@@ -178,7 +178,10 @@ class WakeWordDetector:
                 self.running = True
                 self.thread = threading.Thread(
                     target=self._listen_loop, daemon=True)
-                self.thread.start()
+                try:
+                    self.thread.start()
+                except RuntimeError as e:
+                    logger.warning(f"[WakeWord] Thread start error ignored: {e}")
 
     def stop(self):
         """Stops the detection thread."""

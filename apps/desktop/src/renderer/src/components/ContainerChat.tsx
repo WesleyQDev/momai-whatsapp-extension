@@ -9,12 +9,9 @@ interface ContainerChatProps {
   text: string
   onSendMessage: (text?: string) => void
   messagesEndRef: RefObject<HTMLDivElement | null>
-  currentMode: string
-  onModeChange: (mode: string) => void
   isModeChanging?: boolean
   onReopenGraph: (data: any) => void
   statusInfo: StatusData | null
-  onOpenSettings: (tab: 'general' | 'brain' | 'voice') => void
 }
 
 export default function ContainerChat({
@@ -23,12 +20,9 @@ export default function ContainerChat({
   text,
   onSendMessage,
   messagesEndRef,
-  currentMode,
-  onModeChange,
   isModeChanging = false,
   onReopenGraph,
-  statusInfo,
-  onOpenSettings
+  statusInfo
 }: ContainerChatProps): JSX.Element {
   return (
     <div className="bg-transparent w-full h-full flex flex-col overflow-hidden relative">
@@ -43,11 +37,8 @@ export default function ContainerChat({
         text={text}
         onSend={onSendMessage}
         isLoading={isLoading}
-        currentMode={currentMode}
-        onModeChange={onModeChange}
         isModeChanging={isModeChanging}
         statusInfo={statusInfo}
-        onOpenSettings={onOpenSettings}
       />
     </div>
   )

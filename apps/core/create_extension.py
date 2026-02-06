@@ -40,64 +40,59 @@ def create_extension(name: str):
         json.dump(manifest, f, indent=2)
 
     # 2. Create plugin.py
-    plugin_content = f"""from services.extensions.hooks import hookimpl
+    plugin_content = f"""from services.extensions.base import MomAIExtension
+from services.extensions.hooks import hookimpl
 from langchain_core.tools import tool
 from typing import List
 
-class {name.replace(" ", "")}Plugin:
+class {name.replace(" ", "")}Plugin(MomAIExtension):
     @hookimpl
     def register_tools(self):
         \"\"\"
-        Return a list of tools for this extension.
+        Registra as ferramentas no sistema.
         \"\"\"
-        return [self.example_tool]
-
-    @tool
-    def example_tool(self, query: str):
-        \"\"\"An example tool for {name}.\"\"\"
-        return f"Result for {{query}} from {name}"
+        return [{ext_id}_tool]
 
     @hookimpl
     def on_startup(self):
-        print(f"[{{self.manifest.name}}] Initialized!")
+        \"\"\"Executado ao carregar a extens\u00e3o no boot.\"\"\"
+        print(f"[{name}] Inicializada!")
 
-# To use the Class-based system, the manager needs to instantiate it.
-# For now, let's export the hooks as global functions for compatibility.
-
-plugin = {name.replace(" ", "")}Plugin()
-
-@hookimpl
-def register_tools():
-    return plugin.register_tools()
-
-@hookimpl
-def on_startup():
-    plugin.on_startup()
-"""
-    # Wait, the Class-based system is better. I'll stick to a simpler version first
-    # that works with the current manager.py
-    
-    simple_plugin = f"""from services.extensions.hooks import hookimpl
-from langchain_core.tools import tool
-from typing import List
+    @hookimpl
+    def on_enable(self):
+        \"\"\"Executado quando a extens\u00e3o \u00e9 ativada pelo usu\u00e1rio.\"\"\"
+        print(f"[{name}] Habilitada!")
 
 @tool
 def {ext_id}_tool(param: str):
-    \"\"\"Describe what this tool does here.\"\"\"
-    return f"Extensão {name} processou: {{param}}"
+    \"\"\"Descreva o que esta ferramenta faz aqui.\"\"\"
+    return f"Extens\u00e3o {name} processou: {{param}}"
 
-@hookimpl
-def register_tools():
-    \"\"\"Registra as ferramentas no sistema.\"\"\"
-    return [{ext_id}_tool]
-
-@hookimpl
-def on_startup():
-    \"\"\"Executado ao iniciar o sistema.\"\"\"
-    print("Extensão {name} carregada com sucesso!")
+def initialize(manifest):
+    \"\"\"Ponto de entrada para inicializar a classe da extens\u00e3o.\"\"\"
+    return {name.replace(" ", "")}Plugin(manifest)
 """
 
     with open(base_path / "plugin.py", "w", encoding="utf-8") as f:
+        f.write(plugin_content)
+
+    # 3. Create pyproject.toml for dependency management
+    pyproject = f"""[project]
+name = "{ext_id}"
+version = "0.1.0"
+description = "Description for {name}"
+authors = [{{ name = "Your Name" }}]
+dependencies = []
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+"""
+    with open(base_path / "pyproject.toml", "w", encoding="utf-8") as f:
+        f.write(pyproject)
+
+    print(f"Extension {name} created successfully at {base_path}")
+    print(f"ID: com.momai.extension.{ext_id}")
         f.write(simple_plugin)
 
     # 3. Create pyproject.toml

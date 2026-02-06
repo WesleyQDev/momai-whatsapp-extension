@@ -85,6 +85,12 @@ class ExtensionInstaller:
                 self._install_requirements_legacy(requirements)
 
             print(f"[Installer] {extension_id} instalado com sucesso!")
+            
+            # Load and trigger on_install
+            extension_manager._load_plugin(target_dir, "user")
+            if extension_id in extension_manager.plugins and extension_manager.plugins[extension_id]["module"]:
+                extension_manager.pm.hook.on_install()
+            
             return True
 
         except Exception as e:

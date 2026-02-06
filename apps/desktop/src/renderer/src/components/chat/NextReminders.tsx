@@ -1,29 +1,7 @@
-import { useState, useEffect } from 'react'
-
-interface SimpleReminder {
-  id: number
-  title: string
-  scheduled_time: string
-}
+import { useActiveReminders } from '../../hooks/useActiveReminders'
 
 export default function NextReminders() {
-  const [reminders, setReminders] = useState<SimpleReminder[]>([])
-
-  const fetchActive = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/reminders/active')
-      const data = await response.json()
-      setReminders(data)
-    } catch (e) {
-      console.error('Erro ao buscar próximos lembretes', e)
-    }
-  }
-
-  useEffect(() => {
-    fetchActive()
-    const interval = setInterval(fetchActive, 10000) // Atualiza a cada 10s
-    return () => clearInterval(interval)
-  }, [])
+  const { reminders } = useActiveReminders()
 
   if (reminders.length === 0) return null
 

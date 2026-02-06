@@ -47,10 +47,23 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
 
     async def semantic_router(state: AgentState):
         """Dynamic routing via LanceDB."""
+        # Safety fallback
+        if not state.get("messages"):
+             # If no messages, fallback to responder to avoid crash
+             return {"next": "responder"}
+
         last_msg = state["messages"][-1].content
+        print(f">>> [Semantic Router] Query: {last_msg}") # Explicit print for debugging
         log_event("Semantic Router", f"Query: {last_msg}", "magenta")
         
         try:
+            # Use run_in_executor if vector_db is not fully async yet (safeguard)
+            import asyncio
+            loop = asyncio.get_running_loop()
+            
+            # Assuming vector_db.search_intent calls embeddedings.embed_text which IS correct (run_in_executor)
+            # But just in case vector_db interactions themselves are slow lancedb.open_table()
+            
             results = await vector_db.search_intent(last_msg, limit=1)
             if results:
                 match = results[0]

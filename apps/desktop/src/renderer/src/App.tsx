@@ -24,8 +24,7 @@ function App(): React.JSX.Element {
   const chat = useChat()
   const { graphState, handleGraphOption, closeGraph, clearHistory } = chat
 
-  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, initVersion, isReady } =
-    useStatus()
+  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady } = useStatus()
 
   // Notifica o Electron quando o sistema está pronto para redimensionar a janela
   useEffect(() => {
@@ -33,6 +32,36 @@ function App(): React.JSX.Element {
       window.electron.ipcRenderer.send('app-ready')
     }
   }, [isReady])
+
+  // Overlay Helper
+  useEffect(() => {
+    const checkAndTriggerOverlay = async () => {
+      if (graphState.view) {
+        const state = await window.electron.ipcRenderer.invoke('get-window-state')
+        // Se a janela principal estiver minimizada ou oculta, envia para overlay
+        if (state.minimized || !state.visible) {
+          window.electron.ipcRenderer.send('open-overlay', graphState)
+        } else {
+          // Se janela visivel, garante que overlay fecha (opcional)
+          window.electron.ipcRenderer.send('close-overlay')
+        }
+      } else {
+        window.electron.ipcRenderer.send('close-overlay')
+      }
+    }
+    checkAndTriggerOverlay()
+  }, [graphState])
+
+  // Listen for actions from Overlay
+  useEffect(() => {
+    // @ts-ignore
+    const remove = window.electron.ipcRenderer.on('trigger-action', (_, action) => {
+      handleGraphOption(action)
+    })
+    return () => {
+      remove()
+    }
+  }, [handleGraphOption])
 
   const [showSettings, setShowSettings] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -107,13 +136,12 @@ function App(): React.JSX.Element {
       <TitleBar onClearHistory={triggerClearHistory} activeRoute={location.pathname} />
 
       <div className="flex-1 flex w-full min-h-0 relative">
-        {!isCompact && (
-          <LateralBar
-            activeRoute={location.pathname}
-            onNavigate={(path) => navigate(path)}
-            onOpenSettings={() => openSettings('general')}
-          />
-        )}
+        <LateralBar
+          activeRoute={location.pathname}
+          onNavigate={(path) => navigate(path)}
+          onOpenSettings={() => openSettings('general')}
+          isCompact={isCompact}
+        />
 
         <main className="flex-1 relative flex overflow-hidden">
           <div className="absolute inset-0 z-0 bg-bg">
@@ -135,7 +163,7 @@ function App(): React.JSX.Element {
 
               {/* 2. Graph Panel (Middle Column - Conditional) */}
               {graphState.view === 'side' && !isCompact && (
-                <div className="flex-1 min-w-[400px] max-w-[800px] rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative">
+                <div className="flex-1 min-w-[320px] max-w-[600px] rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative animate-in slide-in-from-right duration-500">
                   <GraphInterface
                     view="side"
                     content={graphState.content}
@@ -208,10 +236,8 @@ function App(): React.JSX.Element {
       <SplashScreen
         isFullyReady={isReady}
         status={localMode}
-        statusInfo={statusInfo}
         initMessage={initMessage}
         initProgress={initProgress}
-        initVersion={initVersion}
       />
 
       {/* Update Notification */}

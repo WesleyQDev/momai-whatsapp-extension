@@ -6,7 +6,7 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -17,12 +17,25 @@ import tomllib
 from pathlib import Path
 from sqlalchemy import text
 import threading
+
+# Monkey-patch threading.Thread.start to robustly handle race conditions
+_orig_start = threading.Thread.start
+def _safe_start(self, *args, **kwargs):
+    try:
+        return _orig_start(self, *args, **kwargs)
+    except RuntimeError as e:
+        if "threads can only be started once" in str(e):
+             print(f"[System] SafeGuard: Thread {self.name} already started. Ignoring.")
+             return
+        raise e
+threading.Thread.start = _safe_start
+
 import os
+import time
 import psutil
 import json
 import asyncio
 import logging
-import gc
 from datetime import datetime
 from database.models import init_db, SessionLocal, Reminder, Settings, Extension, GamingApp
 from services.system.resource_manager import resource_manager
@@ -80,6 +93,33 @@ active_graph = {
     "view": None, 
     "bypass_wake_word": False
 }
+
+# Simple in-memory cache for frequently polled endpoints
+_cache = {
+    "latest_llama": {"value": None, "ts": 0.0},
+    "extensions_registry": {"value": None, "ts": 0.0},
+    "extensions_list": {"value": None, "ts": 0.0}
+}
+
+def _get_cached(key: str, ttl_seconds: int):
+    entry = _cache.get(key)
+    if not entry:
+        return None
+    age = time.monotonic() - entry["ts"]
+    if entry["value"] is None or age > ttl_seconds:
+        return None
+    return entry["value"]
+
+def _set_cache(key: str, value):
+    if key in _cache:
+        _cache[key]["value"] = value
+        _cache[key]["ts"] = time.monotonic()
+
+def _clear_cache(keys: list[str]):
+    for key in keys:
+        if key in _cache:
+            _cache[key]["value"] = None
+            _cache[key]["ts"] = 0.0
 
 # --- LAZY LOADING FUNCTIONS ---
 def initialize_ai_stack():
@@ -215,7 +255,7 @@ async def broadcast_resource_usage():
                 })
             except Exception as e:
                 logger.debug(f"Error getting resource usage: {e}")
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)
         
 
 def notify_economy_change(status: str):
@@ -281,41 +321,59 @@ async def init_system_task():
         resource_manager.start()
         await send_init_event("extensions", "Monitor de recursos ativado", 75)
 
-        from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
-        async with AsyncSqliteSaver.from_conn_string(CHECKPOINT_PATH) as saver:
-            orchestrator.checkpointer = saver
+        try:
+            from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
+            import sqlite3
+            # Checkpointer initialization (Moved out of async with block to persist)
+            checkpointer_cm = AsyncSqliteSaver.from_conn_string(CHECKPOINT_PATH)
+            orchestrator.checkpointer = await checkpointer_cm.__aenter__()
+            orchestrator.checkpointer_cleanup = checkpointer_cm # Store for proper cleanup later
+            
+            # Create tables explicitly to avoid first-run hangs in threads
+            conn = sqlite3.connect(CHECKPOINT_PATH)
+            conn.execute("CREATE TABLE IF NOT EXISTS checkpoints (thread_id TEXT, checkpoint TEXT, parent_checkpoint_id TEXT, PRIMARY KEY (thread_id))")
+            conn.execute("CREATE TABLE IF NOT EXISTS writes (thread_id TEXT, checkpoint_id TEXT, task_id TEXT, idx INTEGER, channel TEXT, type TEXT, value TEXT, PRIMARY KEY (thread_id, checkpoint_id, task_id, idx))")
+            conn.close()
+            
             await send_init_event("brain", "Iniciando cérebro principal...", 80)
-
+            
             def on_brain_init(status):
                 if main_loop:
                     asyncio.run_coroutine_threadsafe(send_init_event("brain", status, 82), main_loop)
+                    
+            if settings.ai_provider:
+                await asyncio.to_thread(orchestrator.initialize_llm, settings.ai_provider, on_brain_init)
+                # Wait for event to be set by the background thread in orchestrator
+                await asyncio.to_thread(orchestrator.llm_ready_event.wait, timeout=60.0)
 
-            orchestrator.initialize_llm(settings.ai_provider, on_init_progress=on_brain_init)
-            await asyncio.to_thread(orchestrator.llm_ready_event.wait, timeout=60.0)
-            await send_init_event("brain", "Cérebro inicializado", 85)
+        except Exception as e:
+            print(f"[Main] Checkpointer/Init Error: {e}")
+            await send_init_event("error", f"Init Error: {e}", 80)
+
+        await send_init_event("brain", "Cérebro inicializado", 85)
             
-            reminder_manager = ReminderManager(
-                broadcast_callback=broadcast_to_sockets,
-                tts_callback=tts.speak_sentence
-            )
-            reminder_manager.start()
+        reminder_manager = ReminderManager(
+            broadcast_callback=broadcast_to_sockets,
+            tts_callback=tts.speak_sentence
+        )
+        reminder_manager.start()
 
-            def on_wake_word(text):
-                if main_loop: asyncio.run_coroutine_threadsafe(process_voice_command(text), main_loop)
+        def on_wake_word(text):
+            if main_loop: asyncio.run_coroutine_threadsafe(process_voice_command(text), main_loop)
 
-            def should_bypass_wake_word():
-                state = get_graph_state()
-                return state["view"] is not None and state["bypass_wake_word"]
+        def should_bypass_wake_word():
+            state = get_graph_state()
+            return state["view"] is not None and state["bypass_wake_word"]
 
-            await send_init_event("brain", "Iniciando detector de voz...", 92)
-            ww = WakeWordDetector(keyword="Sistema", callback=on_wake_word, bypass_condition=should_bypass_wake_word)
-            if settings.wake_word_enabled: ww.start()
-            
-            if settings.tts_enabled:
-                await send_init_event("voice", "Sincronizando voz local...", 95)
-                await asyncio.to_thread(tts.tts.wait_until_ready, timeout=15.0)
+        await send_init_event("brain", "Iniciando detector de voz...", 92)
+        ww = WakeWordDetector(keyword="Sistema", callback=on_wake_word, bypass_condition=should_bypass_wake_word)
+        if settings.wake_word_enabled: ww.start()
+        
+        if settings.tts_enabled:
+            await send_init_event("voice", "Sincronizando voz local...", 95)
+            await asyncio.to_thread(tts.tts.wait_until_ready, timeout=15.0)
 
-            await send_init_event("ready", "Sistema operacional pronto.", 100)
+        await send_init_event("ready", "Sistema operacional pronto.", 100)
         db.close()
     except Exception as e:
         print(f"[InitTask] Erro fatal: {e}")
@@ -349,6 +407,14 @@ async def lifespan(app: FastAPI):
     if reminder_manager: reminder_manager.stop()
     resource_manager.stop()
     
+    # Cleanup checkpointer if active
+    if orchestrator and hasattr(orchestrator, 'checkpointer_cleanup') and orchestrator.checkpointer_cleanup:
+        try:
+            await orchestrator.checkpointer_cleanup.__aexit__(None, None, None)
+            print("[Main] Checkpointer closed.")
+        except Exception as e:
+            print(f"[Main] Error closing checkpointer: {e}")
+            
     # Shutdown
     print("[FastAPI] Shutting down...")
     
@@ -540,7 +606,10 @@ async def get_status(db: Session = Depends(get_db)):
         
     engine_ok = downloader.check_engine_installed()
     install_info = downloader.get_installed_info()
-    latest_v = downloader.get_latest_llama_version()
+    latest_v = _get_cached("latest_llama", 300)
+    if latest_v is None:
+        latest_v = downloader.get_latest_llama_version()
+        _set_cache("latest_llama", latest_v)
     
     return {
         "status": "ok", 
@@ -801,16 +870,26 @@ async def uninstall_engine(backend: str | None = None):
 @require_ai_loaded
 async def list_extensions():
     """Retorna a lista de extensões instaladas e ativas."""
+    cached = _get_cached("extensions_list", 3)
+    if cached is not None:
+        return cached
     extension_manager.load_all()
-    return extension_manager.get_active_manifests()
+    data = extension_manager.get_active_manifests()
+    _set_cache("extensions_list", data)
+    return data
 
 
 @app.get("/extensions/registry")
 @require_ai_loaded
 async def get_registry():
     """Busca extensões disponíveis na nuvem."""
+    cached = _get_cached("extensions_registry", 60)
+    if cached is not None:
+        return cached
     from services.extensions.installer import extension_installer
-    return extension_installer.fetch_registry()
+    data = extension_installer.fetch_registry()
+    _set_cache("extensions_registry", data)
+    return data
 
 class InstallExtensionRequest(BaseModel):
     id: str
@@ -818,43 +897,55 @@ class InstallExtensionRequest(BaseModel):
 
 @app.post("/extensions/install")
 @require_ai_loaded
-async def install_extension(req: InstallExtensionRequest):
-    """Instala uma nova extensão."""
+async def install_extension(req: InstallExtensionRequest, background_tasks: BackgroundTasks):
+    """Instala uma nova extensão em segundo plano."""
     from services.extensions.installer import extension_installer
-    success = extension_installer.install(req.download_url, req.id)
-    if success:
-        extension_manager.load_all()
-        return {"status": "ok"}
-    return {"status": "error", "message": "Falha na instalação"}
+    
+    async def _do_install():
+        success = await asyncio.to_thread(extension_installer.install, req.download_url, req.id)
+        if success:
+            # Broadcast success to update UI
+            await broadcast_to_sockets({
+                "type": "extensions_sync",
+                "data": extension_manager.get_active_manifests()
+            })
+            _clear_cache(["extensions_list", "extensions_registry"])
+
+    background_tasks.add_task(_do_install)
+    return {"status": "ok", "message": "Instalação iniciada"}
 
 @app.post("/extensions/toggle")
 @require_ai_loaded
 async def toggle_extension(req: ExtensionToggle):
-    """Ativa ou desativa uma extensão."""
-    def _toggle_db(id, enabled):
-        db = SessionLocal()
-        try:
-            ext = db.query(Extension).filter(Extension.id == id).first()
-            found = False
-            if ext:
-                ext.is_enabled = enabled
-                db.commit()
-                found = True
-            return found
-        finally:
-            db.close()
-            
-    found = await asyncio.to_thread(_toggle_db, req.id, req.enabled)
+    """Ativa ou desativa uma extensão usando o novo sistema de hooks."""
+    if req.enabled:
+        success = await asyncio.to_thread(extension_manager.enable_extension, req.id)
+    else:
+        success = await asyncio.to_thread(extension_manager.disable_extension, req.id)
     
-    if found:
-        extension_manager.load_all()
+    if success:
         # Broadcast the change
         await broadcast_to_sockets({
             "type": "extensions_sync",
             "data": extension_manager.get_active_manifests()
         })
+        _clear_cache(["extensions_list"])
         return {"status": "ok"}
-    return {"status": "error", "message": "Extensão não encontrada"}
+    return {"status": "error", "message": "Falha ao alterar estado da extensão"}
+
+@app.post("/extensions/uninstall")
+@require_ai_loaded
+async def uninstall_extension(req: ExtensionToggle): # Reuse schema
+    """Desinstala uma extensão completamente."""
+    success = await asyncio.to_thread(extension_manager.uninstall_extension, req.id)
+    if success:
+        await broadcast_to_sockets({
+            "type": "extensions_sync",
+            "data": extension_manager.get_active_manifests()
+        })
+        _clear_cache(["extensions_list", "extensions_registry"])
+        return {"status": "ok"}
+    return {"status": "error", "message": "Falha na desinstalação"}
 
 
 # --- GAMING MODE ROUTES ---
@@ -903,64 +994,6 @@ async def get_hardware_stats():
         "active_processes": len(psutil.pids()),
         "vram_usage": 0 # TODO: Implement GPU check
     }
-
-@app.post("/memory/compact")
-async def compact_memory():
-    """Force memory compaction and cleanup."""
-    print("[Main] Compacting memory...")
-    try:
-        # Force garbage collection
-        gc.collect()
-        
-        # Clear embeddings cache
-        if ai_stack_loaded:
-            try:
-                from ai.embeddings import embeddings
-                embeddings.clear_all_cache()
-            except:
-                pass
-        
-        # Get memory stats
-        import psutil
-        process = psutil.Process()
-        mem_info = process.memory_info()
-        
-        result = {
-            "status": "ok",
-            "memory_after_compact_mb": mem_info.rss / (1024 * 1024),
-            "gaming_mode": is_gaming_mode
-        }
-        print(f"[Main] Memory compacted. New size: {result['memory_after_compact_mb']:.1f}MB")
-        return result
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.get("/memory/stats")
-async def get_memory_stats():
-    """Get detailed memory statistics."""
-    try:
-        import psutil
-        process = psutil.Process()
-        mem_info = process.memory_info()
-        
-        result = {
-            "python_process_mb": mem_info.rss / (1024 * 1024),
-            "gaming_mode": is_gaming_mode,
-            "ai_stack_loaded": ai_stack_loaded
-        }
-        
-        # Get embeddings stats if loaded
-        if ai_stack_loaded:
-            try:
-                from ai.embeddings import embeddings
-                emb_stats = embeddings.memory_stats()
-                result["embeddings"] = emb_stats
-            except:
-                pass
-        
-        return result
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

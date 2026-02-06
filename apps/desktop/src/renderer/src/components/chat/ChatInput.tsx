@@ -1,32 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import icon from '../../assets/icon.png'
-import { StatusData } from '../../services/api'
+import { StatusData, fetchSettings, updateSettingsPartial } from '../../services/api'
 
 interface ChatInputProps {
   text: string
   onSend: (text?: string) => void
   isLoading: boolean
-  currentMode: string
-  onModeChange: (mode: string) => void
   isModeChanging?: boolean
   statusInfo: StatusData | null
-  onOpenSettings: (tab: 'general' | 'brain' | 'voice') => void
 }
-
-const MODES = [{ id: 'local', name: 'Local', icon: icon, setupKey: 'local_installed' }]
 
 export default function ChatInput({
   text,
   onSend,
   isLoading,
-  currentMode,
-  onModeChange,
   isModeChanging = false,
-  statusInfo,
-  onOpenSettings
+  statusInfo
 }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [localText, setLocalText] = useState(text)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [voiceSettings, setVoiceSettings] = useState({
+    wake_word_enabled: true,
+    tts_enabled: false
+  })
 
   // Sync local text with external text (e.g. when text is cleared after sending)
   useEffect(() => {
@@ -68,14 +65,46 @@ export default function ChatInput({
   const isBrainReady = statusInfo?.brain_ready ?? false
   const isBrainLoading = statusInfo?.is_loading ?? false
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const data = await fetchSettings()
+        setVoiceSettings({
+          wake_word_enabled: !!data.wake_word_enabled,
+          tts_enabled: !!data.tts_enabled
+        })
+        setSettingsLoaded(true)
+      } catch (error) {
+        console.error('Erro ao carregar configuracoes:', error)
+      }
+    }
+
+    loadSettings()
+  }, [])
+
   const handleSend = () => {
     if (!localText.trim() || isLoading || isModeChanging || !isBrainReady || isBrainLoading) return
     onSend(localText)
     setLocalText('')
   }
 
-  const selectedMode = MODES.find((m) => m.id === currentMode) || MODES[0]
-  const isSelectedModeReady = statusInfo?.setup?.[selectedMode.setupKey] ?? false
+  const toggleSetting = async (key: 'wake_word_enabled' | 'tts_enabled') => {
+    if (!settingsLoaded || isSavingSettings) return
+
+    const previous = voiceSettings[key]
+    const next = !previous
+    setVoiceSettings((prev) => ({ ...prev, [key]: next }))
+    setIsSavingSettings(true)
+
+    try {
+      await updateSettingsPartial({ [key]: next })
+    } catch (error) {
+      console.error('Erro ao atualizar configuracoes:', error)
+      setVoiceSettings((prev) => ({ ...prev, [key]: previous }))
+    } finally {
+      setIsSavingSettings(false)
+    }
+  }
 
   return (
     <footer className="p-3 sm:p-4 bg-transparent relative">
@@ -97,41 +126,39 @@ export default function ChatInput({
 
         <div className="flex items-center justify-between px-2 pb-0.5">
           <div className="flex gap-2 relative">
-            <div
-              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all ${!isSelectedModeReady ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-bg/40 border-border/20 text-text-muted'}`}
+            <button
+              type="button"
+              onClick={() => toggleSetting('wake_word_enabled')}
+              disabled={!settingsLoaded || isSavingSettings}
+              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all ${
+                voiceSettings.wake_word_enabled
+                  ? 'bg-bg/40 border-border/20 text-text-muted'
+                  : 'bg-bg/30 border-border/15 text-text-muted/70'
+              } ${!settingsLoaded ? 'opacity-60' : ''}`}
+              title="Wake word"
             >
-              <img
-                src={selectedMode.icon}
-                className="w-3.5 h-3.5 rounded-sm object-contain"
-                alt=""
-              />
-              <span className="text-[10px] font-bold uppercase tracking-wider">
-                {selectedMode.name}
+              <span className="text-[10px] font-bold uppercase tracking-wider">Wake</span>
+              <span className="text-[9px] font-mono tracking-wider">
+                {voiceSettings.wake_word_enabled ? 'On' : 'Off'}
               </span>
-              {!isSelectedModeReady && (
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              )}
-              {!isSelectedModeReady && (
-                <button
-                  onClick={() => onOpenSettings('brain')}
-                  className="ml-1 p-1 hover:bg-amber-500/20 rounded transition-colors"
-                  title="Configurar Local"
-                >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                  </svg>
-                </button>
-              )}
-            </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => toggleSetting('tts_enabled')}
+              disabled={!settingsLoaded || isSavingSettings}
+              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all ${
+                voiceSettings.tts_enabled
+                  ? 'bg-bg/40 border-border/20 text-text-muted'
+                  : 'bg-bg/30 border-border/15 text-text-muted/70'
+              } ${!settingsLoaded ? 'opacity-60' : ''}`}
+              title="TTS"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider">TTS</span>
+              <span className="text-[9px] font-mono tracking-wider">
+                {voiceSettings.tts_enabled ? 'On' : 'Off'}
+              </span>
+            </button>
           </div>
 
           <button

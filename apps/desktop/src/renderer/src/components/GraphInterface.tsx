@@ -33,30 +33,36 @@ export default function GraphInterface({
       <DynamicRenderer schema={uiSchema} onAction={handleDynamicAction} />
     </div>
   ) : (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       {/* Markdown Content */}
-      <div className="prose prose-sm max-w-none leading-relaxed text-text">
+      <div className="max-w-none leading-relaxed text-text/90">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
             h1: ({ node, ...props }) => (
-              <h1 className="text-xl font-semibold text-text mb-4" {...props} />
+              <h1 className="text-3xl font-black text-white mb-8 mt-2 tracking-tight" {...props} />
             ),
             h2: ({ node, ...props }) => (
-              <h2 className="text-lg font-medium text-text/90 mb-3 mt-4" {...props} />
+              <h2 className="text-xl font-bold text-white/90 mb-4 mt-10 tracking-tight" {...props} />
             ),
             h3: ({ node, ...props }) => (
-              <h3 className="text-md font-medium text-text/90 mb-2 mt-3" {...props} />
+              <h3 className="text-lg font-bold text-white/80 mb-3 mt-8 tracking-tight" {...props} />
             ),
-            p: ({ node, ...props }) => <p className="mb-3" {...props} />,
-            ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-4 space-y-1" {...props} />,
-            li: ({ node, ...props }) => <li className="text-text/80" {...props} />,
+            p: ({ node, ...props }) => <p className="mb-6 leading-relaxed" {...props} />,
+            ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-8 space-y-3" {...props} />,
+            li: ({ node, ...props }) => <li className="text-text/70 marker:text-accent/60" {...props} />,
+            blockquote: ({ node, ...props }) => (
+              <blockquote
+                className="border-l-4 border-accent bg-accent/5 px-6 py-4 my-8 italic text-white/80 rounded-r-lg"
+                {...props}
+              />
+            ),
             strong: ({ node, ...props }) => (
-              <strong className="text-text font-semibold" {...props} />
+              <strong className="text-white font-bold" {...props} />
             ),
             code: ({ node, ...props }) => (
               <code
-                className="bg-accent/10 px-1 py-0.5 rounded text-xs font-mono text-accent"
+                className="bg-accent/10 px-1.5 py-0.5 rounded text-[11px] font-mono text-accent border border-accent/20"
                 {...props}
               />
             ),
@@ -75,7 +81,10 @@ export default function GraphInterface({
               />
             ),
             td: ({ node, ...props }) => (
-              <td className="px-3 py-2 text-sm text-text-muted border-b border-border/10" {...props} />
+              <td
+                className="px-3 py-2 text-sm text-text-muted border-b border-border/10"
+                {...props}
+              />
             ),
             tr: ({ node, ...props }) => (
               <tr className="hover:bg-text/5 transition-colors" {...props} />
@@ -120,18 +129,18 @@ export default function GraphInterface({
 
   if (view === 'side') {
     return (
-      <div className="w-full sm:w-[400px] md:w-[450px] h-full bg-card flex flex-col overflow-hidden animate-slide-in-right shadow-2xl z-50">
-        {/* Header de Relatório */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border/10 bg-bg">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-bold text-accent uppercase tracking-[0.2em]">
-              SISTEMA MOMAI
+      <div className="flex flex-col h-full bg-transparent overflow-hidden">
+        {/* Minimal Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border/10 bg-black/20 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_10px_rgba(var(--accent),0.5)] animate-pulse" />
+            <span className="text-xs font-bold text-text/90 uppercase tracking-[0.2em]">
+              Interface Auxiliar
             </span>
-            <span className="text-sm font-semibold text-text/90">Análise e Relatório</span>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-text/5 text-text-muted hover:text-text transition-all border border-transparent hover:border-border/10"
+            className="p-2 rounded-lg hover:bg-white/5 text-text/40 hover:text-white transition-all group"
           >
             <svg
               width="18"
@@ -140,22 +149,25 @@ export default function GraphInterface({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
+              className="group-hover:scale-110 transition-transform"
             >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Scrollable Content com Estilo Paper/Report */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-card">
-          <div className="max-w-none prose prose-slate prose-headings:text-text prose-p:text-text/80 prose-strong:text-accent prose-code:text-accent prose-pre:bg-bg prose-pre:border prose-pre:border-border/10">
-            {Content}
-          </div>
+        {/* Clean Content Area */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="px-8 py-10">
+            <div className="max-w-none">
+              {Content}
+            </div>
 
-          {/* Footer do Relatório */}
-          <div className="mt-12 pt-6 border-t border-border/10 flex items-center justify-between opacity-30 italic text-[10px] text-text-muted">
-            <span>Gerado automaticamente por MomAI</span>
-            <span>{new Date().toLocaleDateString()}</span>
+            {/* Footer do Relatório */}
+            <div className="mt-20 pt-8 border-t border-border/10 flex items-center justify-between opacity-30 italic text-[10px] text-text-muted">
+              <span className="uppercase tracking-[0.3em] font-medium">Relatório do Sistema • MomAI</span>
+              <span>{new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
           </div>
         </div>
       </div>

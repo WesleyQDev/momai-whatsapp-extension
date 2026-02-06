@@ -162,7 +162,18 @@ class PluginRegistry:
                             module = importlib.util.module_from_spec(spec)
                             sys.modules[manifest.id] = module
                             spec.loader.exec_module(module)
-                            self.pm.register(module)
+                            
+                            # Support for Class-based plugins:
+                            # If the module has an 'initialize' function, we call it and register the instance.
+                            # Otherwise, we register the module itself (global functions approach).
+                            if hasattr(module, "initialize"):
+                                plugin_instance = module.initialize(manifest)
+                                self.pm.register(plugin_instance)
+                                self.plugins[plugin_id]["instance"] = plugin_instance
+                                print(f"[Registry] Initialized class-based plugin: {manifest.id}")
+                            else:
+                                self.pm.register(module)
+                            
                             self.plugins[plugin_id]["module"] = module
                             print(f"[Registry] Loaded {manifest.name} ({category})")
                         else:
@@ -187,12 +198,35 @@ class PluginRegistry:
 
 
     def get_tools(self) -> List[Any]:
-        """Collect tools registered via hooks."""
+        """Collect tools registered via hooks with permission validation."""
+        from utils.safe_tools import SafeExtensionTool
         all_tools = []
-        results = self.pm.hook.register_tools()
-        if results:
-            for tool_list in results:
-                if tool_list: all_tools.extend(tool_list)
+        
+        # Iterate over each registered plugin to apply specific constraints
+        for plugin_id, p_info in self.plugins.items():
+            if not p_info["enabled"] or not p_info["module"]:
+                continue
+            
+            # Use pluggy to call the hook FOR THIS SPECIFIC PLUGIN
+            # This allows us to attribute tools to their origin
+            try:
+                # pm.subset_hook_caller returns a caller that only calls specific plugins
+                hook_caller = self.pm.subset_hook_caller("register_tools", [p_info["module"]])
+                results = hook_caller()
+                
+                if results:
+                    manifest = p_info["manifest"]
+                    for tool_list in results:
+                        if not tool_list: continue
+                        for t in tool_list:
+                            # Wrap for safety and attach origin for permission checks later
+                            safe_tool = SafeExtensionTool(original_tool=t)
+                            # Attach manifest to the tool for runtime permission checks if needed
+                            safe_tool.plugin_manifest = manifest
+                            all_tools.append(safe_tool)
+            except Exception as e:
+                print(f"[Registry] Error getting tools from {plugin_id}: {e}")
+                
         return all_tools
 
     def get_active_manifests(self) -> List[Dict]:
@@ -216,6 +250,125 @@ class PluginRegistry:
             m_dict["error"] = p.get("error")
             result.append(m_dict)
         return result
+
+    def enable_extension(self, extension_id: str) -> bool:
+        """Enables an extension and calls lifecycle hooks."""
+        if extension_id not in self.plugins:
+            return False
+        
+        plugin = self.plugins[extension_id]
+        if plugin["enabled"]:
+            return True
+
+        from database.models import SessionLocal, Extension
+        db = SessionLocal()
+        try:
+            ext_record = db.query(Extension).filter(Extension.id == extension_id).first()
+            if not ext_record:
+                ext_record = Extension(id=extension_id, is_enabled=True, is_builtin=(plugin["category"] == "builtin"))
+                db.add(ext_record)
+            else:
+                ext_record.is_enabled = True
+            db.commit()
+            
+            # Reload plugin code
+            self._load_plugin(plugin["path"], plugin["category"])
+            
+            # Call Hooks
+            if self.plugins[extension_id]["module"]:
+                self.pm.hook.on_enable()
+                self.pm.hook.on_startup()
+            
+            return True
+        except Exception as e:
+            print(f"[Registry] Error enabling {extension_id}: {e}")
+            return False
+        finally:
+            db.close()
+
+    def disable_extension(self, extension_id: str) -> bool:
+        """Disables an extension and calls lifecycle hooks. Builtins cannot be disabled."""
+        if extension_id not in self.plugins:
+            return False
+        
+        plugin = self.plugins[extension_id]
+        
+        if plugin["category"] == "builtin":
+            print(f"[Registry] Blocked attempt to disable core extension: {extension_id}")
+            return False
+
+        if not plugin["enabled"]:
+            return True
+
+        from database.models import SessionLocal, Extension
+        db = SessionLocal()
+        try:
+            ext_record = db.query(Extension).filter(Extension.id == extension_id).first()
+            if ext_record:
+                ext_record.is_enabled = False
+                db.commit()
+            
+            # Call Hook before disabling
+            self.pm.hook.on_disable()
+            
+            # Unregister both module and instance
+            if plugin["module"]:
+                self.pm.unregister(plugin["module"])
+            
+            if plugin.get("instance"):
+                self.pm.unregister(plugin["instance"])
+                plugin["instance"] = None
+            
+            plugin["enabled"] = False
+            plugin["module"] = None
+            
+            return True
+        except Exception as e:
+            print(f"[Registry] Error disabling {extension_id}: {e}")
+            return False
+        finally:
+            db.close()
+
+    def uninstall_extension(self, extension_id: str) -> bool:
+        """Uninstalls an extension, calls lifecycle hooks and removes files."""
+        if extension_id not in self.plugins:
+            return False
+            
+        plugin = self.plugins[extension_id]
+        if plugin["category"] == "builtin":
+            print(f"[Registry] Cannot uninstall builtin extension: {extension_id}")
+            return False
+
+        # 1. Disable first
+        self.disable_extension(extension_id)
+
+        # 2. Call Uninstall Hook (we might need to reload it temporarily to call the hook if it was disabled)
+        # For now, if it was just disabled, the module might still be in sys.modules or we can reload it.
+        # But usually on_uninstall is for cleaning up db/files.
+        if plugin["module"]:
+             self.pm.hook.on_uninstall()
+
+        # 3. Remove from DB
+        from database.models import SessionLocal, Extension
+        db = SessionLocal()
+        try:
+            db.query(Extension).filter(Extension.id == extension_id).delete()
+            db.commit()
+            
+            # 4. Remove Files
+            import shutil
+            if plugin["path"].exists():
+                shutil.rmtree(plugin["path"])
+            
+            # 5. Remove from registry
+            del self.plugins[extension_id]
+            
+            return True
+        except Exception as e:
+            print(f"[Registry] Error uninstalling {extension_id}: {e}")
+            return False
+        finally:
+            db.close()
 
     async def sync_indexes(self, db):
         """Syncs all enabled tools and agents to the Vector DB."""

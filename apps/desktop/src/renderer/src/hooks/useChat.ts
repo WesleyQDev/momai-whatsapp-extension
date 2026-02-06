@@ -283,6 +283,10 @@ export function useChat() {
           window.dispatchEvent(new CustomEvent('momai_init_progress', { detail: msg.data }))
         } else if (msg.type === 'extensions_sync') {
           window.dispatchEvent(new CustomEvent('momai_extensions_sync', { detail: msg.data }))
+        } else if (msg.type === 'setup_progress') {
+          window.dispatchEvent(new CustomEvent('momai_setup_progress', { detail: msg.data }))
+        } else if (msg.type === 'setup_complete') {
+          window.dispatchEvent(new CustomEvent('momai_setup_complete', { detail: msg.data }))
         } else if (msg.type === 'fortscript_event') {
           window.dispatchEvent(new CustomEvent('momai_fortscript_event', { detail: msg }))
         } else if (msg.type === 'graph_open') {

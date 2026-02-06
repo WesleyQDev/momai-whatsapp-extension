@@ -51,8 +51,13 @@ export async function sendChatMessage(
     body: JSON.stringify({ content, thread_id: threadId })
   })
 
+  if (!response.ok) {
+    throw new Error('Erro ao iniciar stream de chat')
+  }
+
   const reader = response.body?.getReader()
   const decoder = new TextDecoder()
+  let buffer = ''
 
   if (!reader) throw new Error('Stream não disponível')
 
@@ -60,16 +65,19 @@ export async function sendChatMessage(
     const { done, value } = await reader.read()
     if (done) break
 
-    const chunk = decoder.decode(value)
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
 
-    const dataParts = chunk.split('data: ').filter((p) => p.trim() !== '')
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
 
-    for (const part of dataParts) {
+      const payload = trimmed.replace(/^data:\s*/, '').trim()
+      if (!payload) continue
+
       try {
-        const cleanPart = part.trim()
-        if (!cleanPart) continue
-
-        const data = JSON.parse(cleanPart)
+        const data = JSON.parse(payload)
 
         if (data.token) {
           callbacks.onToken(data.token)
@@ -87,7 +95,7 @@ export async function sendChatMessage(
           callbacks.onDone()
         }
       } catch (e) {
-        console.error('Erro ao processar part JSON:', e, 'Part:', part)
+        console.error('Erro ao processar JSON do stream:', e, 'Linha:', line)
       }
     }
   }
@@ -183,6 +191,15 @@ export async function toggleExtension(id: string, enabled: boolean): Promise<voi
   if (!response.ok) throw new Error('Erro ao alterar status da extensão')
 }
 
+export async function uninstallExtension(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/extensions/uninstall`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, enabled: false }) // Reusing ExtensionToggle schema
+  })
+  if (!response.ok) throw new Error('Erro ao desinstalar extensão')
+}
+
 // --- GAMING MODE ---
 
 export interface GamingApp {
@@ -212,4 +229,110 @@ export async function deleteGamingApp(id: number): Promise<void> {
     method: 'DELETE'
   })
   if (!response.ok) throw new Error('Erro ao remover app de jogo')
+}
+
+// --- SETTINGS ---
+
+export interface SettingsData {
+  tts_enabled: boolean
+  wake_word_enabled: boolean
+}
+
+export async function fetchSettings(): Promise<SettingsData> {
+  const response = await fetch(`${API_URL}/settings`)
+  if (!response.ok) throw new Error('Erro ao buscar configuracoes')
+  return response.json()
+}
+
+export async function updateSettingsPartial(payload: Partial<SettingsData>): Promise<void> {
+  const response = await fetch(`${API_URL}/settings`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Erro ao atualizar configuracoes')
+}
+
+// --- REMINDERS ---
+
+export interface Reminder {
+  id: number
+  title: string
+  content: string | null
+  scheduled_time: string
+  repeat_interval: string | null
+  repeat_value: number | null
+  is_active: boolean
+}
+
+export interface ActiveReminder {
+  id: number
+  title: string
+  scheduled_time: string
+}
+
+export async function fetchReminders(): Promise<Reminder[]> {
+  const response = await fetch(`${API_URL}/reminders`)
+  if (!response.ok) throw new Error('Erro ao buscar lembretes')
+  return response.json()
+}
+
+export async function fetchActiveReminders(): Promise<ActiveReminder[]> {
+  const response = await fetch(`${API_URL}/reminders/active`)
+  if (!response.ok) throw new Error('Erro ao buscar lembretes ativos')
+  return response.json()
+}
+
+export async function createReminder(payload: {
+  title: string
+  content: string
+  scheduled_time: string
+  repeat_interval: string | null
+  repeat_value: number | null
+}): Promise<void> {
+  const response = await fetch(`${API_URL}/reminders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Erro ao criar lembrete')
+}
+
+export async function updateReminder(
+  id: number,
+  payload: {
+    title?: string
+    content?: string
+    scheduled_time?: string
+    repeat_interval?: string | null
+    repeat_value?: number | null
+    is_active?: boolean
+  }
+): Promise<void> {
+  const response = await fetch(`${API_URL}/reminders/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Erro ao atualizar lembrete')
+}
+
+export async function deleteReminder(id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/reminders/${id}`, { method: 'DELETE' })
+  if (!response.ok) throw new Error('Erro ao deletar lembrete')
+}
+
+// --- HARDWARE ---
+
+export interface HardwareStats {
+  cpu_usage: number
+  ram_usage: number
+  active_processes: number
+  vram_usage: number
+}
+
+export async function fetchHardwareStats(): Promise<HardwareStats> {
+  const response = await fetch(`${API_URL}/extensions/hardware-stats`)
+  if (!response.ok) throw new Error('Erro ao buscar stats de hardware')
+  return response.json()
 }

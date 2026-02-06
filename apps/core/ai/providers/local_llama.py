@@ -13,6 +13,7 @@ logger = logging.getLogger("uvicorn.error")
 
 # Global variable
 server_process = None
+CTX_SIZE = int(os.getenv("MOMAI_CTX_SIZE", "8192"))
 
 # --- Windows Job Object Support ---
 # This ensures that if the Python process dies (crash/kill), 
@@ -189,7 +190,7 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
             abs_exe_path,
             "-m", abs_model_path,
             "--port", "8080",
-            "--ctx-size", "8192",
+            "--ctx-size", str(CTX_SIZE),
             "--n-gpu-layers", "99",
             "--parallel", "1",
             "--flash-attn", "on",
