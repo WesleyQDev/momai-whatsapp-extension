@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import GraphInterface from '../components/GraphInterface'
 
 export default function OverlayView() {

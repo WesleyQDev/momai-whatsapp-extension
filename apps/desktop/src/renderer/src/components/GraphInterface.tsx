@@ -7,6 +7,7 @@ interface GraphInterfaceProps {
   view: 'center' | 'side'
   content: string
   options?: string[]
+  optionsMap?: Record<string, string>
   uiSchema?: UIComponent
   onOptionSelect: (option: string) => void
   onClose: () => void
@@ -16,6 +17,7 @@ export default function GraphInterface({
   view,
   content,
   options = [],
+  optionsMap = {},
   uiSchema,
   onOptionSelect,
   onClose
@@ -43,23 +45,26 @@ export default function GraphInterface({
               <h1 className="text-3xl font-black text-white mb-8 mt-2 tracking-tight" {...props} />
             ),
             h2: ({ node, ...props }) => (
-              <h2 className="text-xl font-bold text-white/90 mb-4 mt-10 tracking-tight" {...props} />
+              <h2
+                className="text-xl font-bold text-white/90 mb-4 mt-10 tracking-tight"
+                {...props}
+              />
             ),
             h3: ({ node, ...props }) => (
               <h3 className="text-lg font-bold text-white/80 mb-3 mt-8 tracking-tight" {...props} />
             ),
             p: ({ node, ...props }) => <p className="mb-6 leading-relaxed" {...props} />,
             ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-8 space-y-3" {...props} />,
-            li: ({ node, ...props }) => <li className="text-text/70 marker:text-accent/60" {...props} />,
+            li: ({ node, ...props }) => (
+              <li className="text-text/70 marker:text-accent/60" {...props} />
+            ),
             blockquote: ({ node, ...props }) => (
               <blockquote
                 className="border-l-4 border-accent bg-accent/5 px-6 py-4 my-8 italic text-white/80 rounded-r-lg"
                 {...props}
               />
             ),
-            strong: ({ node, ...props }) => (
-              <strong className="text-white font-bold" {...props} />
-            ),
+            strong: ({ node, ...props }) => <strong className="text-white font-bold" {...props} />,
             code: ({ node, ...props }) => (
               <code
                 className="bg-accent/10 px-1.5 py-0.5 rounded text-[11px] font-mono text-accent border border-accent/20"
@@ -114,7 +119,7 @@ export default function GraphInterface({
                     : 'border border-border/20 bg-card text-text-muted hover:bg-accent/5 hover:text-accent hover:border-accent/30'
               }`}
             >
-              {option}
+              {optionsMap[option] || option}
             </button>
           ))}
         </div>
@@ -159,13 +164,13 @@ export default function GraphInterface({
         {/* Clean Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="px-8 py-10">
-            <div className="max-w-none">
-              {Content}
-            </div>
+            <div className="max-w-none">{Content}</div>
 
             {/* Footer do Relatório */}
             <div className="mt-20 pt-8 border-t border-border/10 flex items-center justify-between opacity-30 italic text-[10px] text-text-muted">
-              <span className="uppercase tracking-[0.3em] font-medium">Relatório do Sistema • MomAI</span>
+              <span className="uppercase tracking-[0.3em] font-medium">
+                Relatório do Sistema • MomAI
+              </span>
               <span>{new Date().toLocaleDateString('pt-BR')}</span>
             </div>
           </div>

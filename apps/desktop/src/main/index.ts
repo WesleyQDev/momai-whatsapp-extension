@@ -16,6 +16,7 @@ import icon from '../../resources/icon.png?asset'
 
 let pythonProcess: ChildProcess | null = null
 let tray: Tray | null = null
+let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let appQuitting = false
 let pythonStartTime: number = 0
@@ -107,6 +108,10 @@ async function bootstrapPython(): Promise<{
 async function startPythonBackend(): Promise<void> {
   try {
     const { pythonExe, corePath, uvExe, venvPath } = await bootstrapPython()
+    const dataDir = join(app.getPath('userData'), 'data')
+    if (!existsSync(dataDir)) {
+      mkdirSync(dataDir, { recursive: true })
+    }
 
     console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
     console.log(`[Electron] Usando executável: ${pythonExe}`)
@@ -122,6 +127,7 @@ async function startPythonBackend(): Promise<void> {
         env: {
           ...process.env,
           VIRTUAL_ENV: venvPath,
+          MOMAI_DATA_DIR: dataDir,
           MOMAI_UV_BIN: uvExe,
           FORCE_COLOR: '1',
           PYTHONIOENCODING: 'utf-8',
@@ -173,60 +179,6 @@ function killAllLlamaServers(): void {
     console.log('[Electron] Orphaned llama-server processes terminated.')
   } catch (err) {
     // Silent failure - llama-server may not be running
-  }
-}
-
-/**
- * Cria um Job Object para rastrear todos os processos filhos.
- * Isso garante que TODOS os filhos sejam mortos quando o pai morre,
- * mesmo que escapem da árvore de processos.
- */
-function createJobObject(pid: number): string | null {
-  try {
-    const jobName = `MomAI_${pid}_${Date.now()}`
-
-    // Usa PowerShell pra criar um Job Object e adicionar o processo
-    const script = `
-      $job = New-Object System.Diagnostics.Process
-      $job.StartInfo.FileName = "cmd.exe"
-      $job.StartInfo.Arguments = "/c whoami"
-      $job.StartInfo.UseShellExecute = $false
-      $job.Start() | Out-Null
-      
-      # Criar Job Object via C# pinvoke (Win32 API)
-      Add-Type @"
-        using System;
-        using System.Runtime.InteropServices;
-        
-        public class JobObject {
-          [DllImport("kernel32.dll", SetLastError=true)]
-          public static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName);
-          
-          [DllImport("kernel32.dll", SetLastError=true)]
-          public static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
-          
-          [DllImport("kernel32.dll", SetLastError=true)]
-          public static extern bool TerminateJobObject(IntPtr job, uint exitCode);
-          
-          [DllImport("kernel32.dll", SetLastError=true)]
-          public static extern bool CloseHandle(IntPtr handle);
-        }
-      "@
-      
-      $job = [JobObject]::CreateJobObject([IntPtr]::Zero, "${jobName}")
-      Write-Output $job.ToString()
-    `
-
-    const result = execSync(`powershell -Command "${script.replace(/"/g, '\\"')}"`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
-    }).trim()
-
-    console.log(`[Electron] Job Object criado: ${jobName}`)
-    return jobName
-  } catch (err) {
-    console.warn('[Electron] Falha ao criar Job Object (continuando sem ele):', err)
-    return null
   }
 }
 
@@ -297,7 +249,7 @@ function killPythonBackend(): void {
       if (Date.now() % 100 === 0) {
         // Small sleep equivalent
         try {
-          execSync('timeout /t 0 /nobreak', { stdio: 'ignore', shell: true })
+          execSync('timeout /t 0 /nobreak', { stdio: 'ignore', shell: 'cmd.exe' })
         } catch {}
       }
     }
@@ -319,7 +271,7 @@ function killPythonBackend(): void {
       }
       if (Date.now() % 100 === 0) {
         try {
-          execSync('timeout /t 0 /nobreak', { stdio: 'ignore', shell: true })
+          execSync('timeout /t 0 /nobreak', { stdio: 'ignore', shell: 'cmd.exe' })
         } catch {}
       }
     }
@@ -336,8 +288,15 @@ function killPythonBackend(): void {
 }
 
 function createWindow(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.maximize()
+    return
+  }
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 360,
     height: 240,
     show: false,
@@ -353,21 +312,19 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+  const window = mainWindow
+  if (!window) return
+
+  window.on('ready-to-show', () => {
+    window.show()
   })
 
-  mainWindow.on('minimize' as any, (event) => {
-    event.preventDefault()
-    mainWindow.hide()
-  })
-
-  ipcMain.on('window-minimize', () => mainWindow.minimize())
+  ipcMain.on('window-minimize', () => window.minimize())
   ipcMain.on('window-maximize', () => {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize()
+    if (window.isMaximized()) {
+      window.unmaximize()
     } else {
-      mainWindow.maximize()
+      window.maximize()
     }
   })
   ipcMain.on('window-close', () => app.quit())
@@ -375,8 +332,8 @@ function createWindow(): void {
   // Overlay IPC handlers
   ipcMain.handle('get-window-state', () => {
     return {
-      minimized: mainWindow.isMinimized(),
-      visible: mainWindow.isVisible()
+      minimized: window.isMinimized(),
+      visible: window.isVisible()
     }
   })
 
@@ -387,7 +344,7 @@ function createWindow(): void {
     if (overlayWindow) {
       const { screen } = require('electron')
       const primaryDisplay = screen.getPrimaryDisplay()
-      const { width, height } = primaryDisplay.workAreaSize
+      const { width } = primaryDisplay.workAreaSize
       // Position top right
       overlayWindow.setPosition(width - 480, 50)
       overlayWindow.showInactive() // Show without stealing focus fully? Or show()
@@ -404,17 +361,15 @@ function createWindow(): void {
 
   ipcMain.on('overlay-action', (_, action) => {
     // Forward action to main window to handle logic
-    mainWindow.webContents.send('trigger-action', action)
+    window.webContents.send('trigger-action', action)
   })
 
   // Transição de Splash para App principal
   ipcMain.on('app-ready', () => {
-    if (mainWindow) {
-      mainWindow.setResizable(true)
-      mainWindow.setMinimumSize(450, 500)
-      mainWindow.setSize(900, 670, true)
-      mainWindow.center()
-    }
+    window.setResizable(true)
+    window.setMinimumSize(450, 500)
+    window.setSize(900, 670, true)
+    window.center()
   })
 
   // Tray configuration
@@ -427,8 +382,8 @@ function createWindow(): void {
       {
         label: 'Abrir',
         click: () => {
-          mainWindow.show()
-          mainWindow.focus()
+          window.show()
+          window.focus()
         }
       },
       {
@@ -440,16 +395,16 @@ function createWindow(): void {
     tray.setContextMenu(contextMenu)
 
     tray.on('click', () => {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide()
+      if (window.isVisible()) {
+        window.hide()
       } else {
-        mainWindow.show()
-        mainWindow.focus()
+        window.show()
+        window.focus()
       }
     })
   }
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  window.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -457,10 +412,27 @@ function createWindow(): void {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    window.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    window.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.maximize()
+      return
+    }
+    createWindow()
+  })
 }
 
 // This method will be called when Electron has finished
@@ -525,8 +497,8 @@ app.on('will-quit', () => {
   // Fase 2: Aguarda 1s para Python limpar
   try {
     execSync('timeout /t 1 /nobreak', {
-      stdio: 'ignore' as const,
-      shell: true as const
+      stdio: 'ignore',
+      shell: 'cmd.exe'
     })
   } catch {
     // Ignore

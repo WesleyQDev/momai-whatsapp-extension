@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   fetchExtensions,
   fetchExtensionRegistry,
@@ -19,7 +20,6 @@ import {
   CalendarIcon,
   CommandLineIcon,
   PowerIcon,
-  ChevronDownIcon,
   Squares2X2Icon,
   TrashIcon
 } from '@heroicons/react/24/outline'
@@ -37,6 +37,7 @@ const iconMap: Record<string, any> = {
 import SecurityConfirm from '../components/floating/SecurityConfirm'
 
 export default function ExtensionsView() {
+  const location = useLocation()
   const [installed, setInstalled] = useState<Extension[]>([])
   const [available, setAvailable] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,6 +70,13 @@ export default function ExtensionsView() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    const tab = (location.state as any)?.tab
+    if (tab === 'store' || tab === 'installed' || tab === 'system') {
+      setActiveTab(tab)
+    }
+  }, [location.state])
 
   const handleInstall = async (ext: any) => {
     setInstalling(ext.id)

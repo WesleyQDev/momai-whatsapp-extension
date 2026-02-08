@@ -12,9 +12,11 @@ export interface Message {
   content: string
   isGraph?: boolean
   graphData?: {
-    view: 'center' | 'side' | null
+    view: 'center' | 'side' | 'chat' | null
     content: string
     options: string[]
+    optionsMap?: Record<string, string>
+    options_map?: Record<string, string>
     uiSchema?: any
   }
   activities?: string[]
@@ -22,7 +24,6 @@ export interface Message {
 
 export interface StatusData {
   status: string
-  version: string
   mode: string
   brain_ready: boolean
   is_loading: boolean
@@ -236,6 +237,9 @@ export async function deleteGamingApp(id: number): Promise<void> {
 export interface SettingsData {
   tts_enabled: boolean
   wake_word_enabled: boolean
+  locale?: string
+  min_interface_chars?: number
+  prebuffer_chars?: number
 }
 
 export async function fetchSettings(): Promise<SettingsData> {
@@ -251,6 +255,95 @@ export async function updateSettingsPartial(payload: Partial<SettingsData>): Pro
     body: JSON.stringify(payload)
   })
   if (!response.ok) throw new Error('Erro ao atualizar configuracoes')
+}
+
+// --- EXTERNAL MEMORY ---
+
+export interface NoteSummary {
+  id: string
+  title: string
+  path: string
+  source: string
+  created_at?: string | null
+  updated_at?: string | null
+  preview?: string
+}
+
+export interface NoteDetail extends NoteSummary {
+  content: string
+}
+
+export interface MemorySearchResult {
+  note_id: string
+  chunk_id: string
+  title: string
+  path: string
+  text: string
+  score: number
+  keyword_score?: number
+  vector_score?: number
+}
+
+export async function listMemoryNotes(): Promise<NoteSummary[]> {
+  const response = await fetch(`${API_URL}/memory/notes`)
+  if (!response.ok) throw new Error('Erro ao listar notas')
+  return response.json()
+}
+
+export async function getMemoryNote(noteId: string): Promise<NoteDetail> {
+  const response = await fetch(`${API_URL}/memory/notes/${noteId}`)
+  if (!response.ok) throw new Error('Erro ao buscar nota')
+  return response.json()
+}
+
+export async function createMemoryNote(title: string, content: string): Promise<NoteDetail> {
+  const response = await fetch(`${API_URL}/memory/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, content })
+  })
+  if (!response.ok) throw new Error('Erro ao criar nota')
+  return response.json()
+}
+
+export async function updateMemoryNote(
+  noteId: string,
+  payload: { title?: string; content?: string }
+): Promise<NoteDetail> {
+  const response = await fetch(`${API_URL}/memory/notes/${noteId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error('Erro ao atualizar nota')
+  return response.json()
+}
+
+export async function deleteMemoryNote(noteId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/memory/notes/${noteId}`, {
+    method: 'DELETE'
+  })
+  if (!response.ok) throw new Error('Erro ao remover nota')
+}
+
+export async function importMemoryNotes(files: { name: string; content: string }[]): Promise<void> {
+  const response = await fetch(`${API_URL}/memory/notes/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ files })
+  })
+  if (!response.ok) throw new Error('Erro ao importar notas')
+}
+
+export async function searchMemory(query: string, limit = 6): Promise<MemorySearchResult[]> {
+  const response = await fetch(`${API_URL}/memory/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, limit })
+  })
+  if (!response.ok) throw new Error('Erro ao buscar memoria')
+  const data = await response.json()
+  return data.results || []
 }
 
 // --- REMINDERS ---

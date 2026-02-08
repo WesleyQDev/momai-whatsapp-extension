@@ -15,10 +15,19 @@ load_dotenv()
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import traceback
 import logging
+from datetime import datetime
+from utils.tokenizer import count_message_tokens, get_context_window
+from utils.i18n import t, get_locale
+from tools.system_actions import show_chat_card
 
 logger = logging.getLogger("momai.ai")
 
-CHECKPOINT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "checkpoints.db")
+data_dir = os.environ.get("MOMAI_DATA_DIR")
+if data_dir:
+    os.makedirs(data_dir, exist_ok=True)
+    CHECKPOINT_PATH = os.path.join(data_dir, "checkpoints.db")
+else:
+    CHECKPOINT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "checkpoints.db")
 
 # The checkpointer will be initialized by main.py in lifespan
 checkpointer = None
@@ -29,6 +38,11 @@ If the user asks for help or wants to know what you can do, ALWAYS trigger the '
 MAX_MESSAGES = 6 # Reduced from 8 to 6 to save tokens in Cloud models
 llm_mode = "waiting"
 chat_history = {} # Stores temporary history if needed
+
+SUMMARY_BUDGET_PCT = float(os.getenv("MOMAI_CTX_BUDGET_PCT", "0.7"))
+SUMMARY_RECENT_PCT = float(os.getenv("MOMAI_CTX_RECENT_PCT", "0.6"))
+
+EXTENSIONS_STORE_ACTION = "open_extensions_store"
 
 def save_message_to_db(thread_id: str, role: str, content: str, activities: list = None, graph_data: dict = None):
     """
@@ -91,6 +105,134 @@ def load_history_from_db(thread_id: str, limit: int = 10):
     finally:
         db.close()
     return messages
+
+
+def _get_summary_record(thread_id: str):
+    from database.models import SessionLocal, ConversationSummary
+    db = SessionLocal()
+    try:
+        return db.query(ConversationSummary).filter(ConversationSummary.thread_id == thread_id).first()
+    finally:
+        db.close()
+
+
+def _upsert_summary(thread_id: str, content: str, last_message_id: int):
+    from database.models import SessionLocal, ConversationSummary
+    db = SessionLocal()
+    try:
+        record = db.query(ConversationSummary).filter(ConversationSummary.thread_id == thread_id).first()
+        if record:
+            record.content = content
+            record.last_message_id = last_message_id
+            record.updated_at = datetime.now()
+        else:
+            record = ConversationSummary(
+                thread_id=thread_id,
+                content=content,
+                last_message_id=last_message_id,
+                updated_at=datetime.now()
+            )
+            db.add(record)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _split_messages_for_summary(messages, recent_budget: int):
+    used = 0
+    idx = len(messages)
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        msg_tokens = count_message_tokens(msg.role or "", msg.content or "")
+        if used + msg_tokens > recent_budget:
+            break
+        used += msg_tokens
+        idx = i
+    return messages[:idx], messages[idx:]
+
+
+async def _summarize_messages(messages, existing_summary: str | None) -> str:
+    if not messages:
+        return existing_summary or ""
+
+    summary_header = "RESUMO ATUAL" if existing_summary else "RESUMO ATUAL (vazio)"
+    lines = []
+    for msg in messages:
+        role = msg.role or ""
+        content = msg.content or ""
+        lines.append(f"{role}: {content}")
+    chunk = "\n".join(lines)
+
+    system_prompt = (
+        "Voce e um assistente que resume conversas. "
+        "Atualize o resumo existente com novos fatos e decisoes. "
+        "Seja conciso, em PT-BR, e mantenha preferencias, tarefas e detalhes importantes. "
+        "Nao inclua saudacoes ou texto irrelevante."
+    )
+
+    user_prompt = (
+        f"{summary_header}:\n{existing_summary or ''}\n\n"
+        f"NOVAS MENSAGENS:\n{chunk}\n\n"
+        "RESUMO ATUALIZADO:"
+    )
+
+    try:
+        response = await llm.ainvoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ])
+        content = getattr(response, "content", "")
+        return content.strip() or (existing_summary or "")
+    except Exception as e:
+        logger.warning(f"[AI_core] Summary failed: {e}")
+        return existing_summary or ""
+
+
+async def ensure_summary(thread_id: str) -> str | None:
+    from database.models import SessionLocal, Message
+    db = SessionLocal()
+    try:
+        messages = (
+            db.query(Message)
+            .filter(Message.thread_id == thread_id)
+            .order_by(Message.created_at.asc())
+            .limit(200)
+            .all()
+        )
+    finally:
+        db.close()
+
+    if not messages:
+        return None
+
+    ctx_total = get_context_window()
+    budget = int(ctx_total * SUMMARY_BUDGET_PCT)
+    recent_budget = max(256, int(budget * SUMMARY_RECENT_PCT))
+    old_messages, _recent_messages = _split_messages_for_summary(messages, recent_budget)
+
+    if not old_messages:
+        record = _get_summary_record(thread_id)
+        return record.content if record else None
+
+    summary_record = _get_summary_record(thread_id)
+    last_old_id = int(old_messages[-1].id)
+
+    if summary_record and summary_record.last_message_id >= last_old_id:
+        return summary_record.content
+
+    if summary_record:
+        new_msgs = [m for m in old_messages if m.id > summary_record.last_message_id]
+        existing_summary = summary_record.content
+    else:
+        new_msgs = old_messages
+        existing_summary = None
+
+    updated = await _summarize_messages(new_msgs, existing_summary)
+    if updated:
+        _upsert_summary(thread_id, updated, last_old_id)
+        return updated
+
+    return existing_summary
 
 async def get_graph_history(thread_id: str):
     """
@@ -210,7 +352,7 @@ def _initialize_llm_task(mode: str, on_init_progress=None):
     """Tarefa interna para inicializar o LLM e reconstruir o grafo."""
     global llm, llm_with_tools, llm_mode, momai_graph, is_loading, init_error
     
-    import main
+    import app_state
     import asyncio
 
     def report_progress(status: str):
@@ -218,13 +360,13 @@ def _initialize_llm_task(mode: str, on_init_progress=None):
         if on_init_progress:
             on_init_progress(status)
             
-        if main.main_loop:
+        if app_state.main_loop:
             asyncio.run_coroutine_threadsafe(
-                main.broadcast_to_sockets({
+                app_state.broadcast_to_sockets({
                     "type": "model_change_progress", 
                     "data": {"mode": mode, "status": status}
                 }), 
-                main.main_loop
+                app_state.main_loop
             )
 
     try:
@@ -285,9 +427,12 @@ def _initialize_llm_task(mode: str, on_init_progress=None):
                 raise graph_err
             
             # Notifica o frontend
-            if main.main_loop:
-                asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": mode}}), main.main_loop)
-                main.set_graph_state(None, False)
+            if app_state.main_loop:
+                asyncio.run_coroutine_threadsafe(
+                    app_state.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": mode}}),
+                    app_state.main_loop
+                )
+                app_state.set_graph_state(None, False)
             
             llm_ready_event.set()
             
@@ -301,10 +446,10 @@ def _initialize_llm_task(mode: str, on_init_progress=None):
         is_loading = False
         llm_ready_event.set() # Unblock even on error
         
-        if main.main_loop:
+        if app_state.main_loop:
             asyncio.run_coroutine_threadsafe(
-                main.broadcast_to_sockets({"type": "model_change_error", "data": {"message": err_msg}}), 
-                main.main_loop
+                app_state.broadcast_to_sockets({"type": "model_change_error", "data": {"message": err_msg}}), 
+                app_state.main_loop
             )
     finally:
         is_loading = False
@@ -363,6 +508,69 @@ def clean_response(text: str) -> str:
     return text
 
 
+_MISSING_CAPABILITY_PATTERNS = [
+    r"acesso negado",
+    r"nao consigo",
+    r"não consigo",
+    r"nao posso",
+    r"não posso",
+    r"nao tenho acesso",
+    r"não tenho acesso",
+    r"nao tenho como",
+    r"não tenho como",
+    r"nao sei",
+    r"não sei",
+    r"nao fui treinad",
+    r"não fui treinad",
+    r"i can't",
+    r"i cannot",
+    r"i don't have access",
+    r"i do not have access",
+]
+
+
+def _is_missing_capability(text: str) -> bool:
+    if not text:
+        return False
+    lowered = text.lower()
+    return any(re.search(pat, lowered) for pat in _MISSING_CAPABILITY_PATTERNS)
+
+
+async def _build_missing_capability_card(
+    user_text: str,
+    assistant_text: str,
+    no_tools_available: bool | None,
+    had_tool_call: bool
+) -> dict | None:
+    if had_tool_call:
+        return {"apply": False}
+
+    if no_tools_available is False:
+        return {"apply": False}
+
+    if not _is_missing_capability(assistant_text):
+        return {"apply": False}
+
+    locale = get_locale()
+    return {
+        "apply": True,
+        "content": t("missing_capability_card_content", locale=locale),
+        "cta": t("missing_capability_card_cta", locale=locale)
+    }
+
+
+def _open_extensions_card(content: str, cta_label: str):
+    options = [EXTENSIONS_STORE_ACTION]
+    options_map = {
+        EXTENSIONS_STORE_ACTION: cta_label
+    }
+    show_chat_card.invoke({
+        "content": content,
+        "options": options,
+        "options_map": options_map
+    })
+
+
 
 
 def safe_speak(text):
@@ -399,15 +607,21 @@ async def generate(message: ChatMessage):
         threading.current_thread()._momai_thread_id = message.thread_id
         
         config = {"configurable": {"thread_id": message.thread_id}, "recursion_limit": 50}
-        save_message_to_db(message.thread_id, "user", message.content)
 
         tts_buffer = ""
         # Padrão refinado: foca em terminadores de frase reais para manter a fluidez
         sentence_end_pattern = re.compile(r'(.*?[.?!;])(?:\s+|$)|(.*\n\n)', re.DOTALL)
         full_content = ""
         is_thinking = False
+        stream_decided = False
+        stream_suppressed = False
+        prebuffer_limit = int(os.getenv("MOMAI_PREBUFFER_CHARS", "120"))
+        prebuffer = ""
+        pending_card = None
         activities_trace = []  # Accumulate status updates for persistence
         shown_node_types = set()  # Track which node types have been shown (avoid ReAct loop duplicates)
+        had_tool_call = False
+        no_tools_available = None
 
         # Helper to avoid duplicate activities
         def add_activity(status: str, node_type: str = None):
@@ -421,7 +635,20 @@ async def generate(message: ChatMessage):
                 activities_trace.append(status)
             return True
 
-        input_data = {"messages": [HumanMessage(content=message.content)]}
+        summary_text = await ensure_summary(message.thread_id)
+        try:
+            from database.models import SessionLocal, Settings
+            db = SessionLocal()
+            try:
+                settings = db.query(Settings).first()
+                if settings and settings.prebuffer_chars:
+                    prebuffer_limit = int(settings.prebuffer_chars)
+            finally:
+                db.close()
+        except Exception:
+            pass
+        save_message_to_db(message.thread_id, "user", message.content)
+        input_data = {"messages": [HumanMessage(content=message.content)], "summary": summary_text}
 
         async for event in momai_graph.astream_events(input_data, config=config, version="v2"):
             if is_loading: break 
@@ -454,6 +681,7 @@ async def generate(message: ChatMessage):
 
             if kind == "on_tool_start":
                 logger.info(f"[AI_core] Executing tool: {name}")
+                had_tool_call = True
                 tool_input = event["data"].get("input")
                 args_str = ""
                 if isinstance(tool_input, dict):
@@ -481,17 +709,25 @@ async def generate(message: ChatMessage):
                     continue
 
                 content = event["data"]["chunk"].content
-                if not content: continue
+                if not content:
+                    continue
 
                 # Filtro de Pensamento (DeepSeek/Qwen tags)
-                if "<think>" in content: is_thinking = True; continue
-                if "</think>" in content: is_thinking = False; continue
-                if is_thinking: continue
+                if "<think>" in content:
+                    is_thinking = True
+                    continue
+                if "</think>" in content:
+                    is_thinking = False
+                    continue
+                if is_thinking:
+                    continue
 
                 # Filtro de JSON e Chamadas de Funções Hallucinadas
                 raw_token = content.strip()
-                if raw_token.startswith('{') or raw_token.startswith('}'): continue
-                if raw_token.startswith('"next"'): continue
+                if raw_token.startswith('{') or raw_token.startswith('}'):
+                    continue
+                if raw_token.startswith('"next"'):
+                    continue
 
                 filtered_content = "".join(c for c in content if ord(c) <= 0xFFFF)
                 if filtered_content:
@@ -502,10 +738,29 @@ async def generate(message: ChatMessage):
                             full_content += filtered_content 
                             continue
                         filtered_content = clean_chunk
-                    
+
                     full_content += filtered_content
-                    yield f"data: {json.dumps({'token': filtered_content})}\n\n"
-                    tts_buffer += filtered_content
+                    if not stream_decided:
+                        prebuffer += filtered_content
+                        if len(prebuffer) >= prebuffer_limit:
+                            decision = await _build_missing_capability_card(
+                                message.content,
+                                prebuffer,
+                                no_tools_available,
+                                had_tool_call
+                            )
+                            if decision and decision.get("apply"):
+                                stream_decided = True
+                                stream_suppressed = True
+                                pending_card = decision
+                            else:
+                                stream_decided = True
+                                yield f"data: {json.dumps({'token': prebuffer})}\n\n"
+                                tts_buffer += prebuffer
+                                prebuffer = ""
+                    elif not stream_suppressed:
+                        yield f"data: {json.dumps({'token': filtered_content})}\n\n"
+                        tts_buffer += filtered_content
                     
                     # Processamento para TTS
                     while True:
@@ -515,16 +770,20 @@ async def generate(message: ChatMessage):
                             tts_buffer = tts_buffer[match.end():]
                             if len(sentence) > 2:
                                 clean_sent = clean_text_for_tts(sentence)
-                                if clean_sent: safe_speak(clean_sent)
+                                if clean_sent:
+                                    safe_speak(clean_sent)
                         elif len(tts_buffer) > 120: 
                             last_space = tts_buffer.rfind(" ")
                             if last_space != -1 and last_space > 60:
                                 sentence = tts_buffer[:last_space].strip()
                                 tts_buffer = tts_buffer[last_space:].strip()
                                 clean_sent = clean_text_for_tts(sentence)
-                                if clean_sent: safe_speak(clean_sent)
-                            else: break
-                        else: break
+                                if clean_sent:
+                                    safe_speak(clean_sent)
+                            else:
+                                break
+                        else:
+                            break
 
             elif kind == "on_chat_model_end":
                 metadata = event.get("metadata", {})
@@ -563,6 +822,11 @@ async def generate(message: ChatMessage):
                               activities_trace.append(status)
                               yield f"data: {json.dumps({'status': status})}\n\n"
 
+                elif name == "specialist_node":
+                    output = event["data"].get("output")
+                    if output and isinstance(output, dict) and "no_tools" in output:
+                        no_tools_available = bool(output.get("no_tools"))
+
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -577,11 +841,29 @@ async def generate(message: ChatMessage):
             yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
     finally:
+        if not stream_decided and prebuffer and not stream_suppressed:
+            yield f"data: {json.dumps({'token': prebuffer})}\n\n"
+            tts_buffer += prebuffer
+            prebuffer = ""
+
         final_reply = clean_response(full_content)
+        if final_reply.strip() and stream_suppressed:
+            if pending_card is None and _is_missing_capability(final_reply):
+                pending_card = await _build_missing_capability_card(
+                    message.content,
+                    final_reply,
+                    no_tools_available,
+                    had_tool_call
+                )
+            if pending_card and pending_card.get("apply"):
+                final_reply = pending_card["content"]
+                _open_extensions_card(pending_card["content"], pending_card["cta"])
+                yield f"data: {json.dumps({'token': final_reply})}\n\n"
+                tts_buffer = final_reply
         if final_reply.strip():
             # Retrieve pending graph data for this thread
-            import main as main_module
-            pending_graph = main_module.get_pending_graph_data(message.thread_id)
+            import app_state
+            pending_graph = app_state.get_pending_graph_data(message.thread_id)
             save_message_to_db(message.thread_id, "assistant", final_reply, activities=activities_trace if activities_trace else None, graph_data=pending_graph)
 
         if tts_buffer.strip():

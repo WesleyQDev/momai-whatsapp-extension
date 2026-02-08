@@ -113,9 +113,15 @@ function App(): React.JSX.Element {
     const handleSync = (e: any) => setExtensions(e.detail)
     window.addEventListener('momai_extensions_sync', handleSync)
 
+    const handleOpenExtensions = () => {
+      navigate('/extensions', { state: { tab: 'store' } })
+    }
+    window.addEventListener('momai_open_extensions', handleOpenExtensions)
+
     return () => {
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('momai_extensions_sync', handleSync)
+      window.removeEventListener('momai_open_extensions', handleOpenExtensions)
     }
   }, [])
 
@@ -127,6 +133,9 @@ function App(): React.JSX.Element {
   let uiView = currentExtension?.features?.ui_view || 'ChatDashboard'
   if (location.pathname === '/extensions') {
     uiView = 'ExtensionsStore'
+  }
+  if (location.pathname === '/notes') {
+    uiView = 'NotesDashboard'
   }
 
   const isChat = uiView === 'ChatDashboard'
@@ -168,6 +177,7 @@ function App(): React.JSX.Element {
                     view="side"
                     content={graphState.content}
                     options={graphState.options}
+                    optionsMap={graphState.optionsMap}
                     uiSchema={graphState.uiSchema}
                     onOptionSelect={handleGraphOption}
                     onClose={closeGraph}
@@ -226,6 +236,7 @@ function App(): React.JSX.Element {
           view="center"
           content={graphState.content}
           options={graphState.options}
+          optionsMap={graphState.optionsMap}
           uiSchema={graphState.uiSchema}
           onOptionSelect={handleGraphOption}
           onClose={closeGraph}

@@ -121,10 +121,10 @@ class ResourceManager:
             
             # NOVO: Notificar FastAPI que está em gaming mode
             try:
-                from main import set_gaming_mode
+                from app_state import set_gaming_mode
                 set_gaming_mode(True)
             except ImportError:
-                pass  # main not available
+                pass
             
             # NOVO: Garbage collection agressivo
             logger.info("[ResourceManager] Running aggressive garbage collection...")
@@ -164,7 +164,7 @@ class ResourceManager:
         try:
             # NOVO: Notificar FastAPI que saiu do gaming mode
             try:
-                from main import set_gaming_mode
+                from app_state import set_gaming_mode
                 set_gaming_mode(False)
             except ImportError:
                 pass

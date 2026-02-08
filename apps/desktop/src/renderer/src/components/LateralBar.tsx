@@ -6,7 +6,8 @@ import {
   PuzzlePieceIcon,
   Cog6ToothIcon,
   CpuChipIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline'
 
 interface LateralBarProps {
@@ -76,6 +77,21 @@ export default function LateralBar({
       <div
         className={`flex flex-col items-center w-full ${isCompact ? 'gap-2' : 'gap-4'} overflow-y-auto scrollbar-none`}
       >
+        <button
+          onClick={() => onNavigate('/notes')}
+          title="Notas"
+          className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${activeRoute === '/notes' ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
+        >
+          {activeRoute === '/notes' && (
+            <div
+              className={`absolute ${isCompact ? '-left-2 h-4' : '-left-3 h-6'} w-1 bg-accent rounded-r-full animate-fade-in`}
+            />
+          )}
+          <DocumentTextIcon
+            className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform group-hover:scale-110`}
+          />
+        </button>
+
         {/* All items are now dynamic */}
         {extensions.map((ext) => {
           const IconComponent = iconMap[ext.icon || ''] || PuzzlePieceIcon

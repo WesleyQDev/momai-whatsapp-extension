@@ -7,7 +7,12 @@ import logging
 
 logger = logging.getLogger("momai.vector_db")
 
-DB_PATH = Path(__file__).parent.parent / "momai_vectors.db"
+data_dir = os.environ.get("MOMAI_DATA_DIR")
+if data_dir:
+    Path(data_dir).mkdir(parents=True, exist_ok=True)
+    DB_PATH = Path(data_dir) / "momai_vectors.db"
+else:
+    DB_PATH = Path(__file__).parent.parent / "momai_vectors.db"
 
 class VectorDB:
     _instance = None

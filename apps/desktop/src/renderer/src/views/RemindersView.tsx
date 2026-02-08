@@ -66,7 +66,6 @@ const translateInterval = (interval: string | null, value: number | null) => {
 
 export default function RemindersView() {
   const [reminders, setReminders] = useState<Reminder[]>([])
-  const [loading, setLoading] = useState(true)
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date()) // Controls the month view
@@ -91,8 +90,6 @@ export default function RemindersView() {
       }
     } catch (error) {
       console.error('Erro ao buscar lembretes:', error)
-    } finally {
-      setLoading(false)
     }
   }
 

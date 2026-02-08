@@ -3,8 +3,12 @@ from pydantic import BaseModel, Field
 import webbrowser
 from langchain_community.tools import DuckDuckGoSearchRun
 from typing import List, Literal, Dict, Any
+import os
+import re
+from utils.i18n import t, get_locale
 
 import asyncio
+import app_state
 
 # Search instance
 search = DuckDuckGoSearchRun()
@@ -12,6 +16,73 @@ search = DuckDuckGoSearchRun()
 # Global state
 current_mode = "local"
 version = "v0"
+
+MIN_INTERFACE_CHARS = int(os.getenv("MOMAI_MIN_INTERFACE_CHARS", "240"))
+
+_MISSING_CAPABILITY_UI_PATTERNS = [
+    r"acesso negado",
+    r"nao posso acessar",
+    r"não posso acessar",
+    r"nao tenho acesso",
+    r"não tenho acesso",
+    r"nao tenho como",
+    r"não tenho como",
+    r"cannot access",
+    r"access denied",
+]
+
+
+def _get_min_interface_chars() -> int:
+    env_value = os.getenv("MOMAI_MIN_INTERFACE_CHARS")
+    if env_value:
+        try:
+            return int(env_value)
+        except Exception:
+            return MIN_INTERFACE_CHARS
+
+    try:
+        from database.models import SessionLocal, Settings
+        db = SessionLocal()
+        try:
+            settings = db.query(Settings).first()
+            if settings and settings.min_interface_chars:
+                return int(settings.min_interface_chars)
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+    return MIN_INTERFACE_CHARS
+
+
+def _should_offer_extension_store(content: str, options: list[str] | None, ui_schema: dict | None) -> bool:
+    if options or ui_schema:
+        return False
+    if not content:
+        return False
+    lowered = content.lower()
+    return any(re.search(pat, lowered) for pat in _MISSING_CAPABILITY_UI_PATTERNS)
+
+
+def _should_use_side_panel(content: str, options: list[str] | None, ui_schema: dict | None) -> bool:
+    if ui_schema or (options and len(options) > 0):
+        return True
+    if not content:
+        return False
+
+    if len(content) >= _get_min_interface_chars():
+        return True
+
+    if re.search(r"(^|\n)\s*[-*]\s+", content):
+        return True
+    if re.search(r"(^|\n)#{1,6}\s+", content):
+        return True
+    if "```" in content:
+        return True
+    if "|" in content and "\n" in content:
+        return True
+
+    return False
 
 
 
@@ -22,6 +93,12 @@ class ShowInterfaceInput(BaseModel):
     ui_schema: Dict[str, Any] = Field(default=None, description="Dynamic UI JSON schema.")
     bypass_wake_word: bool = Field(default=False, description="Whether to activate mic immediately.")
 
+class ShowChatCardInput(BaseModel):
+    content: str = Field(description="Markdown content to display.")
+    options: List[str] = Field(default=[], description="Action buttons for the user.")
+    options_map: Dict[str, str] = Field(default=None, description="Optional label map for options.")
+    ui_schema: Dict[str, Any] = Field(default=None, description="Dynamic UI JSON schema.")
+
 @tool(args_schema=ShowInterfaceInput)
 def show_interface(content: str, view: Literal['side'] = 'side', options: list[str] = None, ui_schema: dict = None, bypass_wake_word: bool = False):
     """
@@ -31,8 +108,22 @@ def show_interface(content: str, view: Literal['side'] = 'side', options: list[s
     if options is None: options = []
     # Force view to be 'side' just in case
     view = 'side'
-    import main
-    main.set_graph_state(view, bypass_wake_word)
+
+    if _should_offer_extension_store(content, options, ui_schema):
+        locale = get_locale()
+        return show_chat_card.invoke({
+            "content": t("missing_capability_card_content", locale=locale),
+            "options": ["open_extensions_store"],
+            "options_map": {"open_extensions_store": t("missing_capability_card_cta", locale=locale)}
+        })
+
+    if not _should_use_side_panel(content, options, ui_schema):
+        return show_chat_card.invoke({
+            "content": content,
+            "options": options,
+            "ui_schema": ui_schema
+        })
+    app_state.set_graph_state(view, bypass_wake_word)
     
     graph_data = {
         "view": view, "content": content, "options": options,
@@ -43,21 +134,39 @@ def show_interface(content: str, view: Literal['side'] = 'side', options: list[s
     # Get thread_id from current context if available, otherwise use default
     import threading
     thread_id = getattr(threading.current_thread(), '_momai_thread_id', 'default')
-    main.set_pending_graph_data(thread_id, graph_data)
+    app_state.set_pending_graph_data(thread_id, graph_data)
     
     payload = {"type": "graph_open", "data": graph_data}
-    if main.main_loop:
-        asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets(payload), main.main_loop)
+    if app_state.main_loop:
+        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
     return f"Interface '{view}' opened."
+
+@tool(args_schema=ShowChatCardInput)
+def show_chat_card(content: str, options: list[str] = None, options_map: dict = None, ui_schema: dict = None):
+    """Displays a chat-only card without opening side or center panels."""
+    if options is None: options = []
+    if options_map is None: options_map = {}
+    graph_data = {
+        "view": "chat", "content": content, "options": options,
+        "options_map": options_map, "ui_schema": ui_schema, "bypass_wake_word": False
+    }
+
+    import threading
+    thread_id = getattr(threading.current_thread(), '_momai_thread_id', 'default')
+    app_state.set_pending_graph_data(thread_id, graph_data)
+
+    payload = {"type": "graph_open", "data": graph_data}
+    if app_state.main_loop:
+        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
+    return "Chat card opened."
 
 @tool
 def close_interface():
     """Closes any open UI."""
-    import main
-    main.set_graph_state(None, False)
+    app_state.set_graph_state(None, False)
     payload = {"type": "graph_close"}
-    if main.main_loop:
-        asyncio.run_coroutine_threadsafe(main.broadcast_to_sockets(payload), main.main_loop)
+    if app_state.main_loop:
+        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
     return "Interface closed."
 
 @tool
@@ -88,6 +197,15 @@ def switch_ai_model(mode: Literal['local']):
         return f"OK: Switching to local"
     except Exception as e:
         return f"Error: {str(e)}"
+
+@tool
+def open_extension_store():
+    """Opens the Extension Store in the main interface."""
+    payload = {"type": "navigate", "data": {"path": "/store"}} 
+    if app_state.main_loop:
+        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
+        return "Extension Store opened."
+    return "Error: Main loop not ready."
 
 # System Resource Helper (needed for core)
 def get_momai_resources():
@@ -367,9 +485,9 @@ def create_reminder_tool(title: str, scheduled_time: str, content: str = None, r
     from datetime import datetime
     try:
         dt = datetime.fromisoformat(scheduled_time)
-        import main
-        if not main.reminder_manager: return "Error: Reminder manager not ready."
-        main.reminder_manager.add_reminder(title, content, dt, repeat_interval, repeat_value)
+        if not app_state.reminder_manager:
+            return "Error: Reminder manager not ready."
+        app_state.reminder_manager.add_reminder(title, content, dt, repeat_interval, repeat_value)
         return f"OK: Reminder '{title}' scheduled for {scheduled_time}."
     except Exception as e:
         return f"Error scheduling: {str(e)}"
@@ -377,10 +495,9 @@ def create_reminder_tool(title: str, scheduled_time: str, content: str = None, r
 @tool
 def list_reminders_tool():
     """Lists all active reminders and their schedules."""
-    import main
-    if not main.reminder_manager:
+    if not app_state.reminder_manager:
         return "Reminder system not initialized."
-    reminders = main.reminder_manager.list_reminders()
+    reminders = app_state.reminder_manager.list_reminders()
     if not reminders:
         return "You have no active reminders."
     
@@ -393,9 +510,9 @@ def list_reminders_tool():
 @tool
 def delete_reminder_tool(reminder_id: int):
     """Deletes a reminder by its ID."""
-    import main
-    if not main.reminder_manager: return "Error: Reminder manager not ready."
-    main.reminder_manager.delete_reminder(reminder_id)
+    if not app_state.reminder_manager:
+        return "Error: Reminder manager not ready."
+    app_state.reminder_manager.delete_reminder(reminder_id)
     return f"Reminder {reminder_id} deleted."
 
 @tool
@@ -408,7 +525,10 @@ def get_capabilities():
     
     # 1. Native Tools
     report = "System Native Tools:\n"
-    hidden_tools = ["switch_ai_model", "open_model_selector", "get_momai_resources_tool", "get_capabilities"]
+    hidden_tools = [
+        "switch_ai_model", "open_model_selector", "get_momai_resources_tool",
+        "get_capabilities", "show_chat_card", "open_extension_store"
+    ]
 
     for t in TOOLS:
         if t.name in hidden_tools: continue
@@ -439,7 +559,9 @@ def get_capabilities():
 search.name = "duckduckgo_search"
 TOOLS = [
     search,
-    show_interface, close_interface, ask_confirmation, open_model_selector, switch_ai_model,
+    show_interface, show_chat_card, close_interface, ask_confirmation, open_model_selector, switch_ai_model,
+    open_extension_store,
+    get_momai_resources_tool,
     get_momai_resources_tool,
     create_reminder_tool, list_reminders_tool, delete_reminder_tool,
     get_capabilities

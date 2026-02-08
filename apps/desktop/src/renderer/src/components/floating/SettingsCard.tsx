@@ -28,7 +28,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
     tts_voice: '',
     tts_enabled: false,
     wake_word_enabled: true,
-    wake_word_sensitivity: 5
+    wake_word_sensitivity: 5,
+    locale: 'pt-BR',
+    min_interface_chars: 240,
+    prebuffer_chars: 120
   })
 
   const [installStatus, setInstallStatus] = useState<
@@ -443,6 +446,63 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     className="w-full h-32 bg-input border border-border/60 rounded-lg px-4 py-3 text-sm text-text focus:border-accent/40 outline-none resize-none transition-all leading-relaxed placeholder:text-text-muted/30"
                     placeholder="Instruções de comportamento..."
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                    Idioma e Interface
+                  </label>
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                        Idioma da UI
+                      </span>
+                      <select
+                        value={settings.locale}
+                        onChange={(e) => updateField('locale', e.target.value, true)}
+                        className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
+                      >
+                        <option value="pt-BR">Portugues (Brasil)</option>
+                        <option value="en">English</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                          Minimo Interface
+                        </span>
+                        <input
+                          type="number"
+                          min={80}
+                          max={2000}
+                          value={settings.min_interface_chars}
+                          onChange={(e) =>
+                            updateField('min_interface_chars', Number(e.target.value))
+                          }
+                          onBlur={() => saveSettings(settings)}
+                          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                          Prebuffer
+                        </span>
+                        <input
+                          type="number"
+                          min={40}
+                          max={500}
+                          value={settings.prebuffer_chars}
+                          onChange={(e) => updateField('prebuffer_chars', Number(e.target.value))}
+                          onBlur={() => saveSettings(settings)}
+                          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-text-muted leading-relaxed">
+                      Ajuste quando o conteudo deve ir para a interface auxiliar e a latencia do
+                      streaming.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

@@ -11,6 +11,7 @@ interface ContainerChatProps {
   messagesEndRef: RefObject<HTMLDivElement | null>
   isModeChanging?: boolean
   onReopenGraph: (data: any) => void
+  onGraphOption: (option: string) => void
   statusInfo: StatusData | null
 }
 
@@ -22,6 +23,7 @@ export default function ContainerChat({
   messagesEndRef,
   isModeChanging = false,
   onReopenGraph,
+  onGraphOption,
   statusInfo
 }: ContainerChatProps): JSX.Element {
   return (
@@ -31,6 +33,7 @@ export default function ContainerChat({
         isLoading={isLoading}
         messagesEndRef={messagesEndRef}
         onReopenGraph={onReopenGraph}
+        onGraphOption={onGraphOption}
       />
 
       <ChatInput

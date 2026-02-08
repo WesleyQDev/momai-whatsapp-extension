@@ -25,6 +25,7 @@ export default function SplashScreen({
       }, 300)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [isFullyReady])
 
   if (!shouldRender) return null

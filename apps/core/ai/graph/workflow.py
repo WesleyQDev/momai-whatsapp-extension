@@ -1,4 +1,5 @@
 import operator
+import os
 from typing import Annotated, Sequence, TypedDict, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langgraph.graph import END, StateGraph
@@ -6,6 +7,7 @@ from langgraph.graph.message import add_messages
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, Field
 from services.extensions.manager import extension_manager
+from utils.tokenizer import count_tokens, count_message_tokens, get_context_window
 
 import logging
 logger = logging.getLogger("momai.graph")
@@ -19,20 +21,60 @@ class AgentState(TypedDict):
     next: str
     reasoning: bool
     pending_tool_call: str | None # Tracks the tool waiting for approval
+    summary: str | None
+    no_tools: bool | None
 
 class Router(BaseModel):
     next: str = Field(description="The name of the specialist agent to handle the request.")
 
-def get_valid_history(messages: Sequence[BaseMessage], limit: int) -> list[BaseMessage]:
-    if not messages: return []
-    # Filter empty messages that could confuse the model (no content and no tool_calls)
+def _compute_history_budget(system_prompt: str, summary: str | None, budget_pct: float = 0.7) -> int:
+    ctx_total = get_context_window()
+    reserve = int(ctx_total * (1 - budget_pct))
+    overhead = count_tokens(system_prompt or "")
+    if summary:
+        overhead += count_tokens(summary)
+    budget = max(256, ctx_total - reserve - overhead)
+    return budget
+
+
+def get_valid_history(
+    messages: Sequence[BaseMessage],
+    max_messages: int,
+    token_budget: int | None = None
+) -> list[BaseMessage]:
+    if not messages:
+        return []
+
     clean_messages = [
-        m for m in messages 
+        m for m in messages
         if (m.content and str(m.content).strip()) or (hasattr(m, "tool_calls") and m.tool_calls)
     ]
-    slice_idx = max(0, len(clean_messages) - limit)
-    while slice_idx > 0 and isinstance(clean_messages[slice_idx], ToolMessage): slice_idx -= 1
-    return clean_messages[slice_idx:]
+
+    if not clean_messages:
+        return []
+
+    budget = token_budget or 0
+    selected: list[BaseMessage] = []
+    used_tokens = 0
+
+    for m in reversed(clean_messages):
+        if max_messages and len(selected) >= max_messages:
+            break
+
+        role = getattr(m, "type", "")
+        msg_tokens = count_message_tokens(role, str(m.content) if m.content else "")
+        if budget and used_tokens + msg_tokens > budget:
+            break
+
+        selected.append(m)
+        used_tokens += msg_tokens
+
+    selected = list(reversed(selected))
+
+    while selected and isinstance(selected[0], ToolMessage):
+        selected.pop(0)
+
+    return selected
 
 from ai.constants import (
     CORE_GLOBAL_TOOLS,
@@ -45,6 +87,8 @@ from ai.constants import (
 def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointer=None):
     from database.vector_db import vector_db
 
+    intent_confidence_threshold = float(os.getenv("MOMAI_INTENT_CONFIDENCE", "0.45"))
+
     async def semantic_router(state: AgentState):
         """Dynamic routing via LanceDB."""
         # Safety fallback
@@ -53,6 +97,14 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
              return {"next": "responder"}
 
         last_msg = state["messages"][-1].content
+        try:
+            from services.memory.external_memory import search_memory
+            memory_hits = await search_memory(str(last_msg), limit=1)
+            if memory_hits:
+                log_event("Semantic Router", "Memory hit -> responder", "magenta")
+                return {"next": "responder"}
+        except Exception as e:
+            logger.warning(f"[Router] Memory precheck failed: {e}")
         print(f">>> [Semantic Router] Query: {last_msg}") # Explicit print for debugging
         log_event("Semantic Router", f"Query: {last_msg}", "magenta")
         
@@ -71,6 +123,14 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                 confidence = round((1 - distance) * 100, 1) # Convert distance to rough % confidence
                 target = match["agent"]
                 matched_text = match.get("text", "unknown intent")
+
+                if (1 - distance) < intent_confidence_threshold:
+                    log_event("Semantic Router", "Low intent confidence -> orchestrator", "magenta")
+                    return {"next": "mom_orchestrator"}
+
+                if target in ["interface", "search"]:
+                    log_event("Semantic Router", f"Delegating {target} to orchestrator", "magenta")
+                    return {"next": "mom_orchestrator"}
                 
                 # Rich Log for Thinking Trace
                 log_content = f"Matched intent: '{matched_text}' ({confidence}% confidence) -> Routing to {target}"
@@ -94,6 +154,9 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         agent_descriptions = "\n".join([f"- `{m['features']['agent_name']}`: {m['description']}" for m in manifests])
 
         system_msg = ROUTER_SYSTEM_TEMPLATE.format(agent_descriptions=agent_descriptions)
+        summary_text = state.get("summary") or ""
+        if summary_text:
+            system_msg = f"{system_msg}\n\n# CONTEXT SUMMARY\n{summary_text}"
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_msg),
@@ -102,7 +165,8 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         
         try:
             chain = prompt | llm.with_structured_output(Router)
-            response = await chain.ainvoke({"messages": get_valid_history(state["messages"], 6)})
+            budget = _compute_history_budget(system_msg, None)
+            response = await chain.ainvoke({"messages": get_valid_history(state["messages"], 6, budget)})
             return {"next": response.next}
         except:
             return {"next": "responder"}
@@ -153,6 +217,8 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
              if t_name in AVAILABLE_TOOLS and t_name not in [t.name for t in active_tools]:
                  active_tools.append(AVAILABLE_TOOLS[t_name])
 
+        no_tools_available = not active_tools
+
         if active_tools:
             logger.info(f"[Specialist] Tools considered: {[t.name for t in active_tools]}")
         else:
@@ -184,6 +250,20 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                 if cp:
                     final_system_prompt += f"\n\n# EXTENSION\n{cp}"
 
+        summary_text = state.get("summary") or ""
+        if summary_text:
+            final_system_prompt += f"\n\n# CONVERSATION SUMMARY\n{summary_text}"
+
+        memory_context = ""
+        try:
+            from services.memory.external_memory import build_memory_context
+            memory_context = await build_memory_context(str(last_msg))
+        except Exception as e:
+            logger.warning(f"[Memory] External memory lookup failed: {e}")
+
+        if memory_context:
+            final_system_prompt += f"\n\n# EXTERNAL MEMORY\n{memory_context}"
+
         if not active_tools:
             final_system_prompt += f"\n\n{NO_TOOLS_WARNING}"
         else:
@@ -198,14 +278,15 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         
         # Invoke LLM
         # We need a longer context for ReAct loops
-        result = await chain.ainvoke({"messages": get_valid_history(state["messages"], 15)})
+        budget = _compute_history_budget(final_system_prompt, None)
+        result = await chain.ainvoke({"messages": get_valid_history(state["messages"], 15, budget)})
         
         # Fallback to avoid empty model response
         if not result.content and not (hasattr(result, "tool_calls") and result.tool_calls):
             result.content = "I'm sorry, I couldn't find a specific tool to perform that action at the moment. How else can I help you?"
 
         if isinstance(result, BaseMessage): result.name = agent_name
-        return {"messages": [result]}
+        return {"messages": [result], "no_tools": no_tools_available}
 
     def ask_permission_node(state: AgentState):
         """

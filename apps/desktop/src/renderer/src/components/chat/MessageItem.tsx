@@ -8,12 +8,14 @@ interface MessageItemProps {
   message: Message
   isLoading?: boolean
   onReopenGraph: (data: any) => void
+  onGraphOption: (option: string) => void
 }
 
 const MessageItem = memo(function MessageItem({
   message,
   isLoading = false,
-  onReopenGraph
+  onReopenGraph,
+  onGraphOption
 }: MessageItemProps): JSX.Element {
   const [showTrace, setShowTrace] = useState(false)
 
@@ -22,7 +24,14 @@ const MessageItem = memo(function MessageItem({
   const isDone = message.content.includes('✅')
 
   // Limpa o indicador de expectativa do conteúdo para não aparecer no texto
-  const displayContent = message.content === '...' ? '' : message.content
+  const isChatCard = message.role === 'assistant' && message.graphData?.view === 'chat'
+  const displayContent =
+    message.content === '...'
+      ? ''
+      : isChatCard && message.graphData?.content
+        ? message.graphData.content
+        : message.content
+  const optionsMap = message.graphData?.optionsMap || message.graphData?.options_map || {}
 
   if (isSystemModelChange) {
     const modelName =
@@ -228,7 +237,6 @@ const MessageItem = memo(function MessageItem({
                       activity.toLowerCase().includes('specialist') ||
                       activity.toLowerCase().includes('agent')
                     ) {
-                      _activityType = 'agent'
                       highlightColor = 'text-emerald-400'
                       iconInfo = (
                         <svg
@@ -313,34 +321,53 @@ const MessageItem = memo(function MessageItem({
             </div>
           )}
 
-          {message.role === 'assistant' && message.graphData && (
-            <button
-              onClick={() => onReopenGraph(message.graphData)}
-              className="flex items-center gap-3 w-full p-3 bg-accent/5 border border-border/20 rounded-lg hover:bg-accent/10 hover:border-accent/30 transition-all group text-left cursor-pointer mt-1"
-            >
-              <div className="w-8 h-8 rounded bg-accent/20 flex items-center justify-center text-accent group-hover:scale-110 transition-transform flex-shrink-0">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
-                  <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
-                </svg>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-text group-hover:text-accent transition-colors truncate">
-                  Interface Gerada
-                </span>
-                <span className="text-xs text-text-muted truncate">
-                  Clique para visualizar o relatório dinâmico
-                </span>
-              </div>
-            </button>
+          {message.role === 'assistant' && message.graphData?.view === 'chat' && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {message.graphData.options?.map((option) => {
+                const label = optionsMap[option] || option
+                return (
+                  <button
+                    key={option}
+                    onClick={() => onGraphOption(option)}
+                    className="px-3 py-1.5 rounded-full text-[11px] font-semibold border border-border/20 bg-accent/5 text-text-muted hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all"
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
           )}
+
+          {message.role === 'assistant' &&
+            message.graphData &&
+            message.graphData.view !== 'chat' && (
+              <button
+                onClick={() => onReopenGraph(message.graphData)}
+                className="flex items-center gap-3 w-full p-3 bg-accent/5 border border-border/20 rounded-lg hover:bg-accent/10 hover:border-accent/30 transition-all group text-left cursor-pointer mt-1"
+              >
+                <div className="w-8 h-8 rounded bg-accent/20 flex items-center justify-center text-accent group-hover:scale-110 transition-transform flex-shrink-0">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                    <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                  </svg>
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium text-text group-hover:text-accent transition-colors truncate">
+                    Interface Gerada
+                  </span>
+                  <span className="text-xs text-text-muted truncate">
+                    Clique para visualizar o relatório dinâmico
+                  </span>
+                </div>
+              </button>
+            )}
         </div>
       </div>
     </div>

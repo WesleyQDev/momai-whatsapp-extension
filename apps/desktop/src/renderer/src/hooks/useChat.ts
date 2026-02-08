@@ -14,9 +14,10 @@ export function useChat() {
     view: 'center' | 'side' | null
     content: string
     options: string[]
+    optionsMap?: Record<string, string>
     uiSchema?: any
     bypass_wake_word?: boolean
-  }>({ view: null, content: '', options: [], bypass_wake_word: false })
+  }>({ view: null, content: '', options: [], optionsMap: {}, bypass_wake_word: false })
 
   // Ref para as opções atuais do gráfico para o listener de voz não precisar de dependência
   const currentGraphOptionsRef = useRef<string[]>([])
@@ -97,6 +98,14 @@ export function useChat() {
 
       // Se for apenas um "OK" de confirmação de leitura, não envia para a IA
       if (option.toUpperCase() === 'OK') return
+
+      // Atalho para abrir a loja de extensoes sem enviar para a IA
+      if (option === 'open_extensions_store') {
+        window.dispatchEvent(new CustomEvent('momai_open_extensions'))
+        return
+      }
+
+      if (option === 'dismiss') return
 
       // Envia a escolha como mensagem do usuário para a IA processar
       const userMessage: Message = { role: 'user', content: option }
@@ -291,13 +300,26 @@ export function useChat() {
           window.dispatchEvent(new CustomEvent('momai_fortscript_event', { detail: msg }))
         } else if (msg.type === 'graph_open') {
           // Abre interface gráfica (Centro ou Lateral)
+          const optionsMap = msg.data.options_map || msg.data.optionsMap
           const newGraphState = {
             view: msg.data.view,
             content: msg.data.content,
             options: msg.data.options || [],
+            optionsMap,
             uiSchema: msg.data.ui_schema
           }
-          setGraphState(newGraphState)
+
+          if (msg.data.view === 'side' || msg.data.view === 'center') {
+            setGraphState(newGraphState)
+          } else {
+            setGraphState({
+              view: null,
+              content: '',
+              options: [],
+              optionsMap: {},
+              bypass_wake_word: false
+            })
+          }
 
           // Adiciona ou mescla o card interativo no chat
           setMessages((prev) => {

@@ -2,6 +2,7 @@ import React from 'react'
 import ContainerChat from './ContainerChat'
 import RemindersView from '../views/RemindersView'
 import ExtensionsView from '../views/ExtensionsView'
+import NotesView from '../views/NotesView'
 import DynamicDashboard from './DynamicDashboard'
 import { useStatus } from '../hooks/useStatus'
 
@@ -24,11 +25,13 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
         onSendMessage={props.chat.sendMessage}
         messagesEndRef={props.chat.messagesEndRef}
         onReopenGraph={props.chat.reopenGraph}
+        onGraphOption={props.chat.handleGraphOption}
         statusInfo={status.statusInfo}
       />
     )
   },
   RemindersDashboard: RemindersView,
+  NotesDashboard: NotesView,
   ExtensionsStore: ExtensionsView,
   DynamicDashboard: DynamicDashboard
 }

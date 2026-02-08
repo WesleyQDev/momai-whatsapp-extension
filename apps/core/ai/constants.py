@@ -21,10 +21,12 @@ CORE_GLOBAL_TOOLS = [
     # 4. AI Meta-Control (Self-configuration)
     "open_model_selector",
     "switch_ai_model",
-    "get_momai_resources_tool"
+    "get_momai_resources_tool",
+    "open_extension_store"
 ]
 
 # Prompt Templates
+from utils.i18n import t
 ROUTER_SYSTEM_TEMPLATE = """Route the request to the best specialist.
 Available specialists:
 {agent_descriptions}
@@ -36,13 +38,20 @@ If {assistant_persona}: # PERSONA
 {assistant_persona}
 CRITICAL: Keep your verbal response extremely SHORT and PUNCHY. One or two sentences maximum. Great for TTS."""
 
-TOOL_PROTOCOL = """
+MIN_INTERFACE_CHARS = 240
+
+TOOL_PROTOCOL = f"""
 TOOL PROTOCOL: You have tools bound to this session. If you need to perform a system action or display information, you MUST generate a 'tool_call' instead of just describing the action in text. Never simulate a tool result in the chat.
 
+ANTI-HALLUCINATION RULES:
+- Do NOT fabricate file paths, system states, or UI outputs.
+- Only show interfaces that reflect real tool results.
+- If the requested action requires OS/file access and no suitable tool is available, follow the NO_TOOLS_WARNING flow.
+
 INTERFACE USAGE GUIDELINES:
-- **Chat vs. Interface**: Keep your main chat responses SHORT and CONCISE (ideal for voice/TTS).
-- **Rich Content & Lists**: If you need to present LISTS, reports, long explanations, code snippets, or data analysis, you **MUST** use `show_interface(view='side', content=...)`.
-- **User Request**: If the user explicitly asks to "show", "list in interface", "open side panel", etc., you **MUST** use `show_interface`.
+- **Chat vs. Interface**: {t("tool_protocol_chat_short")}
+- **Rich Content & Lists**: {t("tool_protocol_interface_threshold", min_chars=MIN_INTERFACE_CHARS)}
+- **User Request**: {t("tool_protocol_user_request")}
 - **Decisions**: If you need user confirmation or simple choices, use `ask_confirmation` or `show_interface(view='side', ...)` (Center view is temporarily disabled).
 
 SPECIFIC CAPABILITIES FLOW:
@@ -54,12 +63,8 @@ If the user asks "What can you do?", "What are your capabilities?", "Help", or s
 """
 
 
-NO_TOOLS_WARNING = """
+NO_TOOLS_WARNING = f"""
 NOTICE: No native tools were found to perform this specific action directly.
-CRITICAL INSTRUCTION: Do NOT just say "I can't do that".
-Instead, act as a helpful assistant that can expand its own capabilities.
-Response Protocol:
-1. Briefly state you don't have this skill *installed* yet.
-2. IMMEDIATELY offer to search the Extension Store for a plugin that can helper.
-   Example: "I don't have a browser control extension installed yet. Would you like me to check the Store for one?"
-3. If the user agrees, your next action (in the next turn) would be to call a search tool (or 'search_store' if/when available)."""
+CRITICAL INSTRUCTION: Do NOT call `show_interface` or `show_chat_card`.
+Instead, reply with ONE short sentence: "{t("no_tools_short_reply")}".
+"""

@@ -7,13 +7,15 @@ interface MessageListProps {
   isLoading: boolean
   messagesEndRef: RefObject<HTMLDivElement | null>
   onReopenGraph: (data: any) => void
+  onGraphOption: (option: string) => void
 }
 
 const MessageList = memo(function MessageList({
   messages,
   isLoading,
   messagesEndRef,
-  onReopenGraph
+  onReopenGraph,
+  onGraphOption
 }: MessageListProps): JSX.Element {
   return (
     <main className="flex-1 flex flex-col gap-5 p-4 overflow-y-auto overflow-x-hidden">
@@ -44,6 +46,7 @@ const MessageList = memo(function MessageList({
           message={msg}
           isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
           onReopenGraph={onReopenGraph}
+          onGraphOption={onGraphOption}
         />
       ))}
 
