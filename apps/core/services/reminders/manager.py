@@ -98,7 +98,8 @@ class ReminderManager:
 
             # 2. Notify via TTS
             if self.tts_callback:
-                msg = f"Sir, reminder: {reminder.title}. {reminder.content if reminder.content else ''}"
+                # User wants concise TTS without prefixes like 'Sir, reminder:'
+                msg = f"{reminder.title}. {reminder.content if reminder.content else ''}"
                 self.tts_callback(msg)
 
             # 3. If not recurring, deactivate

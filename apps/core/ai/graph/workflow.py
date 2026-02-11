@@ -78,6 +78,7 @@ def get_valid_history(
 
 from ai.constants import (
     CORE_GLOBAL_TOOLS,
+    get_language_instruction,
     PERSONA_INJECTION_TEMPLATE,
     TOOL_PROTOCOL,
     NO_TOOLS_WARNING,
@@ -194,7 +195,12 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         from tools.system_actions import get_all_tools_registry
         last_msg = state["messages"][-1].content
         
-        tool_results = await vector_db.search_tools(str(last_msg), limit=10)
+        # Skip Tool RAG for 'responder' to save latency in general conversation
+        tool_results = []
+        if agent_name != "responder":
+            # Reduced limit from 10 to 4 for local LLM reliability
+            tool_results = await vector_db.search_tools(str(last_msg), limit=4)
+        
         all_registry = get_all_tools_registry()
         
         active_tools = []
@@ -213,16 +219,17 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         
         # 3. Always include core system tools (Safeguard)
         from tools.system_actions import AVAILABLE_TOOLS
-        for t_name in CORE_GLOBAL_TOOLS:
+        # If responder, we only need basic UI tools. Full CORE_GLOBAL_TOOLS adds too much prompt overhead.
+        relevant_globals = CORE_GLOBAL_TOOLS
+        if agent_name == "responder":
+             # Only UI and Capabilities for general chat
+             relevant_globals = ["show_interface", "close_interface", "get_capabilities", "ask_confirmation", "open_extension_store"]
+        
+        for t_name in relevant_globals:
              if t_name in AVAILABLE_TOOLS and t_name not in [t.name for t in active_tools]:
                  active_tools.append(AVAILABLE_TOOLS[t_name])
 
         no_tools_available = not active_tools
-
-        if active_tools:
-            logger.info(f"[Specialist] Tools considered: {[t.name for t in active_tools]}")
-        else:
-            logger.info("[Specialist] No specific tools found via RAG/Manifest.")
 
         # Logic for Persona Injection
         system_prompt = manifest.system_prompt
@@ -239,12 +246,17 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             user_name=user_name,
             assistant_persona=assistant_persona if assistant_persona else ""
         )
+
+        language_instruction = get_language_instruction()
         
         # Merge prompts
-        final_system_prompt = f"{time_context}\n\n{persona_instruction}\n\n# AGENT INSTRUCTIONS\n{system_prompt}"
+        final_system_prompt = (
+            f"{time_context}\n\n{language_instruction}\n\n{persona_instruction}\n\n"
+            f"# AGENT INSTRUCTIONS\n{system_prompt}"
+        )
 
         # Dynamic prompt customization via hooks
-        custom_prompts = extension_manager.pm.hook.on_agent_init(agent_name=agent_name)
+        custom_prompts = extension_manager.get_agent_init_prompts(agent_name)
         if custom_prompts:
             for cp in custom_prompts:
                 if cp:
@@ -277,9 +289,9 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         chain = prompt | llm.bind_tools(active_tools) if active_tools else prompt | llm
         
         # Invoke LLM
-        # We need a longer context for ReAct loops
+        # Reduced history from 15 to 8 for local LLM context optimization
         budget = _compute_history_budget(final_system_prompt, None)
-        result = await chain.ainvoke({"messages": get_valid_history(state["messages"], 15, budget)})
+        result = await chain.ainvoke({"messages": get_valid_history(state["messages"], 8, budget)})
         
         # Fallback to avoid empty model response
         if not result.content and not (hasattr(result, "tool_calls") and result.tool_calls):
@@ -314,8 +326,46 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
     # workflow.add_node("responder", responder_node) # Removed mandatory responder node
 
     from langgraph.prebuilt import ToolNode
-    from tools.system_actions import get_all_tools_list
-    workflow.add_node("tools", ToolNode(get_all_tools_list()))
+    from tools.system_actions import get_all_tools_list, get_all_tools_registry
+    
+    async def dynamic_tools_node(state: AgentState):
+        """Dynamic tool executor that fetches fresh tools at runtime."""
+        from langchain_core.messages import ToolMessage
+        
+        last_msg = state["messages"][-1]
+        if not hasattr(last_msg, "tool_calls") or not last_msg.tool_calls:
+            return {"messages": []}
+        
+        # Get fresh tools registry at runtime
+        tools_registry = get_all_tools_registry()
+        
+        tool_messages = []
+        for tool_call in last_msg.tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call["args"]
+            tool_id = tool_call["id"]
+            
+            tool = tools_registry.get(tool_name)
+            if tool:
+                try:
+                    # Support both sync and async tools
+                    import asyncio
+                    if hasattr(tool, 'ainvoke'):
+                        result = await tool.ainvoke(tool_args)
+                    elif asyncio.iscoroutinefunction(getattr(tool, '_arun', None)):
+                        result = await tool._arun(**tool_args)
+                    else:
+                        result = tool.invoke(tool_args)
+                    tool_messages.append(ToolMessage(content=str(result), tool_call_id=tool_id))
+                except Exception as e:
+                    logger.error(f"[Tools] Error executing {tool_name}: {e}")
+                    tool_messages.append(ToolMessage(content=f"Error: {str(e)}", tool_call_id=tool_id))
+            else:
+                tool_messages.append(ToolMessage(content=f"Error: Tool '{tool_name}' not found.", tool_call_id=tool_id))
+        
+        return {"messages": tool_messages}
+    
+    workflow.add_node("tools", dynamic_tools_node)
     
     workflow.set_entry_point("semantic_router")
 
@@ -354,9 +404,17 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             tool_name = tool_call["name"]
             
             # --- SAFETY CHECK ---
-            # If tool is in CORE or SAFE list -> OK.
-            # Otherwise -> ASK PERMISSION.
-            is_safe = tool_name in CORE_GLOBAL_TOOLS or tool_name.startswith("system_") # Example heuristic
+            # Retrieve the tool object to check for .safe attribute
+            from tools.system_actions import get_all_tools_registry, SAFE_TOOLS_NAMES
+            registry = get_all_tools_registry()
+            tool_obj = registry.get(tool_name)
+            
+            # Default to False if tool not found or no safe attribute
+            # We check both the hardcoded SAFE list AND the dynamic .safe attribute (for extensions)
+            is_static_safe = tool_name in SAFE_TOOLS_NAMES
+            is_dynamic_safe = getattr(tool_obj, 'safe', False) if tool_obj else False
+            
+            is_safe = is_static_safe or is_dynamic_safe
             
             if is_safe:
                 return "tools"

@@ -114,28 +114,40 @@ async function startPythonBackend(): Promise<void> {
     }
 
     console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
-    console.log(`[Electron] Usando executável: ${pythonExe}`)
+    
+    // Otimização: Passar apenas o essencial no env para acelerar o spawn
+    const sanitizedEnv = {
+      // Sistema Básicos
+      PATH: process.env.PATH,
+      SystemRoot: process.env.SystemRoot,
+      SystemDrive: process.env.SystemDrive,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+      USERPROFILE: process.env.USERPROFILE,
+      APPDATA: process.env.APPDATA,
+      LOCALAPPDATA: process.env.LOCALAPPDATA,
+      // MomAI Específicos
+      VIRTUAL_ENV: venvPath,
+      MOMAI_DATA_DIR: dataDir,
+      MOMAI_UV_BIN: uvExe,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8: '1',
+      PYTHONOPTIMIZE: '1', // Ativa otimizações do interpretador
+      PYTHONDONTWRITEBYTECODE: '0', // Queremos .pyc para startup mais rápido
+      // Outros
+      FORCE_COLOR: '1',
+      LC_ALL: 'pt_BR.UTF-8'
+    }
 
     pythonStartTime = Date.now()
     pythonProcess = spawn(
       pythonExe,
-      ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'],
+      ['main.py'], // Execução direta do main.py
       {
         cwd: corePath,
         shell: false,
         stdio: 'pipe',
-        env: {
-          ...process.env,
-          VIRTUAL_ENV: venvPath,
-          MOMAI_DATA_DIR: dataDir,
-          MOMAI_UV_BIN: uvExe,
-          FORCE_COLOR: '1',
-          PYTHONIOENCODING: 'utf-8',
-          PYTHONUTF8: '1',
-          PYTHONLEGACYWINDOWSSTDIO: '0',
-          LC_ALL: 'pt_BR.UTF-8',
-          TERM: 'xterm-256color'
-        }
+        env: sanitizedEnv
       }
     )
 
@@ -297,8 +309,8 @@ function createWindow(): void {
   }
   // Create the browser window.
   mainWindow = new BrowserWindow({
-    width: 360,
-    height: 240,
+    width: 800,
+    height: 540,
     show: false,
     frame: false,
     resizable: false,

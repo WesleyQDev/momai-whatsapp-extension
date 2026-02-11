@@ -1,7 +1,9 @@
 import { useActiveReminders } from '../../hooks/useActiveReminders'
+import { useI18n } from '../../i18n'
 
 export default function NextReminders() {
   const { reminders } = useActiveReminders()
+  const { t, formatTime } = useI18n()
 
   if (reminders.length === 0) return null
 
@@ -10,7 +12,7 @@ export default function NextReminders() {
       <div className="flex items-center gap-2 mb-2">
         <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse"></div>
         <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-          Próximos Agendamentos
+          {t('nextReminders.title')}
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -20,7 +22,7 @@ export default function NextReminders() {
               {r.title}
             </span>
             <span className="text-accent/70 font-mono text-[10px]">
-              {new Date(r.scheduled_time).toLocaleTimeString('pt-BR', {
+              {formatTime(new Date(r.scheduled_time), {
                 hour: '2-digit',
                 minute: '2-digit'
               })}

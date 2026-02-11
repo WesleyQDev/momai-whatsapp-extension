@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import FloatingCard from './floating/FloatingCard'
 import { DynamicRenderer, type UIComponent } from './DynamicRenderer'
+import { useI18n } from '../i18n'
 
 interface GraphInterfaceProps {
   view: 'center' | 'side'
@@ -22,6 +23,7 @@ export default function GraphInterface({
   onOptionSelect,
   onClose
 }: GraphInterfaceProps) {
+  const { t, formatDate } = useI18n()
   const handleDynamicAction = (actionId: string, value: any) => {
     // Envia a ação de volta como uma mensagem estruturada (JSON string)
     // O backend precisará detectar que isso é um evento de UI
@@ -140,7 +142,7 @@ export default function GraphInterface({
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_10px_rgba(var(--accent),0.5)] animate-pulse" />
             <span className="text-xs font-bold text-text/90 uppercase tracking-[0.2em]">
-              Interface Auxiliar
+              {t('graphInterface.header')}
             </span>
           </div>
           <button
@@ -169,9 +171,9 @@ export default function GraphInterface({
             {/* Footer do Relatório */}
             <div className="mt-20 pt-8 border-t border-border/10 flex items-center justify-between opacity-30 italic text-[10px] text-text-muted">
               <span className="uppercase tracking-[0.3em] font-medium">
-                Relatório do Sistema • MomAI
+                {t('graphInterface.footer')}
               </span>
-              <span>{new Date().toLocaleDateString('pt-BR')}</span>
+              <span>{formatDate(new Date())}</span>
             </div>
           </div>
         </div>

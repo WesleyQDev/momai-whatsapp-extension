@@ -37,15 +37,29 @@ class SafeExtensionTool(BaseTool):
     """A wrapper for extension tools that ensures they never crash the core and respect permissions."""
     original_tool: BaseTool
     plugin_manifest: Any = None
+    safe: bool = False
     
-    def __init__(self, original_tool: BaseTool):
+    def __init__(self, original_tool: BaseTool, manifest: Any = None):
         super().__init__(
             name=original_tool.name,
             description=original_tool.description,
             args_schema=original_tool.args_schema,
-            return_direct=original_tool.return_direct
+            return_direct=original_tool.return_direct,
+            original_tool=original_tool,
+            plugin_manifest=manifest
         )
         self.original_tool = original_tool
+        self.plugin_manifest = manifest
+        
+        # Inherit safety flag if present on the tool itself
+        tool_is_safe = getattr(original_tool, "safe", False)
+        
+        # Check if the tool is declared as safe in the manifest's safe_tools list
+        manifest_is_safe = False
+        if manifest and hasattr(manifest, 'features') and hasattr(manifest.features, 'safe_tools'):
+            manifest_is_safe = original_tool.name in manifest.features.safe_tools
+        
+        self.safe = tool_is_safe or manifest_is_safe
 
     def _check_permission(self) -> bool:
         """Heuristic to check if the tool usage is consistent with declared permissions."""
@@ -67,7 +81,14 @@ class SafeExtensionTool(BaseTool):
             return f"Error: The extension '{self.plugin_manifest.name}' does not have 'filesystem' permission required for this action."
             
         try:
-            return self.original_tool.run(*args, **kwargs)
+            tool_input = None
+            if args:
+                tool_input = args[0]
+                if isinstance(tool_input, dict) and kwargs:
+                    tool_input = {**tool_input, **kwargs}
+            else:
+                tool_input = kwargs or {}
+            return self.original_tool.invoke(tool_input)
         except Exception as e:
             logger.error(f"SafeTool Exception in {self.name}: {e}")
             return f"Error: {str(e)}"
@@ -77,7 +98,19 @@ class SafeExtensionTool(BaseTool):
             return f"Error: The extension '{self.plugin_manifest.name}' does not have 'filesystem' permission required for this action."
 
         try:
-            return await self.original_tool.arun(*args, **kwargs)
+            tool_input = None
+            if args:
+                tool_input = args[0]
+                if isinstance(tool_input, dict) and kwargs:
+                    tool_input = {**tool_input, **kwargs}
+            else:
+                tool_input = kwargs or {}
+
+            if getattr(self.original_tool, "is_async", False):
+                return await self.original_tool.ainvoke(tool_input)
+
+            import asyncio
+            return await asyncio.to_thread(self.original_tool.invoke, tool_input)
         except Exception as e:
             logger.error(f"SafeTool Exception in {self.name}: {e}")
             return f"Error: {str(e)}"

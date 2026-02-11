@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useI18n } from '../../i18n'
 
 interface UpdateToastProps {
   installedVersion?: string
@@ -11,6 +12,7 @@ export default function UpdateToast({
   latestVersion,
   onOpenSettings
 }: UpdateToastProps) {
+  const { t } = useI18n()
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
@@ -42,17 +44,27 @@ export default function UpdateToast({
           </div>
           <div className="flex flex-col">
             <h4 className="text-xs font-black text-text uppercase tracking-tight">
-              Atualização Disponível
+              {t('updateToast.title')}
             </h4>
             <span className="text-[10px] text-text-muted font-medium">
-              Motor Local: {installedVersion} → {latestVersion}
+              {t('updateToast.engineLabel', {
+                installed: installedVersion || '... ',
+                latest: latestVersion || '...'
+              })}
             </span>
           </div>
           <button
             onClick={() => setIsVisible(false)}
             className="ml-auto p-1 text-text-muted hover:text-text transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+            >
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -60,7 +72,7 @@ export default function UpdateToast({
         </div>
 
         <p className="text-[10px] text-text-muted leading-relaxed">
-          Uma nova versão do motor Llama.cpp está disponível com melhorias de performance.
+          {t('updateToast.description')}
         </p>
 
         <button
@@ -70,7 +82,7 @@ export default function UpdateToast({
           }}
           className="w-full py-2 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20"
         >
-          Atualizar Agora
+          {t('updateToast.cta')}
         </button>
       </div>
     </div>

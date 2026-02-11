@@ -5,7 +5,12 @@ import time
 import logging
 import queue
 import io
+import os
 from typing import Optional, Any
+
+# Disable Hugging Face network checks globally for faster, offline-first execution
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false" # Avoid warnings in multi-threaded env
 
 # Suppress specific warnings for a cleaner output
 warnings.filterwarnings(
@@ -69,6 +74,10 @@ class TTSManager:
             import torch
             
             self.pyaudio_instance = pyaudio.PyAudio()
+            
+            # KPipeline may still try to check if it has repo_id. 
+            # If the files are already cached, this should be fast.
+            # Using repo_id='hexgrad/Kokoro-82M' but HF_HUB_OFFLINE=1 should skip the HEAD request.
             self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
             
             self.has_tts = True

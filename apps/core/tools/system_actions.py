@@ -557,17 +557,31 @@ def get_capabilities():
 
 # Core Tools
 search.name = "duckduckgo_search"
+
 TOOLS = [
     search,
-    show_interface, show_chat_card, close_interface, ask_confirmation, open_model_selector, switch_ai_model,
+    show_interface, show_chat_card, close_interface, ask_confirmation,
     open_extension_store,
-    get_momai_resources_tool,
     get_momai_resources_tool,
     create_reminder_tool, list_reminders_tool, delete_reminder_tool,
     get_capabilities
 ]
 
 AVAILABLE_TOOLS = {t.name: t for t in TOOLS}
+
+# Explicit Safe List for Native Tools (avoids Pydantic attribute errors)
+SAFE_TOOLS_NAMES = {
+    "duckduckgo_search",
+    "show_interface", 
+    "show_chat_card", 
+    "close_interface", 
+    "ask_confirmation", 
+    "open_extension_store",
+    "get_momai_resources_tool",
+    "create_reminder_tool", 
+    "list_reminders_tool", 
+    "get_capabilities"
+}
 
 def get_all_tools_registry():
     """Returns a unified dictionary of all tools (native + extensions)."""
@@ -578,8 +592,11 @@ def get_all_tools_registry():
     
     ext_tools = extension_manager.get_tools()
     for t in ext_tools:
-        # Wrap extension tools for safety
-        registry[t.name] = SafeExtensionTool(original_tool=t)
+        # Don't re-wrap tools that are already SafeExtensionTool
+        if isinstance(t, SafeExtensionTool):
+            registry[t.name] = t
+        else:
+            registry[t.name] = SafeExtensionTool(original_tool=t)
         
     return registry
 

@@ -13,9 +13,11 @@ active_websockets: list[WebSocket] = []
 main_loop: asyncio.AbstractEventLoop | None = None
 reminder_manager = None
 ww = None
+system_ready = asyncio.Event()
 
 is_gaming_mode = False
 ai_stack_loaded = False
+ai_busy = False
 
 last_init_event: dict[str, Any] = {
     "stage": "pending",
@@ -70,6 +72,17 @@ def set_gaming_mode(enabled: bool) -> None:
     global is_gaming_mode
     is_gaming_mode = enabled
     logger.info("[Main] Gaming mode: %s", enabled)
+
+
+def set_ai_busy(enabled: bool) -> None:
+    """Marks when the AI pipeline is actively streaming a response."""
+    global ai_busy
+    ai_busy = enabled
+
+
+def is_ai_busy() -> bool:
+    """Returns True when AI is generating or speaking a response."""
+    return ai_busy
 
 
 def set_pending_graph_data(thread_id: str, data: dict) -> None:

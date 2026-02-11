@@ -1,5 +1,8 @@
-﻿import logging
-import os
+﻿import os
+import logging
+# Force offline mode for all HuggingFace-based modules (TTS, LLM, Embeddings)
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from dotenv import load_dotenv
 from fastapi import FastAPI

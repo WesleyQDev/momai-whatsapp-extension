@@ -197,6 +197,41 @@ class PluginRegistry:
         return None
 
 
+    def get_agent_init_prompts(self, agent_name: str) -> List[str]:
+        """Returns prompt additions from extensions, with a direct-call fallback."""
+        prompts: List[str] = []
+        try:
+            hook_results = self.pm.hook.on_agent_init(agent_name=agent_name)
+            if hook_results:
+                for item in hook_results:
+                    if item:
+                        prompts.append(item)
+        except Exception as e:
+            print(f"[Registry] Error collecting on_agent_init hooks: {e}")
+
+        if prompts:
+            return prompts
+
+        # Fallback: direct call on plugin objects if hook registration failed
+        for plugin_id, p_info in self.plugins.items():
+            if not p_info["enabled"]:
+                continue
+            plugin_obj = p_info.get("instance") or p_info.get("module")
+            if not plugin_obj:
+                continue
+            handler = getattr(plugin_obj, "on_agent_init", None)
+            if not callable(handler):
+                continue
+            try:
+                result = handler(agent_name)
+                if result:
+                    prompts.append(result)
+            except Exception as e:
+                print(f"[Registry] Error in on_agent_init for {plugin_id}: {e}")
+
+        return prompts
+
+
     def get_tools(self) -> List[Any]:
         """Collect tools registered via hooks with permission validation."""
         from utils.safe_tools import SafeExtensionTool
@@ -204,15 +239,28 @@ class PluginRegistry:
         
         # Iterate over each registered plugin to apply specific constraints
         for plugin_id, p_info in self.plugins.items():
-            if not p_info["enabled"] or not p_info["module"]:
+            if not p_info["enabled"]:
+                continue
+
+            plugin_obj = p_info.get("instance") or p_info.get("module")
+            if not plugin_obj:
                 continue
             
             # Use pluggy to call the hook FOR THIS SPECIFIC PLUGIN
             # This allows us to attribute tools to their origin
             try:
                 # pm.subset_hook_caller returns a caller that only calls specific plugins
-                hook_caller = self.pm.subset_hook_caller("register_tools", [p_info["module"]])
+                hook_caller = self.pm.subset_hook_caller("register_tools", [plugin_obj])
                 results = hook_caller()
+
+                if not results or all(r is None for r in results):
+                    handler = getattr(plugin_obj, "register_tools", None)
+                    if callable(handler):
+                        try:
+                            direct_result = handler()
+                            results = [direct_result]
+                        except Exception as e:
+                            print(f"[Registry] Direct register_tools error in {plugin_id}: {e}")
                 
                 if results:
                     manifest = p_info["manifest"]
@@ -220,14 +268,43 @@ class PluginRegistry:
                         if not tool_list: continue
                         for t in tool_list:
                             # Wrap for safety and attach origin for permission checks later
-                            safe_tool = SafeExtensionTool(original_tool=t)
-                            # Attach manifest to the tool for runtime permission checks if needed
-                            safe_tool.plugin_manifest = manifest
+                            safe_tool = SafeExtensionTool(original_tool=t, manifest=manifest)
                             all_tools.append(safe_tool)
             except Exception as e:
                 print(f"[Registry] Error getting tools from {plugin_id}: {e}")
                 
         return all_tools
+
+    def resolve_tool_shortcut(self, agent_name: str, user_text: str) -> Optional[Dict[str, Any]]:
+        """Asks extensions for a direct tool call based on the user text."""
+        for plugin_id, p_info in self.plugins.items():
+            if not p_info.get("enabled"):
+                continue
+
+            plugin_obj = p_info.get("instance") or p_info.get("module")
+            if not plugin_obj:
+                continue
+
+            try:
+                hook_caller = self.pm.subset_hook_caller("resolve_tool_shortcut", [plugin_obj])
+                results = hook_caller(agent_name=agent_name, user_text=user_text)
+
+                if not results or all(r is None for r in results):
+                    handler = getattr(plugin_obj, "resolve_tool_shortcut", None)
+                    if callable(handler):
+                        try:
+                            results = [handler(agent_name, user_text)]
+                        except Exception as e:
+                            print(f"[Registry] Direct resolve_tool_shortcut error in {plugin_id}: {e}")
+
+                if results:
+                    for item in results:
+                        if item:
+                            return item
+            except Exception as e:
+                print(f"[Registry] Error resolving shortcut in {plugin_id}: {e}")
+
+        return None
 
     def get_active_manifests(self) -> List[Dict]:
         """Returns formatted manifests for the Frontend with status."""
@@ -370,49 +447,39 @@ class PluginRegistry:
         finally:
             db.close()
 
-    async def sync_indexes(self, db):
-        """Syncs all enabled tools and agents to the Vector DB."""
-        print("[Registry] Syncing Vector DB...")
+    async def dispatch_action(self, extension_id: str, action: str, payload: Optional[Dict[str, Any]] = None):
+        """Dispatches an action from the UI to a specific extension."""
+        if extension_id not in self.plugins:
+            return {"status": "error", "message": "Extension not found"}
         
-        tools_to_add = []
-        intents_to_add = []
+        plugin = self.plugins[extension_id]
+        if not plugin.get("enabled"):
+            return {"status": "error", "message": "Extension is disabled"}
         
-        # 1. Native Tools
-        # We handle imports here to avoid circular deps
-        from tools.system_actions import TOOLS
+        instance = plugin.get("instance")
+        module = plugin.get("module")
         
-        for t in TOOLS:
-            # We index ALL native tools so the specialist can find them via text search too
-            tools_to_add.append({
-                "name": t.name,
-                "description": t.description or "",
-                "metadata": json.dumps({"source": "native"})
-            })
+        target = instance if instance else module
+        
+        if hasattr(target, "handle_ui_action"):
+            try:
+                # Handle both sync and async handlers
+                import asyncio
+                handler = getattr(target, "handle_ui_action")
+                if asyncio.iscoroutinefunction(handler):
+                    return await handler(action, payload)
+                else:
+                    return handler(action, payload)
+            except Exception as e:
+                print(f"[Registry] Action error in {extension_id}: {e}")
+                return {"status": "error", "message": str(e)}
+        
+        return {"status": "error", "message": "Extension does not support UI actions"}
 
-        # 2. Extensions
-        tools = self.get_tools()
-        for t in tools:
-             tools_to_add.append({
-                "name": t.name,
-                "description": t.description or "",
-                "metadata": json.dumps({"source": "extension"})
-            })
-            
-        # 3. Agents (Intents)
-        for p in self.plugins.values():
-            if p["enabled"] and p["manifest"]:
-                m = p["manifest"]
-                intents_to_add.append({
-                    "text": m.description, # "Agent that controls HUE lights"
-                    "agent": m.features.agent_name
-                })
-        
-        if tools_to_add:
-            await db.add_tools(tools_to_add)
-        
-        if intents_to_add:
-            await db.add_intents(intents_to_add)
-            
-        print(f"[Registry] Vector DB synced with {len(tools_to_add)} tools and {len(intents_to_add)} agents.")
+    async def sync_indexes(self, db):
+        """Syncs all enabled tools and agents to the Vector DB using the optimized indexer."""
+        from utils.indexer import index_all_system_tools, index_initial_intents
+        await index_all_system_tools()
+        await index_initial_intents()
 # Singleton instance
 extension_manager = PluginRegistry()

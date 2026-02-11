@@ -9,6 +9,7 @@ import {
   GlobeAltIcon,
   DocumentTextIcon
 } from '@heroicons/react/24/outline'
+import { useI18n } from '../i18n'
 
 interface LateralBarProps {
   activeRoute: string
@@ -44,6 +45,7 @@ export default function LateralBar({
   onOpenSettings,
   isCompact = false
 }: LateralBarProps) {
+  const { t } = useI18n()
   const [extensions, setExtensions] = useState<ExtensionItem[]>([])
 
   useEffect(() => {
@@ -77,53 +79,76 @@ export default function LateralBar({
       <div
         className={`flex flex-col items-center w-full ${isCompact ? 'gap-2' : 'gap-4'} overflow-y-auto scrollbar-none`}
       >
-        <button
-          onClick={() => onNavigate('/notes')}
-          title="Notas"
-          className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${activeRoute === '/notes' ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
-        >
-          {activeRoute === '/notes' && (
-            <div
-              className={`absolute ${isCompact ? '-left-2 h-4' : '-left-3 h-6'} w-1 bg-accent rounded-r-full animate-fade-in`}
-            />
-          )}
-          <DocumentTextIcon
-            className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform group-hover:scale-110`}
-          />
-        </button>
+        {/* All items are now dynamic and reordered */}
+        {(() => {
+          const chatIcon = extensions.find((e) => e.features.agent_name === 'responder')
+          const agendaIcon = extensions.find((e) => e.features.agent_name === 'scheduler')
+          const others = extensions.filter(
+            (e) =>
+              e.features.agent_name !== 'responder' && e.features.agent_name !== 'scheduler'
+          )
 
-        {/* All items are now dynamic */}
-        {extensions.map((ext) => {
-          const IconComponent = iconMap[ext.icon || ''] || PuzzlePieceIcon
-          const isChat = ext.features.agent_name === 'responder'
-          const route = isChat ? '/' : `/extensions/${ext.id}`
-          const isActive = isChat ? activeRoute === '/' : activeRoute === `/extensions/${ext.id}`
+          const renderExt = (ext: ExtensionItem) => {
+            const IconComponent = iconMap[ext.icon || ''] || PuzzlePieceIcon
+            const isChat = ext.features.agent_name === 'responder'
+            const route = isChat ? '/' : `/extensions/${ext.id}`
+            const isActive = isChat ? activeRoute === '/' : activeRoute === `/extensions/${ext.id}`
 
-          return (
+            return (
+              <button
+                key={ext.id}
+                onClick={() => onNavigate(route)}
+                title={ext.name}
+                id={isChat ? 'tutorial-chat' : undefined}
+                className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${isActive ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
+              >
+                {isActive && (
+                  <div
+                    className={`absolute ${isCompact ? '-left-2 h-4' : '-left-3 h-6'} w-1 bg-accent rounded-r-full animate-fade-in`}
+                  />
+                )}
+                <IconComponent
+                  className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform group-hover:scale-110`}
+                />
+              </button>
+            )
+          }
+
+          const renderNotes = () => (
             <button
-              key={ext.id}
-              onClick={() => onNavigate(route)}
-              title={ext.name}
-              className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${isActive ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
+              onClick={() => onNavigate('/notes')}
+              title={t('sidebar.notes')}
+              id="tutorial-notes"
+              className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${activeRoute === '/notes' ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
             >
-              {isActive && (
+              {activeRoute === '/notes' && (
                 <div
                   className={`absolute ${isCompact ? '-left-2 h-4' : '-left-3 h-6'} w-1 bg-accent rounded-r-full animate-fade-in`}
                 />
               )}
-              <IconComponent
+              <DocumentTextIcon
                 className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform group-hover:scale-110`}
               />
             </button>
           )
-        })}
+
+          return (
+            <>
+              {chatIcon && renderExt(chatIcon)}
+              {renderNotes()}
+              {agendaIcon && renderExt(agendaIcon)}
+              {others.map((ext) => renderExt(ext))}
+            </>
+          )
+        })()}
 
         <div className="w-8 h-[1px] bg-border/30 my-2" />
 
         {/* Store Icon */}
         <button
           onClick={() => onNavigate('/extensions')}
-          title="Loja de Extensões"
+          title={t('sidebar.store')}
+          id="tutorial-store"
           className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${activeRoute === '/extensions' ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
         >
           {activeRoute === '/extensions' && (
@@ -140,7 +165,7 @@ export default function LateralBar({
       <div className="flex flex-col items-center w-full gap-2">
         <button
           onClick={onOpenSettings}
-          title="Configurações"
+          title={t('sidebar.settings')}
           className={`${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} bg-transparent border-none text-text-muted cursor-pointer flex items-center justify-center transition-all hover:bg-white/5 hover:text-text`}
         >
           <Cog6ToothIcon className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'}`} />

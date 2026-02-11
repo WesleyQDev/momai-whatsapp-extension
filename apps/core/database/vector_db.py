@@ -40,21 +40,36 @@ class VectorDB:
         
         return db.create_table(name, schema=schema)
 
+    async def _safe_search(self, table_name: str, query: str, limit: int = 5):
+        """Internal helper to search with error recovery for LanceDB."""
+        try:
+            table = self.get_table(table_name)
+            query_vector = await embeddings.embed_text(query)
+            return table.search(query_vector).limit(limit).to_list()
+        except Exception as e:
+            err_str = str(e)
+            if "Table" in err_str and "does not exist" in err_str:
+                # Silence this during repair/reindex phases
+                return []
+                
+            if "LanceError(IO)" in err_str or "Not found" in err_str:
+                logger.error(f"[VectorDB] Table '{table_name}' seems corrupt or missing fragments: {e}. Attempting automated repair (recreate table).")
+                # Drop table so it can be rebuilt by sync process or next write
+                try:
+                    self.connect().drop_table(table_name)
+                except:
+                    pass
+            else:
+                logger.error(f"[VectorDB] Search error in '{table_name}': {e}")
+            return []
+
     async def search_intent(self, query: str, limit: int = 1):
         """Searches for the closest intent in the database."""
-        table = self.get_table("intents")
-        query_vector = await embeddings.embed_text(query)
-        
-        results = table.search(query_vector).limit(limit).to_list()
-        return results
+        return await self._safe_search("intents", query, limit)
 
     async def search_tools(self, query: str, limit: int = 5):
         """Searches for the most relevant tools in the database."""
-        table = self.get_table("tools")
-        query_vector = await embeddings.embed_text(query)
-        
-        results = table.search(query_vector).limit(limit).to_list()
-        return results
+        return await self._safe_search("tools", query, limit)
 
     async def add_intents(self, intents_data: list[dict]):
         """

@@ -43,6 +43,8 @@ class SettingsUpdate(BaseModel):
     locale: str | None = None
     min_interface_chars: int | None = None
     prebuffer_chars: int | None = None
+    onboarding_completed: bool | None = None
+    tutorial_completed: bool | None = None
 
 
 class ExtensionToggle(BaseModel):
@@ -86,3 +88,8 @@ class InstallRequest(BaseModel):
 class InstallExtensionRequest(BaseModel):
     id: str
     download_url: str
+
+
+class ExtensionActionRequest(BaseModel):
+    action: str
+    payload: dict | None = None

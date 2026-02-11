@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { StatusData, fetchSettings, updateSettingsPartial } from '../../services/api'
+import { useI18n } from '../../i18n'
 
 interface ChatInputProps {
   text: string
@@ -16,6 +17,7 @@ export default function ChatInput({
   isModeChanging = false,
   statusInfo
 }: ChatInputProps) {
+  const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
   const [localText, setLocalText] = useState(text)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
@@ -115,7 +117,7 @@ export default function ChatInput({
           className="flex-1 bg-transparent border-none p-2.5 px-4 text-[15px] sm:text-[16px] text-text outline-none placeholder:text-text-muted/50 disabled:opacity-50 min-w-0"
           value={localText}
           onChange={(e) => setLocalText(e.target.value)}
-          placeholder="Mande uma mensagem para o MomAI..."
+          placeholder={t('chatInput.placeholder')}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -135,11 +137,13 @@ export default function ChatInput({
                   ? 'bg-bg/40 border-border/20 text-text-muted'
                   : 'bg-bg/30 border-border/15 text-text-muted/70'
               } ${!settingsLoaded ? 'opacity-60' : ''}`}
-              title="Wake word"
+              title={t('chatInput.wakeTitle')}
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider">Wake</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                {t('chatInput.wakeLabel')}
+              </span>
               <span className="text-[9px] font-mono tracking-wider">
-                {voiceSettings.wake_word_enabled ? 'On' : 'Off'}
+                {voiceSettings.wake_word_enabled ? t('common.on') : t('common.off')}
               </span>
             </button>
 
@@ -152,11 +156,13 @@ export default function ChatInput({
                   ? 'bg-bg/40 border-border/20 text-text-muted'
                   : 'bg-bg/30 border-border/15 text-text-muted/70'
               } ${!settingsLoaded ? 'opacity-60' : ''}`}
-              title="TTS"
+              title={t('chatInput.ttsTitle')}
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider">TTS</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                {t('chatInput.ttsLabel')}
+              </span>
               <span className="text-[9px] font-mono tracking-wider">
-                {voiceSettings.tts_enabled ? 'On' : 'Off'}
+                {voiceSettings.tts_enabled ? t('common.on') : t('common.off')}
               </span>
             </button>
           </div>

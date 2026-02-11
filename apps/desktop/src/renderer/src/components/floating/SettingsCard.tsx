@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import FloatingCard from './FloatingCard'
 import { api } from '../../services/api'
+import { useI18n } from '../../i18n'
 
 interface SettingsCardProps {
   onClose: () => void
@@ -11,6 +12,7 @@ type Tab = 'general' | 'brain' | 'voice' | 'updates' | 'economy'
 type Theme = 'dark' | 'light'
 
 export default function SettingsCard({ onClose, initialTab = 'general' }: SettingsCardProps) {
+  const { t, setLocale } = useI18n()
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [isLoading, setIsLoading] = useState(true)
   const [theme, setTheme] = useState<Theme>(
@@ -123,13 +125,13 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
   }
 
   const handleUninstallEngine = async (backend?: string) => {
-    if (!confirm('Deseja realmente remover os binários deste motor local?')) return
+    if (!confirm(t('settings.brain.uninstallConfirm'))) return
 
     try {
       await api.delete('/setup/uninstall-engine', { params: { backend } })
       checkLocalStatus()
     } catch (error) {
-      alert('Erro ao desinstalar motor local.')
+      alert(t('settings.brain.uninstallError'))
     }
   }
 
@@ -149,7 +151,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
       setNewApp({ name: '', executable: '' })
       loadGamingApps()
     } catch (error) {
-      alert('Erro ao adicionar aplicativo.')
+      alert(t('settings.economy.addAppError'))
     }
   }
 
@@ -158,7 +160,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
       await api.delete(`/system/gaming-apps/${id}`)
       loadGamingApps()
     } catch (error) {
-      alert('Erro ao remover aplicativo.')
+      alert(t('settings.economy.removeAppError'))
     }
   }
 
@@ -166,6 +168,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
     try {
       const res = await api.get('/settings')
       setSettings(res.data)
+      if (res.data.locale) {
+        setLocale(res.data.locale)
+      }
     } catch (error) {
       console.error('Erro ao carregar configs:', error)
     } finally {
@@ -185,6 +190,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
   const updateField = (field: string, value: any, saveNow = false) => {
     setSettings((prev) => {
       const newState = { ...prev, [field]: value }
+      if (field === 'locale') {
+        setLocale(value)
+      }
       if (saveNow) saveSettings(newState)
       return newState
     })
@@ -193,46 +201,46 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
   const voiceCatalog = [
     {
-      lang: 'Português (Brasil)',
+      langKey: 'settings.voice.lang.ptBR',
       code: 'p',
       voices: [
-        { id: 'pf_dora', name: 'Dora (Sugerida)', traits: 'Feminina' },
-        { id: 'pm_alex', name: 'Alex', traits: 'Masculina' },
-        { id: 'pm_santa', name: 'Santa', traits: 'Masculina' }
+        { id: 'pf_dora', name: 'Dora', trait: 'female', suggested: true },
+        { id: 'pm_alex', name: 'Alex', trait: 'male' },
+        { id: 'pm_santa', name: 'Santa', trait: 'male' }
       ]
     },
     {
-      lang: 'English (US)',
+      langKey: 'settings.voice.lang.enUS',
       code: 'a',
       voices: [
-        { id: 'af_heart', name: 'Heart', traits: 'Feminina' },
-        { id: 'af_bella', name: 'Bella', traits: 'Feminina' },
-        { id: 'am_adam', name: 'Adam', traits: 'Masculino' },
-        { id: 'am_fenrir', name: 'Fenrir', traits: 'Masculino' }
+        { id: 'af_heart', name: 'Heart', trait: 'female' },
+        { id: 'af_bella', name: 'Bella', trait: 'female' },
+        { id: 'am_adam', name: 'Adam', trait: 'male' },
+        { id: 'am_fenrir', name: 'Fenrir', trait: 'male' }
       ]
     },
     {
-      lang: 'English (UK)',
+      langKey: 'settings.voice.lang.enUK',
       code: 'b',
       voices: [
-        { id: 'bf_alice', name: 'Alice', traits: 'Feminina' },
-        { id: 'bm_george', name: 'George', traits: 'Masculino' }
+        { id: 'bf_alice', name: 'Alice', trait: 'female' },
+        { id: 'bm_george', name: 'George', trait: 'male' }
       ]
     },
     {
-      lang: 'Español',
+      langKey: 'settings.voice.lang.es',
       code: 'e',
       voices: [
-        { id: 'ef_dora', name: 'Dora', traits: 'Feminina' },
-        { id: 'em_alex', name: 'Alex', traits: 'Masculino' }
+        { id: 'ef_dora', name: 'Dora', trait: 'female' },
+        { id: 'em_alex', name: 'Alex', trait: 'male' }
       ]
     },
     {
-      lang: 'Italiano',
+      langKey: 'settings.voice.lang.it',
       code: 'i',
       voices: [
-        { id: 'if_sara', name: 'Sara', traits: 'Feminina' },
-        { id: 'im_nicola', name: 'Nicola', traits: 'Masculino' }
+        { id: 'if_sara', name: 'Sara', trait: 'female' },
+        { id: 'im_nicola', name: 'Nicola', trait: 'male' }
       ]
     }
   ]
@@ -241,9 +249,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
   if (isLoading)
     return (
-      <FloatingCard title="Configurações" onClose={onClose} width="max-w-2xl">
+      <FloatingCard title={t('settings.loadingTitle')} onClose={onClose} width="max-w-2xl">
         <div className="p-10 text-center text-text-muted text-sm font-medium">
-          Carregando painel de controle...
+          {t('settings.loadingBody')}
         </div>
       </FloatingCard>
     )
@@ -330,16 +338,16 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
   }
 
   return (
-    <FloatingCard title="Painel de Controle" onClose={onClose} width="max-w-4xl">
+    <FloatingCard title={t('settings.title')} onClose={onClose} width="max-w-4xl">
       <div className="flex h-[520px] -mx-6 -my-6 bg-card">
         {/* SIDEBAR */}
         <div className="w-44 border-r border-border bg-sidebar p-4 flex flex-col gap-1">
           {[
-            { id: 'general', label: 'Geral', icon: icons.general },
-            { id: 'brain', label: 'Inteligência', icon: icons.brain },
-            { id: 'voice', label: 'Voz e Fala', icon: icons.voice },
-            { id: 'economy', label: 'FortScript', icon: icons.economy },
-            { id: 'updates', label: 'Atualizações', icon: icons.updates }
+            { id: 'general', label: t('settings.tabs.general'), icon: icons.general },
+            { id: 'brain', label: t('settings.tabs.brain'), icon: icons.brain },
+            { id: 'voice', label: t('settings.tabs.voice'), icon: icons.voice },
+            { id: 'economy', label: t('settings.tabs.economy'), icon: icons.economy },
+            { id: 'updates', label: t('settings.tabs.updates'), icon: icons.updates }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -363,10 +371,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
             <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="space-y-1">
                 <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                  Configurações Gerais
+                  {t('settings.general.title')}
                 </h2>
                 <p className="text-[11px] text-text-muted font-medium">
-                  Gerencie o comportamento e a aparência do sistema.
+                  {t('settings.general.subtitle')}
                 </p>
               </div>
 
@@ -374,7 +382,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 <div className="space-y-5">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                      Identidade do Usuário
+                      {t('settings.general.userLabel')}
                     </label>
                     <input
                       type="text"
@@ -382,13 +390,13 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       onChange={(e) => updateField('user_name', e.target.value)}
                       onBlur={() => saveSettings(settings)}
                       className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:border-accent/40 outline-none transition-all"
-                      placeholder="Seu nome..."
+                      placeholder={t('settings.general.userPlaceholder')}
                     />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                      Tema da Interface
+                      {t('settings.general.themeLabel')}
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -405,7 +413,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         >
                           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                         </svg>
-                        Escuro
+                          {t('settings.general.theme.dark')}
                       </button>
                       <button
                         onClick={() => changeTheme('light')}
@@ -429,7 +437,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                           <line x1="4.22" y1="19.07" x2="5.64" y2="17.66" />
                           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                         </svg>
-                        Claro
+                        {t('settings.general.theme.light')}
                       </button>
                     </div>
                   </div>
@@ -437,39 +445,39 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                    Personalidade da Assistente
+                    {t('settings.general.personaLabel')}
                   </label>
                   <textarea
                     value={settings.assistant_persona}
                     onChange={(e) => updateField('assistant_persona', e.target.value)}
                     onBlur={() => saveSettings(settings)}
                     className="w-full h-32 bg-input border border-border/60 rounded-lg px-4 py-3 text-sm text-text focus:border-accent/40 outline-none resize-none transition-all leading-relaxed placeholder:text-text-muted/30"
-                    placeholder="Instruções de comportamento..."
+                    placeholder={t('settings.general.personaPlaceholder')}
                   />
                 </div>
 
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                    Idioma e Interface
+                    {t('settings.general.languageSection')}
                   </label>
                   <div className="grid grid-cols-1 gap-3">
                     <div className="space-y-1">
                       <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                        Idioma da UI
+                        {t('settings.language.uiLabel')}
                       </span>
                       <select
                         value={settings.locale}
                         onChange={(e) => updateField('locale', e.target.value, true)}
                         className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
                       >
-                        <option value="pt-BR">Portugues (Brasil)</option>
-                        <option value="en">English</option>
+                        <option value="pt-BR">{t('settings.language.ptBR')}</option>
+                        <option value="en-US">{t('settings.language.enUS')}</option>
                       </select>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                          Minimo Interface
+                          {t('settings.general.minInterface')}
                         </span>
                         <input
                           type="number"
@@ -485,7 +493,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       </div>
                       <div className="space-y-1">
                         <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                          Prebuffer
+                          {t('settings.general.prebuffer')}
                         </span>
                         <input
                           type="number"
@@ -499,9 +507,36 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       </div>
                     </div>
                     <p className="text-[10px] text-text-muted leading-relaxed">
-                      Ajuste quando o conteudo deve ir para a interface auxiliar e a latencia do
-                      streaming.
+                      {t('settings.general.helperText')}
                     </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => {
+                            updateField('tutorial_completed', false, true)
+                            alert(t('settings.general.resetTutorialSuccess') || 'Tutorial reiniciado!')
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent text-[11px] font-black uppercase rounded-lg hover:bg-accent hover:text-white transition-all"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                          </svg>
+                          {t('settings.general.resetTutorial')}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            updateField('onboarding_completed', false, true)
+                            alert(t('settings.general.resetOnboardingSuccess') || 'Setup reiniciado!')
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-text/5 text-text/40 text-[11px] font-black uppercase rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-all"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                          </svg>
+                          {t('settings.general.resetOnboarding')}
+                        </button>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -512,10 +547,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
             <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="space-y-1">
                 <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                  Motores de IA
+                  {t('settings.brain.title')}
                 </h2>
                 <p className="text-[11px] text-text-muted font-medium">
-                  Configure processamento local ou chaves de nuvem.
+                  {t('settings.brain.subtitle')}
                 </p>
               </div>
 
@@ -523,22 +558,22 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <h4 className="text-[13px] font-black text-text uppercase tracking-wider">
-                      MomLocal Core
+                      {t('settings.brain.localCoreTitle')}
                     </h4>
                     <span className="text-[9px] text-text-muted font-black uppercase tracking-widest opacity-60">
-                      Llama.cpp Inference
+                      {t('settings.brain.localCoreSubtitle')}
                     </span>
                   </div>
                   {settings.ai_provider === 'local' ? (
                     <span className="text-[9px] font-black text-accent uppercase border border-accent/20 px-2 py-0.5 rounded-md bg-accent/5">
-                      Ativo
+                      {t('settings.brain.active')}
                     </span>
                   ) : (
                     <button
                       onClick={() => updateField('ai_provider', 'local', true)}
                       className="text-[9px] font-bold text-text-muted hover:text-text uppercase"
                     >
-                      Usar Local
+                      {t('settings.brain.useLocal')}
                     </button>
                   )}
                 </div>
@@ -546,20 +581,20 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                      Hardware Detectado
+                      {t('settings.brain.hardware')}
                     </label>
                     <div className="p-3 rounded-lg bg-black/20 border border-border flex flex-col gap-1">
                       <span className="text-[11px] font-bold text-text uppercase tracking-tight">
-                        {localDetails.detected_hardware || 'Buscando...'}
+                        {localDetails.detected_hardware || t('settings.brain.searching')}
                       </span>
                       <span className="text-[9px] text-text-muted font-medium italic truncate">
-                        CPU: {localDetails.cpu_name || '...'}
+                        {t('settings.brain.cpuLabel')} {localDetails.cpu_name || '...'}
                       </span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                      Aceleração
+                      {t('settings.brain.acceleration')}
                     </label>
                     <select
                       value={settings.local_backend}
@@ -568,10 +603,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       }
                       className="w-full bg-black/20 border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
                     >
-                      <option value="auto">Automático (Recomendado)</option>
-                      <option value="cuda">NVIDIA CUDA</option>
-                      <option value="vulkan">AMD/Intel Vulkan</option>
-                      <option value="cpu">Apenas CPU</option>
+                      <option value="auto">{t('settings.brain.backend.auto')}</option>
+                      <option value="cuda">{t('settings.brain.backend.cuda')}</option>
+                      <option value="vulkan">{t('settings.brain.backend.vulkan')}</option>
+                      <option value="cpu">{t('settings.brain.backend.cpu')}</option>
                     </select>
                   </div>
                 </div>
@@ -585,18 +620,20 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                           <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
                           <div className="flex flex-col">
                             <span className="text-[11px] font-bold text-text">
-                              Motor Llama.cpp não encontrado
+                              {t('settings.brain.engineMissing')}
                             </span>
                             <span className="text-[9px] text-text-muted font-medium">
-                              Versão:{' '}
+                              {t('settings.brain.versionLabel')}{' '}
                               <span className="text-accent">
                                 {localDetails.latest_version || '...'}
                               </span>
                               {' • '}
-                              Download:{' '}
+                              {t('settings.brain.downloadLabel')}{' '}
                               <span className="text-text font-bold italic">
                                 {settings.local_backend === 'auto'
-                                  ? `Auto (${localDetails.recommended_build?.toUpperCase()})`
+                                  ? t('settings.brain.downloadAuto', {
+                                      build: localDetails.recommended_build?.toUpperCase() || 'AUTO'
+                                    })
                                   : settings.local_backend.toUpperCase()}
                               </span>
                             </span>
@@ -610,12 +647,11 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                           }
                           className="px-3 py-1.5 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all"
                         >
-                          Instalar Agora
+                          {t('settings.brain.installNow')}
                         </button>
                       </div>
                       <p className="text-[10px] text-text-muted leading-relaxed">
-                        O motor local é necessário para processar IA de forma privada no seu
-                        computador. O download tem aprox. 30MB.
+                        {t('settings.brain.installInfo')}
                       </p>
                     </div>
                   )}
@@ -623,7 +659,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   {installStatus === 'installing' && (
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                        <span className="text-accent animate-pulse">Baixando Motor Local...</span>
+                        <span className="text-accent animate-pulse">
+                          {t('settings.brain.downloading')}
+                        </span>
                         <span className="text-text">{installProgress}%</span>
                       </div>
                       <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
@@ -652,7 +690,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
                             <span className="text-[11px] font-black text-text uppercase">
-                              Motor Pronto
+                              {t('settings.brain.ready')}
                             </span>
                           </div>
                           <span className="text-[9px] text-text-muted font-medium">
@@ -672,7 +710,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                                 }
                                 className="mr-2 px-2 py-1 bg-accent/20 text-accent text-[9px] font-black uppercase rounded hover:bg-accent hover:text-white transition-all"
                               >
-                                Atualizar para {localDetails.latest_version}
+                                {t('settings.brain.updateTo', {
+                                  version: localDetails.latest_version
+                                })}
                               </button>
                             )}
                           <button
@@ -684,7 +724,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                               )
                             }
                             className="p-2 text-text-muted hover:text-red-500 transition-colors"
-                            title="Remover motor"
+                            title={t('settings.brain.removeEngine')}
                           >
                             <svg
                               width="14"
@@ -705,13 +745,13 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   {installStatus === 'error' && (
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-red-500">
-                        Erro na instalação. Verifique sua conexão.
+                        {t('settings.brain.installError')}
                       </span>
                       <button
                         onClick={() => checkLocalStatus()}
                         className="text-[10px] font-black uppercase text-accent"
                       >
-                        Tentar Novamente
+                        {t('settings.brain.retry')}
                       </button>
                     </div>
                   )}
@@ -731,13 +771,11 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                   <span className="text-[11px] font-black uppercase tracking-wider">
-                    Privacidade Total
+                    {t('settings.brain.privacyTitle')}
                   </span>
                 </div>
                 <p className="text-[10px] text-text-muted leading-relaxed">
-                  O MomAI opera exclusivamente com modelos locais. Seus dados e conversas nunca saem
-                  deste computador. Motores em nuvem foram removidos para garantir sua privacidade
-                  absoluta.
+                  {t('settings.brain.privacyBody')}
                 </p>
               </div>
             </div>
@@ -747,10 +785,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
             <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="space-y-1">
                 <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                  Sintese Neural
+                  {t('settings.voice.title')}
                 </h2>
                 <p className="text-[11px] text-text-muted font-medium">
-                  Configure as capacidades de fala.
+                  {t('settings.voice.subtitle')}
                 </p>
               </div>
 
@@ -758,10 +796,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-[13px] font-bold text-text uppercase tracking-tight">
-                      Ativação por Voz
+                      {t('settings.voice.wakeTitle')}
                     </span>
                     <span className="text-[10px] text-text-muted font-medium italic">
-                      Diga "Sistema" • Vosk v0.3 (Local)
+                      {t('settings.voice.wakeSubtitle')}
                     </span>
                   </div>
                   <button
@@ -779,10 +817,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                 <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-[13px] font-bold text-text uppercase tracking-tight">
-                      Saída de Áudio (TTS)
+                      {t('settings.voice.ttsTitle')}
                     </span>
                     <span className="text-[10px] text-text-muted font-medium italic">
-                      Kokoro-82M (Local Neural)
+                      {t('settings.voice.ttsSubtitle')}
                     </span>
                   </div>
                   <button
@@ -799,7 +837,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   className={`space-y-3 transition-opacity ${!settings.tts_enabled ? 'opacity-30 pointer-events-none' : ''}`}
                 >
                   <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                    Catálogo de Vozes
+                    {t('settings.voice.catalogLabel')}
                   </label>
                   <div className="flex gap-4 h-[240px]">
                     {/* Coluna de Idiomas */}
@@ -818,7 +856,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                             <div
                               className={`w-1.5 h-1.5 rounded-full ${expandedLang === catalog.code ? 'bg-accent animate-pulse' : 'bg-text-muted/30'}`}
                             />
-                            {catalog.lang}
+                            {t(catalog.langKey)}
                           </div>
                           <svg
                             width="10"
@@ -851,11 +889,15 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                               }`}
                             >
                               <div className="flex flex-col items-start gap-0.5">
-                                <span className="tracking-tight">{v.name}</span>
+                                <span className="tracking-tight">
+                                  {v.suggested
+                                    ? t('settings.voice.nameSuggested', { name: v.name })
+                                    : v.name}
+                                </span>
                                 <span
                                   className={`text-[8px] uppercase font-black tracking-tighter ${settings.tts_voice === v.id ? 'text-white/70' : 'text-text-muted opacity-60'}`}
                                 >
-                                  {v.traits}
+                                  {t(`settings.voice.trait.${v.trait}`)}
                                 </span>
                               </div>
                               {settings.tts_voice === v.id && (
@@ -888,7 +930,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                               <path d="M12 12L2.7 7.1" />
                             </svg>
                             <span className="text-[10px] font-medium italic">
-                              Selecione um idioma
+                              {t('settings.voice.selectLanguage')}
                             </span>
                           </div>
                         )}
@@ -903,10 +945,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
             <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="space-y-1">
                 <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                  Central de Atualizações
+                  {t('settings.updates.title')}
                 </h2>
                 <p className="text-[11px] text-text-muted font-medium">
-                  Mantenha o sistema e o motor local sempre em dia.
+                  {t('settings.updates.subtitle')}
                 </p>
               </div>
 
@@ -928,15 +970,15 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[13px] font-black text-text uppercase tracking-tight">
-                        MomAI Core
+                        {t('settings.updates.coreTitle')}
                       </span>
                       <span className="text-[10px] text-text-muted font-medium">
-                        Versão do Sistema: v0.1.0
+                        {t('settings.updates.coreVersion', { version: '0.1.0' })}
                       </span>
                     </div>
                   </div>
                   <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">
-                    Sistema Atualizado
+                    {t('settings.updates.systemUpToDate')}
                   </span>
                 </div>
 
@@ -962,19 +1004,21 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[13px] font-black text-text uppercase tracking-tight">
-                          Motor Llama.cpp
+                          {t('settings.updates.engineTitle')}
                         </span>
                         <span className="text-[10px] text-text-muted font-medium">
                           {localDetails.installed_version
-                            ? `Instalado: v${localDetails.installed_version}`
-                            : 'Não Instalado'}
+                            ? t('settings.updates.engineInstalled', {
+                                version: localDetails.installed_version
+                              })
+                            : t('settings.updates.engineNotInstalled')}
                         </span>
                       </div>
                     </div>
 
                     {installStatus === 'installing' ? (
                       <span className="text-[10px] font-black text-accent uppercase tracking-widest animate-pulse">
-                        Atualizando... {installProgress}%
+                        {t('settings.updates.updating', { percent: installProgress })}
                       </span>
                     ) : localDetails.installed_version !== localDetails.latest_version &&
                       localDetails.latest_version ? (
@@ -986,11 +1030,11 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         }
                         className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20"
                       >
-                        Atualizar para {localDetails.latest_version}
+                        {t('settings.updates.updateTo', { version: localDetails.latest_version })}
                       </button>
                     ) : (
                       <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">
-                        Motor em Dia
+                        {t('settings.updates.engineUpToDate')}
                       </span>
                     )}
                   </div>
@@ -1008,10 +1052,10 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     localDetails.installed_version !== localDetails.latest_version && (
                       <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
                         <p className="text-[10px] text-text-muted leading-relaxed italic">
-                          Uma nova versão do motor Llama.cpp (v{localDetails.latest_version}) está
-                          disponível. A atualização inclui otimizações para{' '}
-                          {localDetails.recommended_build?.toUpperCase()} e correções de
-                          estabilidade.
+                          {t('settings.updates.engineUpdateInfo', {
+                            version: localDetails.latest_version,
+                            build: localDetails.recommended_build?.toUpperCase() || 'AUTO'
+                          })}
                         </p>
                       </div>
                     )}
@@ -1024,15 +1068,14 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                    Economia de Recursos
+                    {t('settings.economy.title')}
                   </h2>
                   <span className="text-[10px] font-black bg-accent text-white px-2 py-0.5 rounded-md tracking-tighter">
-                    FORTSCRIPT ENGINE
+                    {t('settings.economy.badge')}
                   </span>
                 </div>
                 <p className="text-[11px] text-text-muted font-medium">
-                  Gerenciamento inteligente via <b>FortScript</b> para suspender serviços pesados
-                  durante o uso intensivo.
+                  {t('settings.economy.subtitle')}
                 </p>
               </div>
 
@@ -1053,30 +1096,29 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   </div>
                   <div className="flex flex-col justify-center">
                     <span className="text-[12px] font-black text-text uppercase">
-                      Monitoramento FortScript Ativo
+                      {t('settings.economy.monitoringTitle')}
                     </span>
                     <p className="text-[10px] text-text-muted leading-relaxed">
-                      A tecnologia <b>FortScript</b> detecta processos pesados e libera VRAM/CPU
-                      instantaneamente para garantir máxima performance.
+                      {t('settings.economy.monitoringBody')}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                    Adicionar Novo Gatilho
+                    {t('settings.economy.addTrigger')}
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Nome amigável (ex: Fortnite)"
+                      placeholder={t('settings.economy.appNamePlaceholder')}
                       value={newApp.name}
                       onChange={(e) => setNewApp((prev) => ({ ...prev, name: e.target.value }))}
                       className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none focus:border-accent/40"
                     />
                     <input
                       type="text"
-                      placeholder="Executável (ex: rdr2.exe)"
+                      placeholder={t('settings.economy.appExePlaceholder')}
                       value={newApp.executable}
                       onChange={(e) =>
                         setNewApp((prev) => ({ ...prev, executable: e.target.value }))
@@ -1087,20 +1129,20 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       onClick={handleAddGamingApp}
                       className="px-4 bg-accent text-white rounded-lg text-xs font-black uppercase hover:opacity-90 transition-all"
                     >
-                      Adicionar
+                      {t('settings.economy.addButton')}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                    Aplicativos Monitorados
+                    {t('settings.economy.monitoredApps')}
                   </label>
                   <div className="grid grid-cols-1 gap-2">
                     {gamingApps.length === 0 ? (
                       <div className="py-8 text-center border border-dashed border-border rounded-xl">
                         <span className="text-[11px] text-text-muted font-medium italic">
-                          Nenhum aplicativo configurado.
+                          {t('settings.economy.emptyApps')}
                         </span>
                       </div>
                     ) : (

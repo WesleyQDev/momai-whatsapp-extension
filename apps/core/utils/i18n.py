@@ -21,6 +21,25 @@ _STRINGS = {
     },
 }
 
+_ALIASES = {
+    "en-US": "en",
+    "en-GB": "en",
+}
+
+
+def normalize_locale(locale: str | None) -> str:
+    if not locale:
+        return DEFAULT_LOCALE
+    if locale in _STRINGS:
+        return locale
+    alias = _ALIASES.get(locale)
+    if alias:
+        return alias
+    base = locale.split("-")[0]
+    if base in _STRINGS:
+        return base
+    return locale
+
 
 def get_locale() -> str:
     env_locale = os.getenv("MOMAI_LOCALE")
@@ -43,7 +62,7 @@ def get_locale() -> str:
 
 
 def t(key: str, locale: str | None = None, **kwargs) -> str:
-    lang = locale or get_locale()
+    lang = normalize_locale(locale or get_locale())
     data = _STRINGS.get(lang) or _STRINGS.get("pt-BR", {})
     text = data.get(key, key)
     if kwargs:

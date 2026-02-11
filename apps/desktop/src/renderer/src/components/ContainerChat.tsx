@@ -34,6 +34,7 @@ export default function ContainerChat({
         messagesEndRef={messagesEndRef}
         onReopenGraph={onReopenGraph}
         onGraphOption={onGraphOption}
+        onSendMessage={onSendMessage}
       />
 
       <ChatInput

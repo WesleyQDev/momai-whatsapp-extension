@@ -1,0 +1,109 @@
+{
+  "id": "com.momai.extension.app_launcher",
+  "name": "App Launcher",
+  "author": "WesleyQDev",
+  "version": "0.1.0",
+  "description": "Gerencia apps locais e permite abrir pela MomAI.",
+  "icon": "Layout",
+  "entry": "plugin.py",
+  "system_prompt": "Voce e o App Launcher. Seu trabalho e abrir aplicativos registrados e ajudar o usuario a manter a lista de apps. Sempre que o usuario pedir para abrir um app registrado (mesmo por nome parcial), voce DEVE chamar a ferramenta open_registered_app. Nao sugira a Store quando o app estiver registrado.",
+  "intents": [
+    "Abrir o aplicativo cadastrado",
+    "Adicionar um app para abrir pela MomAI",
+    "Editar o caminho de um aplicativo",
+    "Remover um app cadastrado"
+  ],
+  "features": {
+    "sidebar": true,
+    "agent_name": "app_launcher",
+    "ui_view": "DynamicDashboard",
+    "ui_schema": [
+      {
+        "type": "section",
+        "title": "Cadastro rapido",
+        "description": "Adicione apps e abra pela MomAI. O botao de abrir fica na lista abaixo.",
+        "columns": 3,
+        "children": [
+          {
+            "type": "input",
+            "id": "new_name",
+            "label": "Nome do app",
+            "placeholder": "Ex: Photoshop",
+            "required": true
+          },
+          {
+            "type": "input",
+            "id": "new_path",
+            "label": "Caminho do app",
+            "placeholder": "C:\\Program Files\\App\\app.exe",
+            "required": true,
+            "colSpan": 2
+          },
+          {
+            "type": "button",
+            "label": "Adicionar app",
+            "action": "add_app",
+            "icon": "rocket",
+            "colSpan": 3,
+            "payloadFrom": ["new_name", "new_path"]
+          }
+        ]
+      },
+      {
+        "type": "list",
+        "label": "Meus apps",
+        "source": "apps",
+        "emptyText": "Nenhum app cadastrado.",
+        "actions": [
+          { "label": "Abrir", "action": "open_app", "icon": "rocket" },
+          { "label": "Editar", "action": "prefill_edit", "icon": "edit" }
+        ],
+        "deleteAction": "delete_app"
+      },
+      {
+        "type": "section",
+        "title": "Editar app",
+        "description": "Use o botao Editar da lista para preencher. Voce pode alterar apenas o nome ou o caminho.",
+        "columns": 3,
+        "children": [
+          {
+            "type": "input",
+            "id": "edit_id",
+            "label": "ID do app",
+            "placeholder": "Ex: 3f1a2bcd"
+          },
+          {
+            "type": "input",
+            "id": "edit_name",
+            "label": "Novo nome (opcional)",
+            "placeholder": "Ex: Photoshop 2024"
+          },
+          {
+            "type": "input",
+            "id": "edit_path",
+            "label": "Novo caminho (opcional)",
+            "placeholder": "C:\\Program Files\\App\\app.exe",
+            "colSpan": 2
+          },
+          {
+            "type": "button",
+            "label": "Salvar edicao",
+            "action": "update_app",
+            "icon": "refresh",
+            "colSpan": 3,
+            "payloadFrom": ["edit_id", "edit_name", "edit_path"]
+          }
+        ]
+      }
+    ],
+    "tools": ["open_registered_app"],
+    "safe_tools": ["open_registered_app"]
+  },
+  "permissions": {
+    "network": false,
+    "filesystem": true,
+    "system_actions": true,
+    "shell": false,
+    "user_data": false
+  }
+}

@@ -12,29 +12,17 @@ from services.system.resource_manager import resource_manager
 
 
 async def init_system_task() -> None:
-    """Tarefa de segundo plano para inicializar o sistema sem travar o servidor."""
+    """Background task to initialize the system without blocking the server."""
     try:
-        await app_state.send_init_event("api", "Protocolos de sistema iniciados", 10)
+        await app_state.send_init_event("api", "System protocols initialized", 10)
 
         init_db()
-        await app_state.send_init_event("api", "Banco de dados conectado", 15)
+        await app_state.send_init_event("api", "Database connected", 15)
 
         app_state.initialize_ai_stack()
-        await app_state.send_init_event("brain", "Modulos de IA carregados", 35)
+        await app_state.send_init_event("brain", "AI modules loaded", 30)
 
-        app_state.extension_manager.load_all()
-        ext_count = len(app_state.extension_manager.get_active_manifests())
-        await app_state.send_init_event("extensions", f"{ext_count} extensoes carregadas", 50)
-
-        try:
-            from utils.indexer import index_all_system_tools, index_initial_intents
-            await app_state.send_init_event("brain", "Indexando ferramentas...", 55)
-            await index_all_system_tools()
-            await app_state.send_init_event("brain", "Indexando intencoes...", 60)
-            await index_initial_intents()
-        except Exception as exc:
-            app_state.logger.warning("[Main] Indexing error: %s", exc)
-
+        # 1. Start LLM initialization in background as early as possible
         db = SessionLocal()
         settings = db.query(Settings).first()
         if not settings:
@@ -43,15 +31,42 @@ async def init_system_task() -> None:
             db.commit()
             db.refresh(settings)
 
-        await app_state.send_init_event("brain", "Aplicando configuracoes...", 70)
+        def on_brain_init(status: str) -> None:
+            if app_state.main_loop:
+                asyncio.run_coroutine_threadsafe(
+                    app_state.send_init_event("brain", status, 82),
+                    app_state.main_loop
+                )
+
+        # Inicia o motor de IA em paralelo
+        app_state.orchestrator.initialize_llm(on_brain_init)
+
+        # 2. Continue with other initializations in parallel
+        app_state.extension_manager.load_all()
+        ext_count = len(app_state.extension_manager.get_active_manifests())
+        await app_state.send_init_event("extensions", f"{ext_count} extensions loaded", 45)
+
+        # Indexing tools and intents
+        try:
+            from utils.indexer import index_all_system_tools, index_initial_intents
+            await app_state.send_init_event("brain", "Indexing tools...", 50)
+            await index_all_system_tools()
+            await app_state.send_init_event("brain", "Indexing intents...", 55)
+            await index_initial_intents()
+        except Exception as exc:
+            app_state.logger.warning("[Main] Indexing error: %s", exc)
+
+        # 3. Apply settings
+        await app_state.send_init_event("brain", "Applying settings...", 65)
         app_state.tts.tts.set_voice(settings.tts_voice)
         app_state.tts.tts.set_enabled(settings.tts_enabled)
         app_state.orchestrator.SYSTEM_PROMPT = settings.assistant_persona
 
         resource_manager.on_notify_callback = app_state.notify_economy_change
         resource_manager.start()
-        await app_state.send_init_event("extensions", "Monitor de recursos ativado", 75)
+        await app_state.send_init_event("extensions", "Resource monitor enabled", 70)
 
+        # 4. Checkpointer Setup
         try:
             from ai.orchestrator import AsyncSqliteSaver, CHECKPOINT_PATH
             import sqlite3
@@ -63,34 +78,21 @@ async def init_system_task() -> None:
             conn = sqlite3.connect(CHECKPOINT_PATH)
             conn.execute("PRAGMA journal_mode=WAL")
 
+            # Restore table creation logic
             def _get_columns(table_name: str) -> set[str]:
                 cols = set()
-                for row in conn.execute(f"PRAGMA table_info({table_name})"):
-                    cols.add(str(row[1]))
+                try:
+                    for row in conn.execute(f"PRAGMA table_info({table_name})"):
+                        cols.add(str(row[1]))
+                except: pass
                 return cols
 
-            expected_checkpoints = {
-                "thread_id",
-                "checkpoint_ns",
-                "checkpoint_id",
-                "parent_checkpoint_id",
-                "type",
-                "checkpoint",
-                "metadata"
-            }
-            expected_writes = {
-                "thread_id",
-                "checkpoint_ns",
-                "checkpoint_id",
-                "task_id",
-                "idx",
-                "channel",
-                "type",
-                "value"
-            }
+            expected_checkpoints = {"thread_id", "checkpoint_ns", "checkpoint_id", "parent_checkpoint_id", "type", "checkpoint", "metadata"}
+            expected_writes = {"thread_id", "checkpoint_ns", "checkpoint_id", "task_id", "idx", "channel", "type", "value"}
 
             checkpoints_cols = _get_columns("checkpoints")
             writes_cols = _get_columns("writes")
+            
             if checkpoints_cols and not expected_checkpoints.issubset(checkpoints_cols):
                 conn.execute("DROP TABLE IF EXISTS checkpoints")
                 checkpoints_cols = set()
@@ -99,8 +101,7 @@ async def init_system_task() -> None:
                 writes_cols = set()
 
             if not checkpoints_cols:
-                conn.execute(
-                    """
+                conn.execute("""
                     CREATE TABLE IF NOT EXISTS checkpoints (
                         thread_id TEXT NOT NULL,
                         checkpoint_ns TEXT NOT NULL DEFAULT '',
@@ -111,12 +112,10 @@ async def init_system_task() -> None:
                         metadata BLOB,
                         PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id)
                     )
-                    """
-                )
+                """)
 
             if not writes_cols:
-                conn.execute(
-                    """
+                conn.execute("""
                     CREATE TABLE IF NOT EXISTS writes (
                         thread_id TEXT NOT NULL,
                         checkpoint_ns TEXT NOT NULL DEFAULT '',
@@ -128,31 +127,14 @@ async def init_system_task() -> None:
                         value BLOB,
                         PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
                     )
-                    """
-                )
+                """)
 
             conn.commit()
             conn.close()
-
-            await app_state.send_init_event("brain", "Iniciando cerebro principal...", 80)
-
-            def on_brain_init(status: str) -> None:
-                if app_state.main_loop:
-                    asyncio.run_coroutine_threadsafe(
-                        app_state.send_init_event("brain", status, 82),
-                        app_state.main_loop
-                    )
-
-            if settings.ai_provider:
-                await asyncio.to_thread(app_state.orchestrator.initialize_llm, settings.ai_provider, on_brain_init)
-                await asyncio.to_thread(app_state.orchestrator.llm_ready_event.wait, timeout=60.0)
-
         except Exception as exc:
-            app_state.logger.exception("[Main] Checkpointer/Init Error: %s", exc)
-            await app_state.send_init_event("error", f"Init Error: {exc}", 80)
+            app_state.logger.exception("[Main] Checkpointer Error: %s", exc)
 
-        await app_state.send_init_event("brain", "Cerebro inicializado", 85)
-
+        # 5. Services
         app_state.reminder_manager = app_state.ReminderManager(
             broadcast_callback=app_state.broadcast_to_sockets,
             tts_callback=app_state.tts.speak_sentence
@@ -167,7 +149,7 @@ async def init_system_task() -> None:
             state = app_state.get_graph_state()
             return state["view"] is not None and state["bypass_wake_word"]
 
-        await app_state.send_init_event("brain", "Iniciando detector de voz...", 92)
+        await app_state.send_init_event("brain", "Starting voice detector...", 85)
         app_state.ww = app_state.WakeWordDetector(
             keyword="Sistema",
             callback=on_wake_word,
@@ -176,15 +158,20 @@ async def init_system_task() -> None:
         if settings.wake_word_enabled:
             app_state.ww.start()
 
-        if settings.tts_enabled:
-            await app_state.send_init_event("voice", "Sincronizando voz local...", 95)
-            await asyncio.to_thread(app_state.tts.tts.wait_until_ready, timeout=15.0)
+        # 6. Final Sync - Aguarda o LLM e Voz apenas no final se necessário
+        await app_state.send_init_event("brain", "Finalizing brain connection...", 90)
+        await asyncio.to_thread(app_state.orchestrator.llm_ready_event.wait, timeout=30.0)
 
-        await app_state.send_init_event("ready", "Sistema operacional pronto.", 100)
+        if settings.tts_enabled:
+            await app_state.send_init_event("voice", "Syncing local voice...", 95)
+            await asyncio.to_thread(app_state.tts.tts.wait_until_ready, timeout=10.0)
+
+        await app_state.send_init_event("ready", "System ready.", 100)
+        app_state.system_ready.set()
         db.close()
     except Exception as exc:
-        app_state.logger.exception("[InitTask] Erro fatal: %s", exc)
-        await app_state.send_init_event("error", f"Erro: {str(exc)}", 0)
+        app_state.logger.exception("[InitTask] Fatal error: %s", exc)
+        await app_state.send_init_event("error", f"Error: {str(exc)}", 0)
 
 
 @asynccontextmanager

@@ -171,13 +171,23 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
     try:
         paths = get_paths()
 
-        report(f"Checking model {filename}...")
-        model_path = hf_hub_download(
-            repo_id=repo_id,
-            filename=filename,
-            local_dir=paths['models'],
-            local_dir_use_symlinks=False
-        )
+        try:
+            model_path = hf_hub_download(
+                repo_id=repo_id,
+                filename=filename,
+                local_dir=paths['models'],
+                local_dir_use_symlinks=False,
+                local_files_only=True # Evita checagem de rede se o arquivo já existir
+            )
+        except Exception:
+            # Se não existir localmente, tenta baixar (requer internet na primeira vez)
+            report(f"Model not found locally, attempting to download {filename}...")
+            model_path = hf_hub_download(
+                repo_id=repo_id,
+                filename=filename,
+                local_dir=paths['models'],
+                local_dir_use_symlinks=False
+            )
         
         abs_model_path = str(Path(model_path).resolve())
         abs_exe_path = str(paths['exe'].resolve())
@@ -186,17 +196,22 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
             report("ERROR: llama-server.exe not found!")
             raise FileNotFoundError("Local engine (llama-server) not found. Please install it in settings.")
 
+        import psutil
+        physical_cores = psutil.cpu_count(logical=False) or 4
+
         cmd = [
             abs_exe_path,
             "-m", abs_model_path,
             "--port", "8080",
-            "--ctx-size", str(CTX_SIZE),
-            "--n-gpu-layers", "99",
+            "-c", str(CTX_SIZE),
+            "-t", str(physical_cores),
+            "-ngl", "99",
             "--parallel", "1",
             "--flash-attn", "on",
             "--cache-prompt",
-            "--mlock",
-            "--no-mmap"
+            "-b", "2048",
+            "-ub", "512",
+            "--no-mmap" if paths['backend'] == 'cpu' else "--mmap"
         ]
 
         report("Starting server process...")
@@ -229,6 +244,11 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
         # Healthcheck Loop
         report("Waiting for network initialization (Healthcheck)...")
         for i in range(120): # 120 * 0.5 = 60s
+            # Safety check: server_process might be killed by ResourceManager
+            if server_process is None:
+                report("Startup aborted: server process was closed.")
+                return None
+
             if server_process.poll() is not None:
                 # Server died, check log
                 try:

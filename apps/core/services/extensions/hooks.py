@@ -39,6 +39,13 @@ class ExtensionSpec:
         """
 
     @hookspec
+    def resolve_tool_shortcut(self, agent_name: str, user_text: str) -> Optional[Dict[str, Any]]:
+        """
+        Optionally return a direct tool call for a specific agent based on the user text.
+        Expected shape: {"name": "tool_name", "args": {...}} or None.
+        """
+
+    @hookspec
     def on_startup(self) -> None:
         """
         Called once when the extension is loaded during MomAI initialization.

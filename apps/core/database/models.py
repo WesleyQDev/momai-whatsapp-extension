@@ -44,6 +44,10 @@ class Settings(Base):
     min_interface_chars = Column(Integer, default=240)
     prebuffer_chars = Column(Integer, default=120)
 
+    # Onboarding/Tutorial
+    onboarding_completed = Column(Boolean, default=False)
+    tutorial_completed = Column(Boolean, default=False)
+
 class Message(Base):
     __tablename__ = 'messages'
     
@@ -117,3 +121,7 @@ def init_db():
             conn.execute(text("ALTER TABLE settings ADD COLUMN min_interface_chars INTEGER DEFAULT 240"))
         if "prebuffer_chars" not in cols:
             conn.execute(text("ALTER TABLE settings ADD COLUMN prebuffer_chars INTEGER DEFAULT 120"))
+        if "onboarding_completed" not in cols:
+            conn.execute(text("ALTER TABLE settings ADD COLUMN onboarding_completed BOOLEAN DEFAULT 0"))
+        if "tutorial_completed" not in cols:
+            conn.execute(text("ALTER TABLE settings ADD COLUMN tutorial_completed BOOLEAN DEFAULT 0"))

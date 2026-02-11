@@ -12,26 +12,33 @@ import TitleBar from './components/TitleBar'
 import RemindersSidebar from './components/chat/RemindersSidebar'
 import ResourceFooter from './components/ResourceFooter'
 import ConfirmationCard from './components/floating/ConfirmationCard'
+import OnboardingCard from './components/floating/OnboardingCard'
+import TutorialTour from './components/floating/TutorialTour'
 import logo from './assets/icon.png'
 
 import MainViewRenderer from './components/MainViewRenderer'
-import { fetchExtensions } from './services/api'
+import { fetchExtensions, fetchSettings } from './services/api'
+import { useI18n } from './i18n'
 
 function App(): React.JSX.Element {
+  const { setLocale } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
 
   const chat = useChat()
   const { graphState, handleGraphOption, closeGraph, clearHistory } = chat
-
   const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady } = useStatus()
+  const [showSettings, setShowSettings] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<'general' | 'brain' | 'voice'>('general')
+  const [isCompact, setIsCompact] = useState(window.innerWidth < 850)
+  const [extensions, setExtensions] = useState<any[]>([])
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   // Notifica o Electron quando o sistema está pronto para redimensionar a janela
-  useEffect(() => {
-    if (isReady) {
-      window.electron.ipcRenderer.send('app-ready')
-    }
-  }, [isReady])
+  // Agora movido para o callback onFinished do SplashScreen para evitar resize com splash ativo
 
   // Overlay Helper
   useEffect(() => {
@@ -63,12 +70,6 @@ function App(): React.JSX.Element {
     }
   }, [handleGraphOption])
 
-  const [showSettings, setShowSettings] = useState(false)
-  const [showClearConfirm, setShowClearConfirm] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<'general' | 'brain' | 'voice'>('general')
-  const [isCompact, setIsCompact] = useState(window.innerWidth < 850)
-  const [extensions, setExtensions] = useState<any[]>([])
-
   const openSettings = (tab: 'general' | 'brain' | 'voice' = 'general') => {
     setSettingsTab(tab)
     setShowSettings(true)
@@ -86,6 +87,27 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const savedTheme = localStorage.getItem('momai_theme') || 'dark'
     document.documentElement.setAttribute('data-theme', savedTheme)
+
+    const syncLocale = async () => {
+      try {
+        const settings = await fetchSettings()
+        if (settings.locale) {
+          setLocale(settings.locale as any)
+        }
+        // @ts-ignore
+        if (!settings.onboarding_completed) {
+          setShowOnboarding(true)
+        } else if (!settings.tutorial_completed) {
+          setShowTutorial(true)
+        }
+      } catch {
+        // Ignore locale sync errors on boot
+      } finally {
+        setSettingsLoaded(true)
+      }
+    }
+
+    syncLocale()
 
     const handleResize = () => setIsCompact(window.innerWidth < 850)
     window.addEventListener('resize', handleResize)
@@ -249,6 +271,11 @@ function App(): React.JSX.Element {
         status={localMode}
         initMessage={initMessage}
         initProgress={initProgress}
+        onFinished={() => {
+          if (settingsLoaded && !showOnboarding) {
+            window.electron.ipcRenderer.send('app-ready')
+          }
+        }}
       />
 
       {/* Update Notification */}
@@ -258,6 +285,19 @@ function App(): React.JSX.Element {
           latestVersion={statusInfo?.setup.latest_version}
           onOpenSettings={openSettings}
         />
+      )}
+
+      {showOnboarding && (
+        <OnboardingCard onFinish={() => {
+          setShowOnboarding(false)
+          setShowTutorial(true)
+          // Agora que o onboarding acabou, podemos redimensionar a janela
+          window.electron.ipcRenderer.send('app-ready')
+        }} />
+      )}
+
+      {showTutorial && (
+        <TutorialTour onFinish={() => setShowTutorial(false)} />
       )}
 
       <FortScriptToast />

@@ -23,6 +23,7 @@ import {
   Squares2X2Icon,
   TrashIcon
 } from '@heroicons/react/24/outline'
+import { useI18n } from '../i18n'
 
 // Mapeamento de ícones para exibição
 const iconMap: Record<string, any> = {
@@ -37,6 +38,7 @@ const iconMap: Record<string, any> = {
 import SecurityConfirm from '../components/floating/SecurityConfirm'
 
 export default function ExtensionsView() {
+  const { t } = useI18n()
   const location = useLocation()
   const [installed, setInstalled] = useState<Extension[]>([])
   const [available, setAvailable] = useState<any[]>([])
@@ -84,7 +86,7 @@ export default function ExtensionsView() {
       await installExtension(ext.id, ext.download_url)
       await loadData()
     } catch (err) {
-      alert('Erro ao instalar extensão: ' + err)
+      alert(t('extensions.errors.install', { error: String(err) }))
     } finally {
       setInstalling(null)
     }
@@ -102,7 +104,7 @@ export default function ExtensionsView() {
       await toggleExtension(ext.id, newStatus)
       await loadData()
     } catch (err) {
-      alert('Erro ao alterar status: ' + err)
+      alert(t('extensions.errors.toggle', { error: String(err) }))
     }
   }
 
@@ -115,14 +117,12 @@ export default function ExtensionsView() {
       setSecurityModal({ isOpen: false })
       await loadData()
     } catch (err) {
-      alert('Erro ao alterar status: ' + err)
+      alert(t('extensions.errors.toggle', { error: String(err) }))
     }
   }
 
   const handleUninstall = async (ext: Extension) => {
-    if (
-      !window.confirm(`Tem certeza que deseja remover permanentemente a extensão "${ext.name}"?`)
-    ) {
+    if (!window.confirm(t('extensions.confirmUninstall', { name: ext.name }))) {
       return
     }
 
@@ -130,7 +130,7 @@ export default function ExtensionsView() {
       await uninstallExtension(ext.id)
       await loadData()
     } catch (err) {
-      alert('Erro ao desinstalar: ' + err)
+      alert(t('extensions.errors.uninstall', { error: String(err) }))
     }
   }
 
@@ -147,11 +147,9 @@ export default function ExtensionsView() {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-text flex items-center gap-3">
               <PuzzlePieceIcon className="w-8 h-8 text-accent" />
-              Central de Extensões
+              {t('extensions.header.title')}
             </h1>
-            <p className="text-text-muted text-sm">
-              Gerencie e instale novas capacidades para sua assistente.
-            </p>
+            <p className="text-text-muted text-sm">{t('extensions.header.subtitle')}</p>
           </div>
           <button
             onClick={loadData}
@@ -173,7 +171,7 @@ export default function ExtensionsView() {
           >
             <div className="flex items-center gap-2">
               <Squares2X2Icon className="w-4 h-4" />
-              Minhas Extensões
+              {t('extensions.tabs.installed')}
               <span className="ml-1 text-[10px] bg-white/10 px-1.5 rounded-full">
                 {userExtensions.length}
               </span>
@@ -190,7 +188,7 @@ export default function ExtensionsView() {
           >
             <div className="flex items-center gap-2">
               <CloudArrowDownIcon className="w-4 h-4" />
-              Explorar (Loja)
+              {t('extensions.tabs.store')}
             </div>
           </button>
 
@@ -204,7 +202,7 @@ export default function ExtensionsView() {
           >
             <div className="flex items-center gap-2">
               <CpuChipIcon className="w-4 h-4" />
-              Sistema
+              {t('extensions.tabs.system')}
             </div>
           </button>
         </div>
@@ -218,10 +216,10 @@ export default function ExtensionsView() {
             <div className="border border-border/10 rounded-lg overflow-hidden bg-card/20">
               <div className="p-3 bg-white/5 border-b border-white/5 flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
-                  <ShieldCheckIcon className="w-4 h-4" /> Componentes Principais
+                  <ShieldCheckIcon className="w-4 h-4" /> {t('extensions.system.title')}
                 </h3>
                 <span className="text-[10px] text-text-muted">
-                  {systemExtensions.length} módulos ativos
+                  {t('extensions.system.activeCount', { count: systemExtensions.length })}
                 </span>
               </div>
               <div className="divide-y divide-border/5">
@@ -256,12 +254,12 @@ export default function ExtensionsView() {
                     <div className="flex items-center gap-4">
                       {ext.error && (
                         <span className="text-[10px] text-red-400 font-bold uppercase animate-pulse">
-                          Falha
+                          {t('extensions.status.failed')}
                         </span>
                       )}
                       <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider bg-accent/5 text-accent/50 border border-accent/10 cursor-default">
                         <ShieldCheckIcon className="w-3 h-3" />
-                        CORE
+                        {t('extensions.status.core')}
                       </div>
                     </div>
                   </div>
@@ -279,16 +277,16 @@ export default function ExtensionsView() {
                     <Squares2X2Icon className="w-10 h-10 text-text-muted" />
                   </div>
                   <div>
-                    <p className="text-text font-bold">Nenhuma extensão instalada</p>
+                    <p className="text-text font-bold">{t('extensions.installed.emptyTitle')}</p>
                     <p className="text-sm text-text-muted mt-1">
-                      Vá até a aba "Loja" para explorar novas funcionalidades.
+                      {t('extensions.installed.emptySubtitle')}
                     </p>
                   </div>
                   <button
                     onClick={() => setActiveTab('store')}
                     className="text-xs text-accent hover:underline"
                   >
-                    Ir para Loja &rarr;
+                    {t('extensions.installed.goToStore')}
                   </button>
                 </div>
               ) : (
@@ -308,11 +306,11 @@ export default function ExtensionsView() {
                           {ext.author === 'WesleyQDev' ? (
                             <div className="flex items-center gap-1 text-[9px] text-accent font-bold uppercase tracking-tighter">
                               <CheckBadgeIcon className="w-3 h-3" />
-                              Confiavel
+                              {t('extensions.badges.trusted')}
                             </div>
                           ) : (
                             <div className="flex items-center gap-1 text-[9px] text-orange-400 font-bold uppercase tracking-tighter">
-                              Terceiro
+                              {t('extensions.badges.thirdParty')}
                             </div>
                           )}
                         </div>
@@ -322,7 +320,7 @@ export default function ExtensionsView() {
                           {ext.name}
                           {!ext.enabled && (
                             <span className="text-[9px] px-1 py-0 rounded bg-white/5 text-text-muted">
-                              Off
+                              {t('extensions.status.off')}
                             </span>
                           )}
                         </h3>
@@ -331,7 +329,7 @@ export default function ExtensionsView() {
                         </p>
                         {ext.error && (
                           <div className="mt-2 text-[9px] text-red-400 bg-red-400/5 p-1.5 rounded border border-red-400/10">
-                            <strong>Erro:</strong> {ext.error}
+                            <strong>{t('extensions.errors.label')}</strong> {ext.error}
                           </div>
                         )}
                       </div>
@@ -351,12 +349,14 @@ export default function ExtensionsView() {
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold transition-all ${ext.enabled ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-accent/10 text-accent hover:bg-accent/20'}`}
                           >
                             <PowerIcon className="w-3 h-3" />
-                            {ext.enabled ? 'Desativar' : 'Ativar'}
+                            {ext.enabled
+                              ? t('extensions.actions.disable')
+                              : t('extensions.actions.enable')}
                           </button>
                           <button
                             onClick={() => handleUninstall(ext)}
                             className="p-1 rounded-md text-text-muted hover:bg-red-500/10 hover:text-red-500 transition-all border border-transparent hover:border-red-500/20"
-                            title="Desinstalar"
+                            title={t('extensions.actions.uninstall')}
                           >
                             <TrashIcon className="w-3 h-3" />
                           </button>
@@ -385,7 +385,7 @@ export default function ExtensionsView() {
                       </div>
                       {ext.is_official && (
                         <span className="text-[9px] text-accent font-bold uppercase tracking-widest bg-accent/10 px-1.5 py-0.5 rounded border border-accent/10">
-                          Oficial
+                          {t('extensions.badges.official')}
                         </span>
                       )}
                     </div>
@@ -394,14 +394,16 @@ export default function ExtensionsView() {
                         {ext.name}
                       </h3>
                       <p className="text-xs text-text-muted line-clamp-2 mt-1">
-                        {ext.description || 'Sem descrição presente no manifesto.'}
+                        {ext.description || t('extensions.store.noDescription')}
                       </p>
                     </div>
 
                     <div className="mt-auto space-y-3">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-text-muted uppercase font-bold tracking-tighter">
-                          Autor: {ext.author || 'Desconhecido'}
+                          {t('extensions.store.author', {
+                            author: ext.author || t('extensions.store.unknownAuthor')
+                          })}
                         </span>
                       </div>
                       <button
@@ -412,12 +414,12 @@ export default function ExtensionsView() {
                         {installing === ext.id ? (
                           <>
                             <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                            Instalando...
+                            {t('extensions.actions.installing')}
                           </>
                         ) : (
                           <>
                             <CloudArrowDownIcon className="w-3 h-3" />
-                            Baixar e Instalar
+                            {t('extensions.actions.install')}
                           </>
                         )}
                       </button>
@@ -428,7 +430,7 @@ export default function ExtensionsView() {
                 <div className="col-span-full p-10 border-2 border-dashed border-border/10 rounded-lg flex flex-col items-center gap-2 opacity-50">
                   <CloudArrowDownIcon className="w-8 h-8" />
                   <p className="text-xs text-text-muted italic">
-                    Todas as extensões do registro já estão instaladas.
+                    {t('extensions.store.allInstalled')}
                   </p>
                 </div>
               )}

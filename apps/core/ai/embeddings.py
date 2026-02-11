@@ -76,6 +76,17 @@ class EmbeddingEngine:
                 filename=MODEL_FILE,
                 local_dir=MODELS_DIR
             )
+        else:
+            # Garante que o objeto de referência seja atualizado sem checar rede
+            try:
+                hf_hub_download(
+                    repo_id=MODEL_REPO,
+                    filename=MODEL_FILE,
+                    local_dir=MODELS_DIR,
+                    local_files_only=True
+                )
+            except:
+                pass
         return str(model_path.resolve())
 
     def load(self):
@@ -100,11 +111,11 @@ class EmbeddingEngine:
                 "-m", model_path,
                 "--port", str(self._port),
                 "--embedding",
-                "--ctx-size", "2048",
-                "--n-gpu-layers", "-1",
+                "--ctx-size", "512",              # Embeddings não precisam de 2048
+                "--n-gpu-layers", "0",            # Força rodar na CPU para sobrar VRAM para o LLM principal
                 "--parallel", "1",
-                "--threads", str(os.cpu_count() or 4),
-                "--no-mmap"
+                "--threads", "4",                 # Limita threads para evitar lentidão no boot
+                "--mmap"                          # Usa memory mapping
             ]
             
             # Silences the embeddings server output

@@ -8,6 +8,7 @@ class AgentFeatures(BaseModel):
     ui_view: Optional[str] = "ChatDashboard"
     ui_schema: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     tools: List[str] = Field(default_factory=list)
+    safe_tools: List[str] = Field(default_factory=list)  # Tools that don't require user confirmation
 
 class Permissions(BaseModel):
     # List of specific permissions allowed for the extension

@@ -19,14 +19,12 @@ CORE_GLOBAL_TOOLS = [
     "delete_reminder_tool",
     
     # 4. AI Meta-Control (Self-configuration)
-    "open_model_selector",
-    "switch_ai_model",
     "get_momai_resources_tool",
     "open_extension_store"
 ]
 
 # Prompt Templates
-from utils.i18n import t
+from utils.i18n import get_locale, normalize_locale, t
 ROUTER_SYSTEM_TEMPLATE = """Route the request to the best specialist.
 Available specialists:
 {agent_descriptions}
@@ -36,7 +34,10 @@ Pick ONE."""
 PERSONA_INJECTION_TEMPLATE = """You are engaging with {user_name}.
 If {assistant_persona}: # PERSONA
 {assistant_persona}
-CRITICAL: Keep your verbal response extremely SHORT and PUNCHY. One or two sentences maximum. Great for TTS."""
+
+### BEHAVIORAL GUIDELINES:
+- **Sensitive Topics (Health, Legal, etc.)**: Be proactive and helpful. Provide general, common-sense tips or useful information first. After providing tips, ALWAYS recommend that the user consults a qualified professional (doctor, lawyer, etc.) for specific advice. Never refuse to help; instead, provide the best general assistance possible with the professional disclaimer.
+- **Conciseness**: Keep your verbal response SHORT and PUNCHY. While you can provide tips for sensitive topics, avoid long essays. Aim for clarity and efficiency, ideal for TTS."""
 
 MIN_INTERFACE_CHARS = 240
 
@@ -68,3 +69,12 @@ NOTICE: No native tools were found to perform this specific action directly.
 CRITICAL INSTRUCTION: Do NOT call `show_interface` or `show_chat_card`.
 Instead, reply with ONE short sentence: "{t("no_tools_short_reply")}".
 """
+
+
+def get_language_instruction(locale: str | None = None) -> str:
+    lang = normalize_locale(locale or get_locale())
+    if lang == "pt-BR":
+        return "LANGUAGE: Reply in Brazilian Portuguese."
+    if lang == "en":
+        return "LANGUAGE: Reply in English (US)."
+    return "LANGUAGE: Reply in the user's language."

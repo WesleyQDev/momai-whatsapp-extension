@@ -201,6 +201,20 @@ export async function uninstallExtension(id: string): Promise<void> {
   if (!response.ok) throw new Error('Erro ao desinstalar extensão')
 }
 
+export async function sendExtensionAction(
+  id: string,
+  action: string,
+  payload: any
+): Promise<any> {
+  const response = await fetch(`${API_URL}/extensions/${id}/action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, payload })
+  })
+  if (!response.ok) throw new Error('Erro ao enviar ação para extensão')
+  return response.json()
+}
+
 // --- GAMING MODE ---
 
 export interface GamingApp {
@@ -235,11 +249,15 @@ export async function deleteGamingApp(id: number): Promise<void> {
 // --- SETTINGS ---
 
 export interface SettingsData {
+  user_name?: string
+  tts_voice?: string
   tts_enabled: boolean
   wake_word_enabled: boolean
   locale?: string
   min_interface_chars?: number
   prebuffer_chars?: number
+  onboarding_completed?: boolean
+  tutorial_completed?: boolean
 }
 
 export async function fetchSettings(): Promise<SettingsData> {
@@ -362,6 +380,8 @@ export interface ActiveReminder {
   id: number
   title: string
   scheduled_time: string
+  repeat_interval: string | null
+  repeat_value: number | null
 }
 
 export async function fetchReminders(): Promise<Reminder[]> {

@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks
 
 import app_state
 from api.deps import require_ai_loaded
-from api.schemas import ExtensionToggle, InstallExtensionRequest
+from api.schemas import ExtensionToggle, InstallExtensionRequest, ExtensionActionRequest
 from app_cache import clear_cache, get_cached, set_cache
 
 router = APIRouter()
@@ -87,3 +87,10 @@ async def uninstall_extension(req: ExtensionToggle):
         clear_cache(["extensions_list", "extensions_registry"])
         return {"status": "ok"}
     return {"status": "error", "message": "Falha na desinstalacao"}
+
+
+@router.post("/extensions/{ext_id}/action")
+@require_ai_loaded
+async def extension_action(ext_id: str, req: ExtensionActionRequest):
+    """Executa uma acao enviada pela interface da extensao."""
+    return await app_state.extension_manager.dispatch_action(ext_id, req.action, req.payload)

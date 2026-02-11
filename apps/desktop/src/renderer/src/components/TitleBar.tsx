@@ -1,5 +1,6 @@
 import React from 'react'
 import icon from '../assets/icon.png'
+import { useI18n } from '../i18n'
 
 interface TitleBarProps {
   onClearHistory?: () => void
@@ -7,6 +8,7 @@ interface TitleBarProps {
 }
 
 export default function TitleBar({ onClearHistory, activeRoute }: TitleBarProps) {
+  const { t } = useI18n()
   const handleMinimize = () => {
     window.api.minimize()
   }
@@ -24,9 +26,9 @@ export default function TitleBar({ onClearHistory, activeRoute }: TitleBarProps)
       className="h-7 bg-bg flex justify-between items-center select-none w-full border-b border-border relative z-[300]"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
-      <div className="px-3 text-[10px] text-text-muted font-bold tracking-tight flex items-center gap-2 opacity-80">
-        <img src={icon} alt="Icon" className="w-3.5 h-3.5 grayscale brightness-200" />
-        MomAI
+      <div className="px-3 text-[10px] text-text-muted font-bold tracking-tight flex items-center gap-2">
+        <img src={icon} alt="Icon" className="w-3.5 h-3.5" />
+        MomAI v0.1-alpha
       </div>
 
       <div
@@ -37,7 +39,7 @@ export default function TitleBar({ onClearHistory, activeRoute }: TitleBarProps)
         {activeRoute === '/' && onClearHistory && (
           <button
             onClick={() => onClearHistory()}
-            title="Limpar Histórico"
+            title={t('titlebar.clearHistory')}
             className="h-full px-3 flex items-center justify-center text-text-muted hover:bg-red-500/10 hover:text-red-400 transition-all border-none bg-transparent cursor-pointer group"
           >
             <svg

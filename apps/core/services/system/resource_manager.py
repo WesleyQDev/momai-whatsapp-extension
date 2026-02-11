@@ -49,6 +49,7 @@ class ResourceManager:
         self.lock = threading.Lock()
         self.is_gaming = False
         self.on_notify_callback = None # Callback to notify the UI (via websocket)
+        self.start_time = time.time() # Track boot time
         self.initialized = True
 
     def start(self):
@@ -64,6 +65,8 @@ class ResourceManager:
 
             db = SessionLocal()
             try:
+                from fortscript.main import FortScript, Callbacks, RamConfig
+                
                 # 1. Carrega apps configurados pelo usuário
                 apps = db.query(GamingApp).filter(GamingApp.is_active == True).all()
                 heavy_processes = [
@@ -83,10 +86,13 @@ class ResourceManager:
                 )
 
                 # 3. Instancia FortScript
+                # Usamos um RamConfig com valores impossíveis (200) para desativar o gatilho por memória RAM,
+                # atendendo ao pedido do usuário de manter a monitoração apenas para processos (jogos).
                 self.fs = FortScript(
                     heavy_process=heavy_processes,
                     callbacks=callbacks,
                     projects=[], # Não gerenciamos scripts externos aqui
+                    ram_config=RamConfig(threshold=200, safe=190),
                     new_console=False
                 )
 
@@ -106,11 +112,28 @@ class ResourceManager:
         if self.is_gaming:
             return
             
+        # Evita ativar modo gaming por pico de RAM durante o boot (espera 30s)
+        if (time.time() - self.start_time) < 30:
+            logger.info("[ResourceManager] Startup period: ignoring resource triggers.")
+            return
+
         logger.warning("[ResourceManager] !!! GAMING MODE ACTIVATED !!!")
         self.is_gaming = True
         
         # Para serviços pesados
         try:
+            # Wait for AI response to finish to avoid cutting messages mid-stream
+            try:
+                import app_state
+                grace_seconds = float(os.getenv("MOMAI_GAMING_MODE_GRACE", "6"))
+                start = time.time()
+                # Verifica se AI ou TTS estão ocupados de forma segura
+                while (getattr(app_state, 'is_ai_busy', lambda: False)() or 
+                       getattr(tts, 'is_busy', lambda: False)()) and (time.time() - start) < grace_seconds:
+                    time.sleep(0.2)
+            except Exception as e:
+                logger.warning(f"[ResourceManager] Grace wait skipped: {e}")
+
             # Stop embeddings server first
             from ai.embeddings import embeddings
             embeddings.stop()
@@ -177,7 +200,7 @@ class ResourceManager:
             # Restaura o motor local se ele estava sendo usado
             if orchestrator.llm_mode == "local":
                 logger.info("[ResourceManager] Restoring Local Llama engine...")
-                orchestrator.initialize_llm("local")
+                orchestrator.initialize_llm()
             
             # Restart embeddings
             logger.info("[ResourceManager] Restarting embeddings server...")

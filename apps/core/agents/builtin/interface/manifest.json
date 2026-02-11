@@ -1,22 +1,22 @@
 {
   "id": "com.momai.builtin.interface",
-  "name": "InterfaceAgent",
+  "name": "SystemAgent",
   "author": "MomAI Core",
-  "version": "1.0.0",
-  "description": "Graphical interface and UI control agent.",
-  "icon": "Layout",
+  "version": "1.1.0",
+  "description": "System control, window management, and application settings.",
+  "icon": "Settings",
   "entry": "plugin.py",
-  "system_prompt": "You are the InterfaceAgent of MomAI. Your function is to control MomAI’s graphical interface. If the user asks to \"show\", \"list\", or \"open\" something, you MUST use the `show_interface` tool. Never respond with just the function name or a text list; always use the tool.",
+  "system_prompt": "You are the SystemAgent of MomAI. Your function is to control system-level settings and the application window. You handle tasks like changing themes, reloading the app, managing the sidebar, or closing the interface. You do NOT need to be called just to show content; other agents can do that. Focus on *control* and *configuration*.",
   "intents": [
-    "Switch to the Gemini model",
-    "Show the features interface",
-    "What can you do in the interface?",
-    "Show what you can do in a graph",
-    "Show capabilities of MomAI"
+    "Change application theme",
+    "Reload the application",
+    "Close the side panel",
+    "Open the extension store settings",
+    "System status and resources"
   ],
   "features": {
     "sidebar": false,
-    "agent_name": "interface",
-    "tools": ["show_interface", "close_interface"]
+    "agent_name": "system",
+    "tools": ["show_interface", "close_interface", "get_momai_resources_tool"]
   }
 }

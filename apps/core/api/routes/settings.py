@@ -61,6 +61,12 @@ def _sync_update_settings(data: SettingsUpdate):
         if data.prebuffer_chars is not None:
             settings.prebuffer_chars = data.prebuffer_chars
 
+        if data.onboarding_completed is not None:
+            settings.onboarding_completed = data.onboarding_completed
+
+        if data.tutorial_completed is not None:
+            settings.tutorial_completed = data.tutorial_completed
+
         db.commit()
         db.refresh(settings)
         return changes, settings.ai_provider, settings.tts_voice, settings.tts_enabled, settings.wake_word_enabled
@@ -95,7 +101,9 @@ async def get_settings(db: Session = Depends(get_db)):
         "wake_word_sensitivity": settings.wake_word_sensitivity,
         "locale": settings.locale or "pt-BR",
         "min_interface_chars": settings.min_interface_chars or 240,
-        "prebuffer_chars": settings.prebuffer_chars or 120
+        "prebuffer_chars": settings.prebuffer_chars or 120,
+        "onboarding_completed": settings.onboarding_completed,
+        "tutorial_completed": settings.tutorial_completed
     }
 
 
@@ -117,8 +125,19 @@ async def update_settings(data: SettingsUpdate):
                 app_state.ww.stop()
 
     if any(change in changes for change in ["persona", "user_name", "provider"]):
-        await asyncio.to_thread(app_state.initialize_llm, provider)
-        if "provider" in changes:
-            await app_state.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": provider}})
+        # Always re-initialize local LLM
+        import threading
+        threading.Thread(target=app_state.initialize_llm).start()
+        await app_state.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": "local"}})
 
-    return {"status": "updated", "changes": changes}
+
+@router.post("/settings/voice-sample")
+async def play_voice_sample(data: dict):
+    voice = data.get("voice")
+    text = data.get("text", "Olá, eu sou sua assistente MomAI.")
+    
+    if voice:
+        app_state.tts.tts.set_voice(voice)
+        app_state.tts.tts.speak(text)
+    
+    return {"status": "playing"}

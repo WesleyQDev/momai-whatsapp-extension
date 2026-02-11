@@ -12,6 +12,8 @@ router = APIRouter()
 @router.post("/mode")
 @require_ai_loaded
 async def set_mode(mode_data: ModeChange):
-    await asyncio.to_thread(app_state.initialize_llm, mode_data.mode)
-    await app_state.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": mode_data.mode}})
-    return {"status": "ok", "mode": mode_data.mode}
+    # Ignore requested mode, force local
+    import threading
+    threading.Thread(target=app_state.initialize_llm).start()
+    await app_state.broadcast_to_sockets({"type": "model_changed", "data": {"new_mode": "local"}})
+    return {"status": "ok", "mode": "local"}
