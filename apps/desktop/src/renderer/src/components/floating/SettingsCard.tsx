@@ -413,7 +413,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         >
                           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                         </svg>
-                          {t('settings.general.theme.dark')}
+                        {t('settings.general.theme.dark')}
                       </button>
                       <button
                         onClick={() => changeTheme('light')}
@@ -509,34 +509,51 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     <p className="text-[10px] text-text-muted leading-relaxed">
                       {t('settings.general.helperText')}
                     </p>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => {
-                            updateField('tutorial_completed', false, true)
-                            alert(t('settings.general.resetTutorialSuccess') || 'Tutorial reiniciado!')
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent text-[11px] font-black uppercase rounded-lg hover:bg-accent hover:text-white transition-all"
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          updateField('tutorial_completed', false, true)
+                          alert(
+                            t('settings.general.resetTutorialSuccess') || 'Tutorial reiniciado!'
+                          )
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent text-[11px] font-black uppercase rounded-lg hover:bg-accent hover:text-white transition-all"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                          </svg>
-                          {t('settings.general.resetTutorial')}
-                        </button>
+                          <path d="M23 4v6h-6" />
+                          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        {t('settings.general.resetTutorial')}
+                      </button>
 
-                        <button
-                          onClick={() => {
-                            updateField('onboarding_completed', false, true)
-                            alert(t('settings.general.resetOnboardingSuccess') || 'Setup reiniciado!')
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-text/5 text-text/40 text-[11px] font-black uppercase rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-all"
+                      <button
+                        onClick={() => {
+                          updateField('onboarding_completed', false, true)
+                          alert(t('settings.general.resetOnboardingSuccess') || 'Setup reiniciado!')
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-text/5 text-text/40 text-[11px] font-black uppercase rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-all"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                            <path d="M3 3v5h5"/>
-                          </svg>
-                          {t('settings.general.resetOnboarding')}
-                        </button>
-                      </div>
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                          <path d="M3 3v5h5" />
+                        </svg>
+                        {t('settings.general.resetOnboarding')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
