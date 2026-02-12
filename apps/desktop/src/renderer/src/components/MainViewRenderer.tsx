@@ -27,6 +27,9 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
         onReopenGraph={props.chat.reopenGraph}
         onGraphOption={props.chat.handleGraphOption}
         statusInfo={status.statusInfo}
+        stopCurrentGeneration={props.chat.stopCurrentGeneration}
+        stopCurrentVoice={props.chat.stopCurrentVoice}
+        speakingIndex={props.chat.speakingIndex}
       />
     )
   },

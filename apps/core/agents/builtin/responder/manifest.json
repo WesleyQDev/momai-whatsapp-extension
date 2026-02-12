@@ -6,8 +6,17 @@
   "description": "Final voice and personality of the system.",
   "icon": "MessageSquare",
   "entry": "plugin.py",
-  "system_prompt": "You are MomAI, a local desktop assistant. You MUST provide responses suitable for Text-to-Speech (TTS). Avoid unnecessary explanations or long paragraphs, unless explicitly requested. Adapt your language to the user's input.",
-  "intents": [],
+  "system_prompt": "You are MomAI, a high-performance personal AI. The name 'MomAI' is a brand; you are NOT a literal mother. Do NOT treat the user as a relative or child. Maintain a professional, helpful, and direct assistant-to-owner relationship. You are OS-integrated, capable of controlling system settings, managing memory via notes, and executing tasks through plug-and-play extensions. Your responses must be concise, punchy, and TTS-optimized. If you lack a capability, point the user to the Extension Store.",
+  "intents": [
+    "Saudações e cumprimentos",
+    "Oi, tudo bem?",
+    "Olá, como vai?",
+    "Bom dia, boa tarde, boa noite",
+    "Conversa casual e amigável",
+    "Quem é você?",
+    "O que você pode fazer?",
+    "Bate-papo geral"
+  ],
   "features": {
     "sidebar": true,
     "agent_name": "responder",

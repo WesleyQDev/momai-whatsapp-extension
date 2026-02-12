@@ -25,11 +25,11 @@ class Settings(Base):
     id = Column(Integer, primary_key=True)
     # Perfil
     user_name = Column(String, default="Senhor")
-    assistant_persona = Column(String, default="You are MomAI, a helpful and professional virtual assistant. Always respond in Brazilian Portuguese (PT-BR).")
+    assistant_persona = Column(String, default="You are MomAI, a professional and efficient local AI assistant. Always maintain a direct assistant-to-owner relationship and avoid over-nurturing behavior. Respond in Brazilian Portuguese (PT-BR).")
     
     # IA Provider
     ai_provider = Column(String, default="local") # local, groq, gemini
-    ai_model = Column(String, default="default")
+    ai_model = Column(String, default="Qwen 3 4B Instruct")
     api_keys = Column(String, default="{}") # JSON string {"groq": "", "gemini": ""}
     local_backend = Column(String, default="auto") # auto, cuda, vulkan, cpu
     
@@ -41,12 +41,14 @@ class Settings(Base):
 
     # UI/Locale
     locale = Column(String, default="pt-BR")
-    min_interface_chars = Column(Integer, default=240)
-    prebuffer_chars = Column(Integer, default=120)
 
     # Onboarding/Tutorial
     onboarding_completed = Column(Boolean, default=False)
     tutorial_completed = Column(Boolean, default=False)
+
+    # Daily Briefing
+    daily_briefing_enabled = Column(Boolean, default=False)
+    last_briefing_date = Column(String, default=None) # YYYY-MM-DD
 
 class Message(Base):
     __tablename__ = 'messages'
@@ -125,3 +127,7 @@ def init_db():
             conn.execute(text("ALTER TABLE settings ADD COLUMN onboarding_completed BOOLEAN DEFAULT 0"))
         if "tutorial_completed" not in cols:
             conn.execute(text("ALTER TABLE settings ADD COLUMN tutorial_completed BOOLEAN DEFAULT 0"))
+        if "daily_briefing_enabled" not in cols:
+            conn.execute(text("ALTER TABLE settings ADD COLUMN daily_briefing_enabled BOOLEAN DEFAULT 0"))
+        if "last_briefing_date" not in cols:
+            conn.execute(text("ALTER TABLE settings ADD COLUMN last_briefing_date TEXT DEFAULT NULL"))

@@ -17,7 +17,6 @@ dependencies = [
     "psutil>=7.2.1",
     "speechrecognition>=3.14.5",
     "pyaudio>=0.2.14",
-    "vosk>=0.3.45",
     "pvporcupine>=4.0.1",
     "sounddevice>=0.5.4",
     "langgraph>=1.0.6",
@@ -35,4 +34,5 @@ dependencies = [
     "kokoro>=0.9.4",
     "torch>=2.10.0",
     "soundfile>=0.13.1",
+    "faster-whisper>=1.2.1",
 ]

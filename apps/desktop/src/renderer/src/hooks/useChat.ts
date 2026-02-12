@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Message, sendChatMessage, fetchChatHistory, clearChatHistory } from '../services/api'
+import { Message, sendChatMessage, fetchChatHistory, clearChatHistory, stopGeneration, stopVoice } from '../services/api'
 
 export function useChat() {
   const [text, setText] = useState('')
@@ -8,6 +8,8 @@ export function useChat() {
   const [threadId] = useState('default')
   const [_isHistoryLoaded, setIsHistoryLoaded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
+  const messagesRef = useRef<Message[]>([])
 
   // Graph State
   const [graphState, setGraphState] = useState<{
@@ -22,6 +24,31 @@ export function useChat() {
   // Ref para as opções atuais do gráfico para o listener de voz não precisar de dependência
   const currentGraphOptionsRef = useRef<string[]>([])
   const isGraphOpenRef = useRef<boolean>(false)
+  const toolMessageRef = useRef<Record<string, { msgId: string; startedAt: number }>>({})
+  const toolCardPrefix = 'TOOL_CARD::'
+  const toolCardTextDelimiter = '\n\nTOOL_TEXT::\n'
+
+  const isToolCardMessage = (msg?: Message) =>
+    !!msg && msg.role === 'assistant' && msg.content.startsWith(toolCardPrefix)
+
+  const splitToolCardContent = (content: string) => {
+    if (!content.startsWith(toolCardPrefix)) return null
+    const idx = content.indexOf(toolCardTextDelimiter)
+    const jsonPart = idx >= 0 ? content.slice(toolCardPrefix.length, idx) : content.slice(toolCardPrefix.length)
+    const textPart = idx >= 0 ? content.slice(idx + toolCardTextDelimiter.length) : ''
+    return { jsonPart, textPart }
+  }
+
+  const buildToolCardContent = (cardData: any, text: string) => {
+    return `${toolCardPrefix}${JSON.stringify(cardData)}${toolCardTextDelimiter}${text || ''}`
+  }
+
+  const findLastAssistantIndex = (list: Message[]) => {
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      if (list[i].role === 'assistant') return i
+    }
+    return -1
+  }
 
   // Atualiza refs quando o graphState muda
   useEffect(() => {
@@ -68,6 +95,10 @@ export function useChat() {
   useEffect(() => {
     scrollToBottom()
   }, [messages, scrollToBottom])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const clearHistory = useCallback(async () => {
     setIsLoading(true)
@@ -254,6 +285,33 @@ export function useChat() {
     window.addEventListener('ai_model_changed', handleRemoteChange)
     window.addEventListener('ai_model_change_start', handleModelStartChange)
 
+    const toCompactJson = (value: any, maxLength = 900) => {
+      if (value === null || value === undefined) return ''
+      if (typeof value === 'string') return value
+      let text = ''
+      try {
+        text = JSON.stringify(value, null, 2)
+      } catch {
+        text = String(value)
+      }
+      if (text.length > maxLength) {
+        return `${text.slice(0, maxLength)}...`
+      }
+      return text
+    }
+
+    const formatToolCard = (payload: any, status: 'running' | 'done' | 'error') => {
+      const name = payload?.name || 'tool'
+      const args = toCompactJson(payload?.args)
+      const data = {
+        name,
+        args,
+        status,
+        at: new Date().toISOString()
+      }
+      return buildToolCardContent(data, '')
+    }
+
     const connect = () => {
       if (isUnmounting) return
 
@@ -296,6 +354,75 @@ export function useChat() {
           window.dispatchEvent(new CustomEvent('momai_setup_progress', { detail: msg.data }))
         } else if (msg.type === 'setup_complete') {
           window.dispatchEvent(new CustomEvent('momai_setup_complete', { detail: msg.data }))
+        } else if (msg.type === 'navigate') {
+          window.dispatchEvent(new CustomEvent('momai_navigate', { detail: msg.data }))
+        } else if (msg.type === 'open_settings') {
+          window.dispatchEvent(new CustomEvent('momai_open_settings', { detail: msg.data }))
+        } else if (msg.type === 'set_theme') {
+          window.dispatchEvent(new CustomEvent('momai_set_theme', { detail: msg.data }))
+        } else if (msg.type === 'tts_start') {
+          const idx = findLastAssistantIndex(messagesRef.current)
+          setSpeakingIndex(idx >= 0 ? idx : null)
+        } else if (msg.type === 'tts_stop') {
+          setSpeakingIndex(null)
+        } else if (msg.type === 'tool_start') {
+          const toolId = msg.data?.id || `${msg.data?.name || 'tool'}-${Date.now()}`
+          const msgId = `tool:${toolId}`
+          const content = formatToolCard(msg.data, 'running')
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            if (
+              lastIdx >= 0 &&
+              updated[lastIdx].role === 'assistant' &&
+              (updated[lastIdx].content === '' || updated[lastIdx].content === '...')
+            ) {
+              const existingId = updated[lastIdx].id || msgId
+              updated[lastIdx] = { ...updated[lastIdx], id: existingId, content }
+              toolMessageRef.current[toolId] = { msgId: existingId, startedAt: Date.now() }
+              return updated
+            }
+
+            toolMessageRef.current[toolId] = { msgId, startedAt: Date.now() }
+            return [...prev, { id: msgId, role: 'assistant', content }]
+          })
+        } else if (msg.type === 'tool_result') {
+          const toolId = msg.data?.id
+          const status = msg.data?.status === 'error' ? 'error' : 'done'
+          const ref = toolId ? toolMessageRef.current[toolId] : null
+
+          setMessages((prev) => {
+            const updated = [...prev]
+            const idx = ref ? updated.findIndex((m) => m.id === ref.msgId) : -1
+            if (idx >= 0) {
+              const current = updated[idx]
+              const parsed = splitToolCardContent(current.content)
+              let textPart = parsed?.textPart || ''
+              let cardData: any = null
+
+              try {
+                cardData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
+              } catch {
+                cardData = null
+              }
+
+              const nextCard = {
+                ...(cardData || {}),
+                name: msg.data?.name || cardData?.name || 'tool',
+                args: cardData?.args || msg.data?.args,
+                status
+              }
+
+              updated[idx] = {
+                ...current,
+                content: buildToolCardContent(nextCard, textPart)
+              }
+              return updated
+            }
+
+            const content = formatToolCard(msg.data, status)
+            return [...updated, { role: 'assistant', content }]
+          })
         } else if (msg.type === 'fortscript_event') {
           window.dispatchEvent(new CustomEvent('momai_fortscript_event', { detail: msg }))
         } else if (msg.type === 'graph_open') {
@@ -417,8 +544,8 @@ export function useChat() {
             if (statusText) {
               setMessages((prev) => {
                 const updated = [...prev]
-                const lastIdx = updated.length - 1
-                if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+                const lastIdx = findLastAssistantIndex(updated)
+                if (lastIdx >= 0) {
                   const currentActivities = updated[lastIdx].activities || []
                   if (!currentActivities.includes(statusText)) {
                     updated[lastIdx] = {
@@ -455,9 +582,26 @@ export function useChat() {
                   cleanToken = cleanToken.split(':')[1]?.trim() || ''
                 }
 
-                updated[lastIdx] = {
-                  ...updated[lastIdx],
-                  content: newBase + cleanToken
+                if (isToolCardMessage(updated[lastIdx])) {
+                  const parsed = splitToolCardContent(updated[lastIdx].content)
+                  let cardData: any = null
+                  let textPart = parsed?.textPart || ''
+
+                  try {
+                    cardData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
+                  } catch {
+                    cardData = null
+                  }
+
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: buildToolCardContent(cardData || {}, textPart + cleanToken)
+                  }
+                } else {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: newBase + cleanToken
+                  }
                 }
                 return updated
               } else {
@@ -473,8 +617,9 @@ export function useChat() {
           if (data.error) {
             setMessages((prev) => {
               const updated = [...prev]
-              if (updated[updated.length - 1]?.role === 'assistant') {
-                updated[updated.length - 1].content = `Erro: ${data.error}`
+              const lastIdx = findLastAssistantIndex(updated)
+              if (lastIdx >= 0) {
+                updated[lastIdx].content = `Erro: ${data.error}`
               }
               return updated
             })
@@ -557,9 +702,27 @@ export function useChat() {
               ) {
                 const currentContent = updated[lastIdx].content
                 const newBase = currentContent === '...' ? '' : currentContent
-                updated[lastIdx] = {
-                  ...updated[lastIdx],
-                  content: newBase + token
+
+                if (isToolCardMessage(updated[lastIdx])) {
+                  const parsed = splitToolCardContent(updated[lastIdx].content)
+                  let cardData: any = null
+                  let textPart = parsed?.textPart || ''
+
+                  try {
+                    cardData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
+                  } catch {
+                    cardData = null
+                  }
+
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: buildToolCardContent(cardData || {}, textPart + token)
+                  }
+                } else {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: newBase + token
+                  }
                 }
                 return updated
               } else {
@@ -570,8 +733,8 @@ export function useChat() {
           onStatus: (status) => {
             setMessages((prev) => {
               const updated = [...prev]
-              const lastIdx = updated.length - 1
-              if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              const lastIdx = findLastAssistantIndex(updated)
+              if (lastIdx >= 0) {
                 const currentActivities = updated[lastIdx].activities || []
                 if (!currentActivities.includes(status)) {
                   updated[lastIdx] = {
@@ -586,8 +749,9 @@ export function useChat() {
           onError: (error) => {
             setMessages((prev) => {
               const updated = [...prev]
-              if (updated[updated.length - 1]) {
-                updated[updated.length - 1].content = `Erro: ${error}`
+              const lastIdx = findLastAssistantIndex(updated)
+              if (lastIdx >= 0) {
+                updated[lastIdx].content = `Erro: ${error}`
               }
               return updated
             })
@@ -612,6 +776,26 @@ export function useChat() {
     [text, isLoading, threadId]
   )
 
+    const stopCurrentGeneration = useCallback(async () => {
+      try {
+        await stopGeneration()
+      } catch (error) {
+        console.error('Erro ao parar geracao:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }, [])
+
+    const stopCurrentVoice = useCallback(async () => {
+      try {
+        await stopVoice()
+      } catch (error) {
+        console.error('Erro ao parar voz:', error)
+      } finally {
+        setSpeakingIndex(null)
+      }
+    }, [])
+
   return {
     text,
     setText,
@@ -623,6 +807,9 @@ export function useChat() {
     handleGraphOption,
     closeGraph,
     reopenGraph,
-    clearHistory
+    clearHistory,
+    stopCurrentGeneration,
+    stopCurrentVoice,
+    speakingIndex
   }
 }

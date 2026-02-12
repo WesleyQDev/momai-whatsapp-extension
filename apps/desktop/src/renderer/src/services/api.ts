@@ -110,6 +110,22 @@ export async function fetchStatus(): Promise<StatusData> {
   return response.json()
 }
 
+export async function stopGeneration(): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  if (!response.ok) throw new Error('Erro ao parar geracao')
+}
+
+export async function stopVoice(): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/stop-voice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  if (!response.ok) throw new Error('Erro ao parar voz')
+}
+
 export async function fetchInitStatus(): Promise<{
   stage: string
   message: string

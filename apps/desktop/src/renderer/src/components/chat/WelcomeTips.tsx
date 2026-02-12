@@ -1,21 +1,38 @@
 import { useState, useEffect } from 'react'
-import { listMemoryNotes, NoteSummary } from '../../services/api'
+import { StatusData, listMemoryNotes, fetchSettings, SettingsData } from '../../services/api'
 
 interface WelcomeTipsProps {
   onSendMessage: (text: string) => void
+  statusInfo: StatusData | null
 }
 
 const STATIC_SUGGESTIONS = [
-  "Me lembre de beber água",
-  "Última notícia sobre IA",
-  "O que você pode fazer? (Capacidades)"
+  "Liste meus compromissos",
+  "Buscar algo aleatorio na internet",
+  "O que MomAI consegue fazer?"
 ]
 
-export default function WelcomeTips({ onSendMessage }: WelcomeTipsProps) {
+export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsProps) {
   const [dynamicSuggestion, setDynamicSuggestion] = useState<string | null>(null)
+  const [settings, setSettings] = useState<SettingsData | null>(null)
+  const isBrainReady = statusInfo?.brain_ready ?? false
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const data = await fetchSettings()
+        setSettings(data)
+      } catch (err) {
+        console.error('Erro ao carregar configurações para boas-vindas:', err)
+      }
+    }
+    loadSettings()
+  }, [])
 
   useEffect(() => {
     const loadDynamic = async () => {
+      if (!isBrainReady) return
+
       try {
         const notes = await listMemoryNotes()
         // Filtra notas sem título significativo
@@ -26,27 +43,28 @@ export default function WelcomeTips({ onSendMessage }: WelcomeTipsProps) {
 
         if (validNotes.length > 0) {
           const randomNote = validNotes[Math.floor(Math.random() * validNotes.length)]
-          setDynamicSuggestion(`O que você sabe sobre "${randomNote.title}"?`)
+          setDynamicSuggestion(`Do que se trata a anotação: ${randomNote.title}`)
         }
       } catch (err) {
         console.error('Erro ao carregar notas para sugestão:', err)
       }
     }
     loadDynamic()
-  }, [])
+  }, [isBrainReady])
+
+  const userName = settings?.user_name || 'Senhor'
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 animate-fade-in select-none">
-      <div className="flex flex-col items-center mb-8 gap-3 opacity-60">
-        <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center border border-accent/20">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent animate-pulse">
-              <polyline points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polyline>
-          </svg>
-        </div>
-        <h2 className="text-xl font-bold text-text tracking-tight italic opacity-80">
-          MomAI
+      <div className="flex flex-col items-center mb-8 gap-1">
+        <h2 className="text-2xl font-bold text-text tracking-tight animate-in fade-in slide-in-from-bottom-2 duration-700">
+          Olá, <span className="text-white">{userName}</span>
         </h2>
+        <p className="text-[13px] text-text-muted/60 font-medium">
+          Como posso te ajudar hoje?
+        </p>
       </div>
+
 
       <div className="w-full max-w-sm flex flex-col gap-2">
         {/* Sugestão Dinâmica (Nota/Conhecimento) */}

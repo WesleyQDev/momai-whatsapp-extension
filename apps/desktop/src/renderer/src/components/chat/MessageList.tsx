@@ -1,6 +1,6 @@
 import { RefObject, JSX, memo } from 'react'
 import MessageItem from './MessageItem'
-import { Message } from '../../services/api'
+import { Message, StatusData } from '../../services/api'
 import WelcomeTips from './WelcomeTips'
 
 interface MessageListProps {
@@ -10,6 +10,9 @@ interface MessageListProps {
   onReopenGraph: (data: any) => void
   onGraphOption: (option: string) => void
   onSendMessage: (text: string) => void
+  onStopVoice?: () => void
+  speakingIndex?: number | null
+  statusInfo: StatusData | null
 }
 
 const MessageList = memo(function MessageList({
@@ -18,11 +21,16 @@ const MessageList = memo(function MessageList({
   messagesEndRef,
   onReopenGraph,
   onGraphOption,
-  onSendMessage
+  onSendMessage,
+  onStopVoice,
+  speakingIndex = null,
+  statusInfo
 }: MessageListProps): JSX.Element {
   return (
     <main className="flex-1 flex flex-col gap-5 p-4 overflow-y-auto overflow-x-hidden relative">
-      {messages.length === 0 && <WelcomeTips onSendMessage={onSendMessage} />}
+      {messages.length === 0 && (
+        <WelcomeTips onSendMessage={onSendMessage} statusInfo={statusInfo} />
+      )}
       {messages.map((msg, i) => (
         <MessageItem
           key={i}
@@ -30,6 +38,8 @@ const MessageList = memo(function MessageList({
           isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
           onReopenGraph={onReopenGraph}
           onGraphOption={onGraphOption}
+          isSpeaking={speakingIndex === i}
+          onStopVoice={onStopVoice}
         />
       ))}
 

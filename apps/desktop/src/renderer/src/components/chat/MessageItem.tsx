@@ -9,19 +9,43 @@ interface MessageItemProps {
   isLoading?: boolean
   onReopenGraph: (data: any) => void
   onGraphOption: (option: string) => void
+  isSpeaking?: boolean
+  onStopVoice?: () => void
 }
 
 const MessageItem = memo(function MessageItem({
   message,
   isLoading = false,
   onReopenGraph,
-  onGraphOption
+  onGraphOption,
+  isSpeaking = false,
+  onStopVoice
 }: MessageItemProps): JSX.Element {
   const [showTrace, setShowTrace] = useState(false)
 
   const isSystemModelChange =
     message.role === 'assistant' && message.content.startsWith('Brain changed to:')
   const isDone = message.content.includes('✅')
+
+  const toolCardPrefix = 'TOOL_CARD::'
+  const toolCardTextDelimiter = '\n\nTOOL_TEXT::\n'
+  const isToolCard = message.role === 'assistant' && message.content.startsWith(toolCardPrefix)
+  let toolCard: { name: string; args?: string; status?: string } | null = null
+  let toolCardText = ''
+
+  if (isToolCard) {
+    try {
+      const idx = message.content.indexOf(toolCardTextDelimiter)
+      const jsonPart =
+        idx >= 0
+          ? message.content.slice(toolCardPrefix.length, idx)
+          : message.content.slice(toolCardPrefix.length)
+      toolCardText = idx >= 0 ? message.content.slice(idx + toolCardTextDelimiter.length) : ''
+      toolCard = JSON.parse(jsonPart)
+    } catch {
+      toolCard = { name: 'tool', status: 'error' }
+    }
+  }
 
   // Limpa o indicador de expectativa do conteúdo para não aparecer no texto
   const isChatCard = message.role === 'assistant' && message.graphData?.view === 'chat'
@@ -30,7 +54,9 @@ const MessageItem = memo(function MessageItem({
       ? ''
       : isChatCard && message.graphData?.content
         ? message.graphData.content
-        : message.content
+        : isToolCard
+          ? toolCardText
+          : message.content
   const optionsMap = message.graphData?.optionsMap || message.graphData?.options_map || {}
 
   if (isSystemModelChange) {
@@ -147,6 +173,19 @@ const MessageItem = memo(function MessageItem({
                 </svg>
               </button>
             )}
+          </div>
+        )}
+        {message.role === 'assistant' && isSpeaking && onStopVoice && (
+          <div className="absolute -top-2 right-0">
+            <button
+              type="button"
+              onClick={onStopVoice}
+              className="flex items-center gap-1 rounded-full bg-card/80 border border-border/20 px-2 py-1 text-[10px] font-semibold text-text-muted hover:text-text hover:border-border/40 transition-all"
+              title="Parar voz"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              Parar
+            </button>
           </div>
         )}
         <div className="flex flex-col gap-2">
@@ -284,6 +323,37 @@ const MessageItem = memo(function MessageItem({
                 </div>
               )}
             </>
+          )}
+
+          {toolCard && (
+            <div className="w-full max-w-[520px] rounded-xl border border-border/20 bg-white/5 px-3 py-2 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[11px] text-text-muted">
+                  <span className="font-semibold">process</span>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    toolCard.status === 'running'
+                      ? 'text-accent bg-accent/10'
+                      : toolCard.status === 'error'
+                        ? 'text-red-400 bg-red-500/10'
+                        : 'text-emerald-400 bg-emerald-500/10'
+                  }`}
+                >
+                  {toolCard.status === 'running'
+                    ? 'Running'
+                    : toolCard.status === 'error'
+                      ? 'Error'
+                      : 'Done'}
+                </span>
+              </div>
+              <div className="mt-1 text-[12px] font-semibold text-text truncate">{toolCard.name}</div>
+              {toolCard.args && (
+                <div className="mt-2 rounded-md bg-black/20 px-2 py-1.5 text-[11px] text-text-muted max-h-28 overflow-auto">
+                  {toolCard.args}
+                </div>
+              )}
+            </div>
           )}
 
           {displayContent && (

@@ -8,7 +8,7 @@ interface SettingsCardProps {
   initialTab?: Tab
 }
 
-type Tab = 'general' | 'brain' | 'voice' | 'updates' | 'economy'
+type Tab = 'general' | 'brain' | 'updates' | 'economy'
 type Theme = 'dark' | 'light'
 
 export default function SettingsCard({ onClose, initialTab = 'general' }: SettingsCardProps) {
@@ -32,8 +32,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
     wake_word_enabled: true,
     wake_word_sensitivity: 5,
     locale: 'pt-BR',
-    min_interface_chars: 240,
-    prebuffer_chars: 120
+    daily_briefing_enabled: false
   })
 
   const [installStatus, setInstallStatus] = useState<
@@ -121,17 +120,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
       }
     } catch (error) {
       setInstallStatus('error')
-    }
-  }
-
-  const handleUninstallEngine = async (backend?: string) => {
-    if (!confirm(t('settings.brain.uninstallConfirm'))) return
-
-    try {
-      await api.delete('/setup/uninstall-engine', { params: { backend } })
-      checkLocalStatus()
-    } catch (error) {
-      alert(t('settings.brain.uninstallError'))
     }
   }
 
@@ -288,23 +276,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
         <path d="M12 12 2.1 12.1"></path>
       </svg>
     ),
-    voice: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-        <line x1="12" y1="19" x2="12" y2="23"></line>
-        <line x1="8" y1="23" x2="16" y2="23"></line>
-      </svg>
-    ),
     updates: (
       <svg
         width="16"
@@ -345,7 +316,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
           {[
             { id: 'general', label: t('settings.tabs.general'), icon: icons.general },
             { id: 'brain', label: t('settings.tabs.brain'), icon: icons.brain },
-            { id: 'voice', label: t('settings.tabs.voice'), icon: icons.voice },
             { id: 'economy', label: t('settings.tabs.economy'), icon: icons.economy },
             { id: 'updates', label: t('settings.tabs.updates'), icon: icons.updates }
           ].map((tab) => (
@@ -443,117 +413,96 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                    {t('settings.general.personaLabel')}
-                  </label>
-                  <textarea
-                    value={settings.assistant_persona}
-                    onChange={(e) => updateField('assistant_persona', e.target.value)}
-                    onBlur={() => saveSettings(settings)}
-                    className="w-full h-32 bg-input border border-border/60 rounded-lg px-4 py-3 text-sm text-text focus:border-accent/40 outline-none resize-none transition-all leading-relaxed placeholder:text-text-muted/30"
-                    placeholder={t('settings.general.personaPlaceholder')}
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                      {t('settings.language.uiLabel')}
+                    </span>
+                    <select
+                      value={settings.locale}
+                      onChange={(e) => updateField('locale', e.target.value, true)}
+                      className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
+                    >
+                      <option value="pt-BR">{t('settings.language.ptBR')}</option>
+                      <option value="en-US">{t('settings.language.enUS')}</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                      {t('settings.general.personaLabel')}
+                    </label>
+                    <textarea
+                      value={settings.assistant_persona}
+                      onChange={(e) => updateField('assistant_persona', e.target.value)}
+                      onBlur={() => saveSettings(settings)}
+                      className="w-full h-32 bg-input border border-border/60 rounded-lg px-4 py-3 text-sm text-text focus:border-accent/40 outline-none resize-none transition-all leading-relaxed placeholder:text-text-muted/30"
+                      placeholder={t('settings.general.personaPlaceholder')}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-3">
+                {/* Recursos e Automacoes */}
+                <div className="space-y-4 pt-6 border-t border-border/40">
                   <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                    {t('settings.general.languageSection')}
+                    {t('settings.general.featuresTitle')}
                   </label>
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                        {t('settings.language.uiLabel')}
-                      </span>
-                      <select
-                        value={settings.locale}
-                        onChange={(e) => updateField('locale', e.target.value, true)}
-                        className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
-                      >
-                        <option value="pt-BR">{t('settings.language.ptBR')}</option>
-                        <option value="en-US">{t('settings.language.enUS')}</option>
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                          {t('settings.general.minInterface')}
-                        </span>
-                        <input
-                          type="number"
-                          min={80}
-                          max={2000}
-                          value={settings.min_interface_chars}
-                          onChange={(e) =>
-                            updateField('min_interface_chars', Number(e.target.value))
-                          }
-                          onBlur={() => saveSettings(settings)}
-                          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                          {t('settings.general.prebuffer')}
-                        </span>
-                        <input
-                          type="number"
-                          min={40}
-                          max={500}
-                          value={settings.prebuffer_chars}
-                          onChange={(e) => updateField('prebuffer_chars', Number(e.target.value))}
-                          onBlur={() => saveSettings(settings)}
-                          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-text-muted leading-relaxed">
-                      {t('settings.general.helperText')}
-                    </p>
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-black/20 group/briefing">
                     <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => {
-                          updateField('tutorial_completed', false, true)
-                          alert(
-                            t('settings.general.resetTutorialSuccess') || 'Tutorial reiniciado!'
-                          )
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent text-[11px] font-black uppercase rounded-lg hover:bg-accent hover:text-white transition-all"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <path d="M23 4v6h-6" />
-                          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                      <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent group-hover/briefing:scale-110 transition-transform">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                         </svg>
-                        {t('settings.general.resetTutorial')}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          updateField('onboarding_completed', false, true)
-                          alert(t('settings.general.resetOnboardingSuccess') || 'Setup reiniciado!')
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-text/5 text-text/40 text-[11px] font-black uppercase rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-all"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                          <path d="M3 3v5h5" />
-                        </svg>
-                        {t('settings.general.resetOnboarding')}
-                      </button>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-text uppercase tracking-wider">{t('settings.general.dailyBriefingLabel')}</span>
+                        <span className="text-[10px] text-text-muted font-medium">{t('settings.general.dailyBriefingSubtitle')}</span>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => updateField('daily_briefing_enabled', !settings.daily_briefing_enabled, true)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${settings.daily_briefing_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${settings.daily_briefing_enabled ? 'translate-x-4.5' : 'translate-x-1'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Manutencao e Resets */}
+                <div className="space-y-4 pt-6 border-t border-border/40">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest text-red-500/60">
+                    {t('settings.general.maintenanceTitle')}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        updateField('tutorial_completed', false, true)
+                        alert(
+                          t('settings.general.resetTutorialSuccess') || 'Tutorial reiniciado!'
+                        )
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent text-[11px] font-black uppercase rounded-lg hover:bg-accent hover:text-white transition-all"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                      </svg>
+                      {t('settings.general.resetTutorial')}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        updateField('onboarding_completed', false, true)
+                        alert(t('settings.general.resetOnboardingSuccess') || 'Setup reiniciado!')
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-text/5 text-text/40 text-[11px] font-black uppercase rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-all"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+                      </svg>
+                      {t('settings.general.resetOnboarding')}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -562,308 +511,111 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
           {activeTab === 'brain' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
-              <div className="space-y-1">
-                <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                  {t('settings.brain.title')}
-                </h2>
-                <p className="text-[11px] text-text-muted font-medium">
-                  {t('settings.brain.subtitle')}
-                </p>
+              <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                <div className="space-y-0.5">
+                  <h2 className="text-base font-black text-text uppercase tracking-tight">
+                    {t('settings.brain.title')}
+                  </h2>
+                  <p className="text-[10px] text-text-muted font-bold uppercase tracking-wide opacity-70">
+                    {t('settings.brain.localCoreSubtitle')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-accent/5 border border-accent/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                  <span className="text-[9px] font-black text-accent uppercase tracking-widest">
+                    {t('settings.brain.active')}
+                  </span>
+                </div>
               </div>
 
-              <div className="p-5 rounded-xl border bg-input border-border flex flex-col gap-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <h4 className="text-[13px] font-black text-text uppercase tracking-wider">
-                      {t('settings.brain.localCoreTitle')}
-                    </h4>
-                    <span className="text-[9px] text-text-muted font-black uppercase tracking-widest opacity-60">
-                      {t('settings.brain.localCoreSubtitle')}
+              <div className="space-y-5">
+                {/* Modelo Ativo */}
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                    {t('settings.brain.activeModel')}
+                  </label>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-black/20 border border-border/60">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-text uppercase tracking-tight">
+                        {settings.ai_model === 'default' ? 'Qwen 3 4B Instruct' : settings.ai_model}
+                      </span>
+                      <span className="text-[9px] text-text-muted font-medium opacity-60">
+                        unsloth/Qwen3-4B-Instruct-2507-GGUF
+                      </span>
+                    </div>
+                    <span className="text-[8px] font-black text-text-muted/60 uppercase border border-border/40 px-1.5 py-0.5 rounded">
+                      Q6_K GGUF
                     </span>
                   </div>
-                  {settings.ai_provider === 'local' ? (
-                    <span className="text-[9px] font-black text-accent uppercase border border-accent/20 px-2 py-0.5 rounded-md bg-accent/5">
-                      {t('settings.brain.active')}
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => updateField('ai_provider', 'local', true)}
-                      className="text-[9px] font-bold text-text-muted hover:text-text uppercase"
-                    >
-                      {t('settings.brain.useLocal')}
-                    </button>
-                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Hardware e Configuração */}
+                <div className="grid grid-cols-2 gap-4 pt-2">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                      {t('settings.brain.hardware')}
-                    </label>
-                    <div className="p-3 rounded-lg bg-black/20 border border-border flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-text uppercase tracking-tight">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
+                        {t('settings.brain.hardware')}
+                      </label>
+                      {localDetails.current_local_backend && (
+                        <span className={`text-[8px] font-black uppercase ${
+                          localDetails.current_local_backend === 'cpu' ? 'text-text-muted' : 'text-green-500'
+                        }`}>
+                          {localDetails.current_local_backend === 'cpu' ? 'CPU' : 'GPU'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-3 rounded-lg bg-black/10 border border-border/40 min-h-[50px] flex flex-col justify-center">
+                      <span className="text-[10px] font-bold text-text uppercase truncate">
                         {localDetails.detected_hardware || t('settings.brain.searching')}
                       </span>
-                      <span className="text-[9px] text-text-muted font-medium italic truncate">
-                        {t('settings.brain.cpuLabel')} {localDetails.cpu_name || '...'}
+                      <span className="text-[8px] text-text-muted font-medium truncate opacity-60">
+                        {localDetails.cpu_name || '...'}
                       </span>
                     </div>
                   </div>
+                  
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
                       {t('settings.brain.acceleration')}
                     </label>
-                    <select
-                      value={settings.local_backend}
-                      onChange={(e) =>
-                        updateField('local_backend', e.target.value, true).then(checkLocalStatus)
-                      }
-                      className="w-full bg-black/20 border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none"
-                    >
-                      <option value="auto">{t('settings.brain.backend.auto')}</option>
-                      <option value="cuda">{t('settings.brain.backend.cuda')}</option>
-                      <option value="vulkan">{t('settings.brain.backend.vulkan')}</option>
-                      <option value="cpu">{t('settings.brain.backend.cpu')}</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Status de Instalação do Motor Local */}
-                <div className="mt-2 pt-4 border-t border-border/40">
-                  {installStatus === 'missing' && (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                          <div className="flex flex-col">
-                            <span className="text-[11px] font-bold text-text">
-                              {t('settings.brain.engineMissing')}
-                            </span>
-                            <span className="text-[9px] text-text-muted font-medium">
-                              {t('settings.brain.versionLabel')}{' '}
-                              <span className="text-accent">
-                                {localDetails.latest_version || '...'}
-                              </span>
-                              {' • '}
-                              {t('settings.brain.downloadLabel')}{' '}
-                              <span className="text-text font-bold italic">
-                                {settings.local_backend === 'auto'
-                                  ? t('settings.brain.downloadAuto', {
-                                      build: localDetails.recommended_build?.toUpperCase() || 'AUTO'
-                                    })
-                                  : settings.local_backend.toUpperCase()}
-                              </span>
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            handleInstallEngine(
-                              settings.local_backend === 'auto' ? undefined : settings.local_backend
-                            )
-                          }
-                          className="px-3 py-1.5 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all"
-                        >
-                          {t('settings.brain.installNow')}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-text-muted leading-relaxed">
-                        {t('settings.brain.installInfo')}
-                      </p>
-                    </div>
-                  )}
-
-                  {installStatus === 'installing' && (
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                        <span className="text-accent animate-pulse">
-                          {t('settings.brain.downloading')}
-                        </span>
-                        <span className="text-text">{installProgress}%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-accent transition-all duration-300 ease-out"
-                          style={{ width: `${installProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {installStatus === 'installed' && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-accent/5 border border-accent/20">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-2">
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              className="text-accent"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            <span className="text-[11px] font-black text-text uppercase">
-                              {t('settings.brain.ready')}
-                            </span>
-                          </div>
-                          <span className="text-[9px] text-text-muted font-medium">
-                            v{localDetails.installed_version} • {localDetails.installed_build}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {localDetails.installed_version !== localDetails.latest_version &&
-                            localDetails.latest_version && (
-                              <button
-                                onClick={() =>
-                                  handleInstallEngine(
-                                    settings.local_backend === 'auto'
-                                      ? undefined
-                                      : settings.local_backend
-                                  )
-                                }
-                                className="mr-2 px-2 py-1 bg-accent/20 text-accent text-[9px] font-black uppercase rounded hover:bg-accent hover:text-white transition-all"
-                              >
-                                {t('settings.brain.updateTo', {
-                                  version: localDetails.latest_version
-                                })}
-                              </button>
-                            )}
-                          <button
-                            onClick={() =>
-                              handleUninstallEngine(
-                                settings.local_backend === 'auto'
-                                  ? undefined
-                                  : settings.local_backend
-                              )
-                            }
-                            className="p-2 text-text-muted hover:text-red-500 transition-colors"
-                            title={t('settings.brain.removeEngine')}
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {installStatus === 'error' && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-red-500">
-                        {t('settings.brain.installError')}
-                      </span>
-                      <button
-                        onClick={() => checkLocalStatus()}
-                        className="text-[10px] font-black uppercase text-accent"
+                    <div className="relative">
+                      <select
+                        value={settings.local_backend}
+                        onChange={(e) =>
+                          updateField('local_backend', e.target.value, true).then(checkLocalStatus)
+                        }
+                        className="w-full h-[50px] bg-black/10 border border-border/40 rounded-lg px-3 text-[10px] font-bold text-text outline-none appearance-none hover:border-accent/40"
                       >
-                        {t('settings.brain.retry')}
-                      </button>
+                        <option value="auto" className="bg-[#1a1a1a]">{t('settings.brain.backend.auto')}</option>
+                        <option value="cuda" className="bg-[#1a1a1a]">{t('settings.brain.backend.cuda')}</option>
+                        <option value="vulkan" className="bg-[#1a1a1a]">{t('settings.brain.backend.vulkan')}</option>
+                        <option value="cpu" className="bg-[#1a1a1a]">{t('settings.brain.backend.cpu')}</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted/40">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl border border-border bg-input/50 space-y-2">
-                <div className="flex items-center gap-2 text-accent">
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                  >
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                  <span className="text-[11px] font-black uppercase tracking-wider">
-                    {t('settings.brain.privacyTitle')}
-                  </span>
-                </div>
-                <p className="text-[10px] text-text-muted leading-relaxed">
-                  {t('settings.brain.privacyBody')}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'voice' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
-              <div className="space-y-1">
-                <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                  {t('settings.voice.title')}
-                </h2>
-                <p className="text-[11px] text-text-muted font-medium">
-                  {t('settings.voice.subtitle')}
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-[13px] font-bold text-text uppercase tracking-tight">
-                      {t('settings.voice.wakeTitle')}
-                    </span>
-                    <span className="text-[10px] text-text-muted font-medium italic">
-                      {t('settings.voice.wakeSubtitle')}
-                    </span>
                   </div>
-                  <button
-                    onClick={() =>
-                      updateField('wake_word_enabled', !settings.wake_word_enabled, true)
-                    }
-                    className={`w-10 h-5 rounded-full flex items-center px-1 transition-all ${settings.wake_word_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
-                  >
-                    <div
-                      className={`w-3 h-3 bg-white rounded-full transition-transform ${settings.wake_word_enabled ? 'translate-x-5' : 'translate-x-0'}`}
-                    />
-                  </button>
                 </div>
 
-                <div className="p-4 rounded-xl bg-input border border-border flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-[13px] font-bold text-text uppercase tracking-tight">
-                      {t('settings.voice.ttsTitle')}
-                    </span>
-                    <span className="text-[10px] text-text-muted font-medium italic">
-                      {t('settings.voice.ttsSubtitle')}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => updateField('tts_enabled', !settings.tts_enabled, true)}
-                    className={`w-10 h-5 rounded-full flex items-center px-1 transition-all ${settings.tts_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
-                  >
-                    <div
-                      className={`w-3 h-3 bg-white rounded-full transition-transform ${settings.tts_enabled ? 'translate-x-5' : 'translate-x-0'}`}
-                    />
-                  </button>
-                </div>
+              </div>
 
-                <div
-                  className={`space-y-3 transition-opacity ${!settings.tts_enabled ? 'opacity-30 pointer-events-none' : ''}`}
-                >
+              {/* Catálogo de Vozes (Consolidado na Inteligência) */}
+              <div className="space-y-4 pt-6 border-t border-border/40">
+                <div className="space-y-3">
                   <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
                     {t('settings.voice.catalogLabel')}
                   </label>
-                  <div className="flex gap-4 h-[240px]">
+                  <div className="flex gap-4 h-[220px]">
                     {/* Coluna de Idiomas */}
-                    <div className="w-[180px] space-y-1.5 overflow-y-auto custom-scrollbar pr-2">
+                    <div className="w-[160px] space-y-1.5 overflow-y-auto custom-scrollbar pr-2">
                       {voiceCatalog.map((catalog) => (
                         <button
                           key={catalog.code}
                           onClick={() => setExpandedLang(catalog.code)}
-                          className={`w-full flex items-center justify-between p-3 rounded-lg border text-[10px] font-black uppercase tracking-tight transition-all ${
+                          className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-[9px] font-black uppercase tracking-tight transition-all ${
                             expandedLang === catalog.code
                               ? 'bg-accent/10 border-accent/40 text-accent shadow-sm'
                               : 'bg-black/10 border-transparent text-text-muted hover:bg-black/20'
@@ -871,13 +623,13 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         >
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-1.5 h-1.5 rounded-full ${expandedLang === catalog.code ? 'bg-accent animate-pulse' : 'bg-text-muted/30'}`}
+                              className={`w-1 h-1 rounded-full ${expandedLang === catalog.code ? 'bg-accent animate-pulse' : 'bg-text-muted/30'}`}
                             />
                             {t(catalog.langKey)}
                           </div>
                           <svg
-                            width="10"
-                            height="10"
+                            width="8"
+                            height="8"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -891,15 +643,15 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     </div>
 
                     {/* Coluna de Vozes (Dinâmica) */}
-                    <div className="flex-1 p-3 rounded-xl bg-black/10 border border-border/40 overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
-                      <div className="grid grid-cols-1 gap-1.5">
+                    <div className="flex-1 p-2.5 rounded-xl bg-black/10 border border-border/40 overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
+                      <div className="grid grid-cols-1 gap-1">
                         {voiceCatalog
                           .find((c) => c.code === expandedLang)
                           ?.voices.map((v) => (
                             <button
                               key={v.id}
                               onClick={() => updateField('tts_voice', v.id, true)}
-                              className={`flex items-center justify-between p-3 rounded-lg border text-[11px] font-bold transition-all ${
+                              className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold transition-all ${
                                 settings.tts_voice === v.id
                                   ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20 translate-x-1'
                                   : 'bg-input border-border/40 text-text-muted hover:bg-black/20'
@@ -912,15 +664,15 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                                     : v.name}
                                 </span>
                                 <span
-                                  className={`text-[8px] uppercase font-black tracking-tighter ${settings.tts_voice === v.id ? 'text-white/70' : 'text-text-muted opacity-60'}`}
+                                  className={`text-[7px] uppercase font-black tracking-tighter ${settings.tts_voice === v.id ? 'text-white/70' : 'text-text-muted opacity-60'}`}
                                 >
                                   {t(`settings.voice.trait.${v.trait}`)}
                                 </span>
                               </div>
                               {settings.tts_voice === v.id && (
                                 <svg
-                                  width="12"
-                                  height="12"
+                                  width="10"
+                                  height="10"
                                   viewBox="0 0 24 24"
                                   fill="none"
                                   stroke="currentColor"
@@ -931,26 +683,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                               )}
                             </button>
                           ))}
-
-                        {!expandedLang && (
-                          <div className="h-full flex flex-col items-center justify-center text-center p-4 opacity-40">
-                            <svg
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="mb-2"
-                            >
-                              <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
-                              <path d="M12 12L2.7 7.1" />
-                            </svg>
-                            <span className="text-[10px] font-medium italic">
-                              {t('settings.voice.selectLanguage')}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>

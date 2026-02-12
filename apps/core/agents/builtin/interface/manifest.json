@@ -10,13 +10,45 @@
   "intents": [
     "Change application theme",
     "Reload the application",
+    "Open sidebar tabs",
+    "Open settings panel",
     "Close the side panel",
     "Open the extension store settings",
-    "System status and resources"
+    "System status and resources",
+    "Change TTS voice",
+    "Enable or disable TTS",
+    "Enable or disable wake word",
+    "Add FortScript monitored app",
+    "Stop response generation",
+    "Stop voice playback"
   ],
   "features": {
     "sidebar": false,
     "agent_name": "system",
-    "tools": ["show_interface", "close_interface", "get_momai_resources_tool"]
+    "tools": [
+      "show_interface",
+      "close_interface",
+      "get_momai_resources_tool",
+      "set_theme",
+      "open_settings_panel",
+      "open_sidebar_tab",
+      "set_tts_enabled",
+      "set_wake_word_enabled",
+      "set_tts_voice",
+      "get_tts_voice_catalog",
+      "add_fortscript_app",
+      "open_extension_store",
+      "stop_generation",
+      "stop_voice"
+    ],
+    "safe_tools": [
+      "set_theme",
+      "open_settings_panel",
+      "open_sidebar_tab",
+      "open_extension_store",
+      "get_tts_voice_catalog",
+      "stop_generation",
+      "stop_voice"
+    ]
   }
 }

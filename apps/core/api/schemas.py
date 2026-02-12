@@ -41,10 +41,9 @@ class SettingsUpdate(BaseModel):
     wake_word_enabled: bool | None = None
     wake_word_sensitivity: int | None = None
     locale: str | None = None
-    min_interface_chars: int | None = None
-    prebuffer_chars: int | None = None
     onboarding_completed: bool | None = None
     tutorial_completed: bool | None = None
+    daily_briefing_enabled: bool | None = None
 
 
 class ExtensionToggle(BaseModel):

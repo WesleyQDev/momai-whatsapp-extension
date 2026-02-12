@@ -1,6 +1,7 @@
 import { BellSlashIcon } from '@heroicons/react/24/outline'
 import { useActiveReminders } from '../../hooks/useActiveReminders'
 import { useI18n } from '../../i18n'
+import { getNextOccurrence } from '../../utils/reminders'
 
 /**
  * Returns a human-readable recurrence badge label and a "category" color.
@@ -75,7 +76,7 @@ export default function RemindersSidebar() {
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-0.5 pb-2">
           {reminders.map((r) => {
-            const time = new Date(r.scheduled_time)
+            const time = getNextOccurrence(r)
             const now = new Date()
             const isToday = now.toDateString() === time.toDateString()
             const isTomorrow =

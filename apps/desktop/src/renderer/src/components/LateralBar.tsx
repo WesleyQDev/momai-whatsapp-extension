@@ -7,7 +7,8 @@ import {
   Cog6ToothIcon,
   CpuChipIcon,
   GlobeAltIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline'
 import { useI18n } from '../i18n'
 
@@ -89,8 +90,8 @@ export default function LateralBar({
           )
 
           const renderExt = (ext: ExtensionItem) => {
-            const IconComponent = iconMap[ext.icon || ''] || PuzzlePieceIcon
             const isChat = ext.features.agent_name === 'responder'
+            const IconComponent = isChat ? HomeIcon : (iconMap[ext.icon || ''] || PuzzlePieceIcon)
             const route = isChat ? '/' : `/extensions/${ext.id}`
             const isActive = isChat ? activeRoute === '/' : activeRoute === `/extensions/${ext.id}`
 

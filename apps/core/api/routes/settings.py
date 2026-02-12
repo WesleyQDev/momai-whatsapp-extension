@@ -55,17 +55,14 @@ def _sync_update_settings(data: SettingsUpdate):
         if data.locale is not None:
             settings.locale = data.locale
 
-        if data.min_interface_chars is not None:
-            settings.min_interface_chars = data.min_interface_chars
-
-        if data.prebuffer_chars is not None:
-            settings.prebuffer_chars = data.prebuffer_chars
-
         if data.onboarding_completed is not None:
             settings.onboarding_completed = data.onboarding_completed
 
         if data.tutorial_completed is not None:
             settings.tutorial_completed = data.tutorial_completed
+
+        if data.daily_briefing_enabled is not None:
+            settings.daily_briefing_enabled = data.daily_briefing_enabled
 
         db.commit()
         db.refresh(settings)
@@ -100,10 +97,9 @@ async def get_settings(db: Session = Depends(get_db)):
         "wake_word_enabled": settings.wake_word_enabled,
         "wake_word_sensitivity": settings.wake_word_sensitivity,
         "locale": settings.locale or "pt-BR",
-        "min_interface_chars": settings.min_interface_chars or 240,
-        "prebuffer_chars": settings.prebuffer_chars or 120,
         "onboarding_completed": settings.onboarding_completed,
-        "tutorial_completed": settings.tutorial_completed
+        "tutorial_completed": settings.tutorial_completed,
+        "daily_briefing_enabled": settings.daily_briefing_enabled
     }
 
 

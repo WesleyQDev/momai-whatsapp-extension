@@ -32,7 +32,7 @@ function App(): React.JSX.Element {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<'general' | 'brain' | 'voice'>('general')
+  const [settingsTab, setSettingsTab] = useState<'general' | 'brain' | 'voice' | 'economy' | 'updates'>('general')
   const [isCompact, setIsCompact] = useState(window.innerWidth < 850)
   const [extensions, setExtensions] = useState<any[]>([])
   const [settingsLoaded, setSettingsLoaded] = useState(false)
@@ -70,7 +70,7 @@ function App(): React.JSX.Element {
     }
   }, [handleGraphOption])
 
-  const openSettings = (tab: 'general' | 'brain' | 'voice' = 'general') => {
+  const openSettings = (tab: 'general' | 'brain' | 'voice' | 'economy' | 'updates' = 'general') => {
     setSettingsTab(tab)
     setShowSettings(true)
   }
@@ -140,10 +140,36 @@ function App(): React.JSX.Element {
     }
     window.addEventListener('momai_open_extensions', handleOpenExtensions)
 
+    const handleNavigate = (e: any) => {
+      const detail = e.detail || {}
+      if (detail.path) {
+        navigate(detail.path, detail.state ? { state: detail.state } : undefined)
+      }
+    }
+    window.addEventListener('momai_navigate', handleNavigate)
+
+    const handleOpenSettings = (e: any) => {
+      const tab = e.detail?.tab || 'general'
+      openSettings(tab)
+    }
+    window.addEventListener('momai_open_settings', handleOpenSettings)
+
+    const handleSetTheme = (e: any) => {
+      const theme = e.detail?.theme
+      if (theme === 'dark' || theme === 'light') {
+        localStorage.setItem('momai_theme', theme)
+        document.documentElement.setAttribute('data-theme', theme)
+      }
+    }
+    window.addEventListener('momai_set_theme', handleSetTheme)
+
     return () => {
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('momai_extensions_sync', handleSync)
       window.removeEventListener('momai_open_extensions', handleOpenExtensions)
+      window.removeEventListener('momai_navigate', handleNavigate)
+      window.removeEventListener('momai_open_settings', handleOpenSettings)
+      window.removeEventListener('momai_set_theme', handleSetTheme)
     }
   }, [])
 
@@ -288,21 +314,22 @@ function App(): React.JSX.Element {
       )}
 
       {showOnboarding && (
-        <OnboardingCard onFinish={() => {
-          setShowOnboarding(false)
-          setShowTutorial(true)
-          // Agora que o onboarding acabou, podemos redimensionar a janela
-          window.electron.ipcRenderer.send('app-ready')
-        }} />
+        <OnboardingCard
+          onFinish={() => {
+            setShowOnboarding(false)
+            setShowTutorial(true)
+            // Agora que o onboarding acabou, podemos redimensionar a janela
+            window.electron.ipcRenderer.send('app-ready')
+          }}
+        />
       )}
 
-      {showTutorial && (
-        <TutorialTour onFinish={() => setShowTutorial(false)} />
-      )}
-
+      {showTutorial && <TutorialTour onFinish={() => setShowTutorial(false)} />}
+      {/*
       <FortScriptToast />
 
       {!isCompact && <ResourceFooter />}
+      */}
     </div>
   )
 }

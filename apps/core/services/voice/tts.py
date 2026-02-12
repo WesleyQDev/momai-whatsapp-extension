@@ -58,6 +58,7 @@ class TTSManager:
         # Threads and instances
         self.worker_thread: Optional[threading.Thread] = None
         self.pyaudio_instance = None
+        self.active_stream = None
         self.pipeline = None
         self._is_playing = False
 
@@ -100,12 +101,13 @@ class TTSManager:
             return
 
         try:
-            stream = self.pyaudio_instance.open(
+            self.active_stream = self.pyaudio_instance.open(
                 format=pyaudio.paFloat32,
                 channels=1,
                 rate=24000,
                 output=True,
             )
+            stream = self.active_stream
 
             while not self.stop_event.is_set():
                 try:
@@ -123,19 +125,35 @@ class TTSManager:
 
                     self._is_playing = True
                     # Generate and play chunks
-                    # Note: You can switch voices here if needed by changing self.voice
+                    interrupted = False
                     audio_generator = self.pipeline(text, voice=self.voice)
                     for _, _, audio_chunk in audio_generator:
+                        if interrupted:
+                            break
                         # Check if session changed OR stop event set
                         with self.state_lock:
                             if self.session_id != current_session_id or self.stop_event.is_set():
-                                logger.debug(
-                                    f"[TTS Work] Interrupted session {current_session_id}")
+                                interrupted = True
                                 break
 
                         if audio_chunk is not None:
-                            # Convert tensor to bytes for pyaudio
-                            stream.write(audio_chunk.numpy().tobytes())
+                            # Write in small sub-chunks (~100ms each) for responsive interruption
+                            raw = audio_chunk.numpy().tobytes()
+                            # 2400 samples * 4 bytes/float32 = 9600 bytes = ~100ms at 24kHz
+                            sub_chunk_size = 9600
+                            offset = 0
+                            while offset < len(raw):
+                                with self.state_lock:
+                                    if self.session_id != current_session_id or self.stop_event.is_set():
+                                        interrupted = True
+                                        break
+                                end = min(offset + sub_chunk_size, len(raw))
+                                try:
+                                    stream.write(raw[offset:end])
+                                except Exception:
+                                    interrupted = True
+                                    break
+                                offset = end
                     
                     self._is_playing = False
                     self.text_queue.task_done()
@@ -155,6 +173,7 @@ class TTSManager:
                     stream.close()
                 except:
                     pass
+            self.active_stream = None
             logger.debug("[TTS Worker] Thread finished.")
 
     def wait_until_ready(self, timeout: float = 30.0):
@@ -214,6 +233,13 @@ class TTSManager:
         with self.start_lock:
             # Signal thread to stop
             self.stop_event.set()
+
+            # Abort active stream immediately for instant silence
+            if self.active_stream:
+                try:
+                    self.active_stream.abort_stream()
+                except:
+                    pass
             
             # Wait for thread to finish
             if self.worker_thread and self.worker_thread.is_alive():

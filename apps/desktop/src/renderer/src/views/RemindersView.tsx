@@ -12,6 +12,7 @@ import {
   type Reminder
 } from '../services/api'
 import { useI18n } from '../i18n'
+import { getOccurrenceForDate } from '../utils/reminders'
 
 type RepeatInterval = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | null
 type ViewMode = 'month' | 'week'
@@ -49,6 +50,10 @@ const isSameDay = (d1: Date, d2: Date) => {
 const getRecurrenceMeta = (interval: string | null) => {
   if (!interval) return null
   return interval === 'minutes' || interval === 'hours' ? 'intraday' : 'multiday'
+}
+
+const diffInMonths = (d1: Date, d2: Date) => {
+  return (d1.getFullYear() - d2.getFullYear()) * 12 + (d1.getMonth() - d2.getMonth())
 }
 
 // --- Main Component ---
@@ -97,6 +102,7 @@ export default function RemindersView() {
     const month = currentDate.getMonth()
     const horizonStart = new Date(year, month - 1, 1)
     const horizonEnd = new Date(year, month + 2, 0)
+    const now = new Date()
 
     reminders.forEach((r) => {
       const start = new Date(r.scheduled_time)
@@ -117,10 +123,14 @@ export default function RemindersView() {
         if (d < startDayOnly) continue
 
         let isMatch = false
-        if (interval === 'minutes' || interval === 'hours') isMatch = true
+        if (interval === 'minutes' || interval === 'hours') {
+          isMatch = !!getOccurrenceForDate(r, d, now)
+        }
         else if (interval === 'days') isMatch = diffInDays(d, start) % value === 0
         else if (interval === 'weeks') isMatch = diffInDays(d, start) % (7 * value) === 0
-        else if (interval === 'months') isMatch = d.getDate() === start.getDate()
+        else if (interval === 'months') {
+          isMatch = d.getDate() === start.getDate() && diffInMonths(d, start) % value === 0
+        }
 
         if (isMatch) {
           const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
@@ -217,9 +227,16 @@ export default function RemindersView() {
         
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
           {(remindersMap.get(`${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`) || [])
-            .sort((a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime())
+            .sort((a, b) => {
+              const now = new Date()
+              const aTime = getOccurrenceForDate(a, selectedDate, now)?.getTime() ?? new Date(a.scheduled_time).getTime()
+              const bTime = getOccurrenceForDate(b, selectedDate, now)?.getTime() ?? new Date(b.scheduled_time).getTime()
+              return aTime - bTime
+            })
             .map(r => {
               const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday';
+              const now = new Date()
+              const occurrence = getOccurrenceForDate(r, selectedDate, now) || new Date(r.scheduled_time)
               return (
                 <div key={r.id} onClick={() => handleOpenEdit(r)} 
                   className={`p-2 rounded cursor-pointer group transition-colors border ${
@@ -229,7 +246,7 @@ export default function RemindersView() {
                   }`}>
                   <div className="flex justify-between items-start">
                     <span className={`text-[9px] font-mono font-bold opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent/80'}`}>
-                      {formatTime(new Date(r.scheduled_time), { hour: '2-digit', minute: '2-digit' })}
+                      {formatTime(occurrence, { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <button onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 transition-opacity">
                       <TrashIcon className="w-3 h-3" />
@@ -357,8 +374,10 @@ export default function RemindersView() {
                            
                            {/* Reminders as small cards */}
                            {items.map(r => {
-                             const time = new Date(r.scheduled_time)
-                             const top = time.getHours() * 60 + time.getMinutes()
+                             const now = new Date()
+                             const occurrence = getOccurrenceForDate(r, day, now)
+                             if (!occurrence) return null
+                             const top = occurrence.getHours() * 60 + occurrence.getMinutes()
                              const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday'
                              return (
                                 <div key={r.id} onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }}
@@ -369,7 +388,7 @@ export default function RemindersView() {
                                   }`}
                                   style={{ top, height: 40 }}>
                                     <div className={`text-[9px] font-black uppercase leading-none mb-0.5 opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent'}`}>
-                                      {formatTime(time, { hour: '2-digit', minute: '2-digit' })}
+                                      {formatTime(occurrence, { hour: '2-digit', minute: '2-digit' })}
                                     </div>
                                     <div className={`text-[10px] font-bold truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}>{r.title}</div>
                                 </div>

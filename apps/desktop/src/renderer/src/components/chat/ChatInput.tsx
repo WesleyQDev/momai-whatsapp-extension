@@ -8,6 +8,7 @@ interface ChatInputProps {
   isLoading: boolean
   isModeChanging?: boolean
   statusInfo: StatusData | null
+  onStopGeneration?: () => void
 }
 
 export default function ChatInput({
@@ -15,7 +16,8 @@ export default function ChatInput({
   onSend,
   isLoading,
   isModeChanging = false,
-  statusInfo
+  statusInfo,
+  onStopGeneration
 }: ChatInputProps) {
   const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -69,6 +71,8 @@ export default function ChatInput({
 
   useEffect(() => {
     const loadSettings = async () => {
+      if (settingsLoaded || (statusInfo && statusInfo.status !== 'ok')) return
+
       try {
         const data = await fetchSettings()
         setVoiceSettings({
@@ -82,7 +86,7 @@ export default function ChatInput({
     }
 
     loadSettings()
-  }, [])
+  }, [statusInfo, settingsLoaded])
 
   const handleSend = () => {
     if (!localText.trim() || isLoading || isModeChanging || !isBrainReady || isBrainLoading) return
@@ -167,29 +171,47 @@ export default function ChatInput({
             </button>
           </div>
 
-          <button
-            type="button"
-            className="bg-accent/90 hover:bg-accent text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-accent/10 disabled:opacity-30 disabled:scale-95 group"
-            onClick={handleSend}
-            disabled={
-              isLoading || isModeChanging || !localText.trim() || !isBrainReady || isBrainLoading
-            }
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 ${isLoading ? 'animate-pulse' : ''}`}
+          {isLoading ? (
+            <button
+              type="button"
+              className="bg-accent/90 hover:bg-accent text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-accent/10"
+              onClick={onStopGeneration}
+              title="Parar"
             >
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="bg-accent/90 hover:bg-accent text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-accent/10 disabled:opacity-30 disabled:scale-95 group"
+              onClick={handleSend}
+              disabled={
+                isLoading || isModeChanging || !localText.trim() || !isBrainReady || isBrainLoading
+              }
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              >
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </footer>

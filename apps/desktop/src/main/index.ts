@@ -87,19 +87,30 @@ async function bootstrapPython(): Promise<{
     if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
 
     try {
-      // Cria o venv usando o uv e a versão 3.12 (uv cuida de baixar o python-build-standalone)
+      // Cria o venv usando o uv e a versão 3.12
       execSync(`"${uvExe}" venv "${venvPath}" --python 3.12`, { stdio: 'inherit' })
-      console.log('[Bootstrap] Venv criado. Sincronizando dependências...')
-
-      // Sincroniza o core com o venv
-      execSync(`"${uvExe}" pip install -e "${corePath}"`, {
-        env: { ...process.env, VIRTUAL_ENV: venvPath },
-        stdio: 'inherit'
-      })
+      console.log('[Bootstrap] Venv criado.')
     } catch (err) {
-      console.error('[Bootstrap] Erro crítico no setup:', err)
+      console.error('[Bootstrap] Erro crítico ao criar venv:', err)
       throw err
     }
+  }
+
+  // SEMPRE tenta sincronizar as dependências (uv é rápido o suficiente para isso)
+  // Isso garante que mudanças no pyproject.toml sejam aplicadas automaticamente
+  try {
+    console.log('[Bootstrap] Sincronizando dependências do core...')
+    // Usamos --no-progress para evitar logs quebrados no terminal do Electron
+    // E capturamos o output caso ocorra erro
+    execSync(`"${uvExe}" pip install --no-progress -e "${corePath}"`, {
+      env: { ...process.env, VIRTUAL_ENV: venvPath },
+      stdio: 'pipe' // Pipe para evitar o garbled output das animações do UV
+    })
+    console.log('[Bootstrap] Dependências sincronizadas com sucesso.')
+  } catch (err: any) {
+    console.error('[Bootstrap] Erro ao sincronizar dependências:')
+    if (err.stdout) console.error(err.stdout.toString())
+    if (err.stderr) console.error(err.stderr.toString())
   }
 
   return { pythonExe, corePath, uvExe, venvPath }

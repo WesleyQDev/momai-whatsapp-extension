@@ -2,7 +2,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 import webbrowser
 from langchain_community.tools import DuckDuckGoSearchRun
-from typing import List, Literal, Dict, Any
+from typing import List, Literal, Dict, Any, Optional
 import os
 import re
 from utils.i18n import t, get_locale
@@ -201,11 +201,189 @@ def switch_ai_model(mode: Literal['local']):
 @tool
 def open_extension_store():
     """Opens the Extension Store in the main interface."""
-    payload = {"type": "navigate", "data": {"path": "/store"}} 
+    return _broadcast_ui_event("navigate", {"path": "/extensions", "state": {"tab": "store"}})
+
+def _broadcast_ui_event(event_type: str, data: dict) -> str:
+    payload = {"type": event_type, "data": data}
     if app_state.main_loop:
         asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
-        return "Extension Store opened."
+        return "OK"
     return "Error: Main loop not ready."
+
+def _apply_settings(
+    tts_voice: str | None = None,
+    tts_enabled: bool | None = None,
+    wake_word_enabled: bool | None = None,
+) -> str:
+    from database.models import SessionLocal, Settings
+    db = SessionLocal()
+    try:
+        settings = db.query(Settings).first()
+        if not settings:
+            settings = Settings()
+            db.add(settings)
+            db.commit()
+
+        if tts_voice is not None:
+            settings.tts_voice = tts_voice
+        if tts_enabled is not None:
+            settings.tts_enabled = tts_enabled
+        if wake_word_enabled is not None:
+            settings.wake_word_enabled = wake_word_enabled
+
+        db.commit()
+        db.refresh(settings)
+
+        if tts_voice is not None and getattr(app_state, "tts", None):
+            app_state.tts.tts.set_voice(settings.tts_voice)
+
+        if tts_enabled is not None and getattr(app_state, "tts", None):
+            app_state.tts.tts.set_enabled(settings.tts_enabled)
+
+        if wake_word_enabled is not None and getattr(app_state, "ww", None):
+            if settings.wake_word_enabled:
+                app_state.ww.start()
+            else:
+                app_state.ww.stop()
+
+        return "OK"
+    finally:
+        db.close()
+
+@tool
+def set_theme(theme: Literal["dark", "light"]):
+    """Changes the application theme."""
+    if theme not in ["dark", "light"]:
+        return "Error: invalid theme"
+    return _broadcast_ui_event("set_theme", {"theme": theme})
+
+@tool
+def open_settings_panel(tab: Literal["general", "brain", "voice", "economy", "updates"] = "general"):
+    """Opens the settings panel at a specific tab."""
+    return _broadcast_ui_event("open_settings", {"tab": tab})
+
+@tool
+def open_sidebar_tab(
+    tab: Literal["chat", "notes", "agenda", "extensions", "store", "extension"],
+    extension_id: Optional[str] = None,
+    agent_name: Optional[str] = None,
+    extensions_tab: Optional[Literal["store", "installed", "system"]] = None,
+):
+    """Navigates to a sidebar tab or extension view."""
+    path = "/"
+    state = None
+
+    if tab == "notes":
+        path = "/notes"
+    elif tab == "extensions":
+        path = "/extensions"
+        if extensions_tab:
+            state = {"tab": extensions_tab}
+    elif tab == "store":
+        path = "/extensions"
+        state = {"tab": "store"}
+    elif tab == "agenda":
+        try:
+            from services.extensions.manager import extension_manager
+            manifest = extension_manager.get_agent_manifest("scheduler")
+            if manifest:
+                path = f"/extensions/{manifest.id}"
+            else:
+                return "Error: scheduler extension not found"
+        except Exception:
+            return "Error: scheduler extension not available"
+    elif tab == "extension":
+        if not extension_id and agent_name:
+            try:
+                from services.extensions.manager import extension_manager
+                manifest = extension_manager.get_agent_manifest(agent_name)
+                if manifest:
+                    extension_id = manifest.id
+            except Exception:
+                pass
+        if not extension_id:
+            return "Error: extension_id is required"
+        path = f"/extensions/{extension_id}"
+
+    return _broadcast_ui_event("navigate", {"path": path, "state": state})
+
+@tool
+def set_tts_enabled(enabled: bool):
+    """Enables or disables TTS."""
+    return _apply_settings(tts_enabled=enabled)
+
+@tool
+def set_wake_word_enabled(enabled: bool):
+    """Enables or disables the wake word detector."""
+    return _apply_settings(wake_word_enabled=enabled)
+
+@tool
+def set_tts_voice(voice: str):
+    """Sets the TTS voice by catalog id."""
+    if not voice:
+        return "Error: voice is required"
+    return _apply_settings(tts_voice=voice)
+
+@tool
+def get_tts_voice_catalog():
+    """Returns the local TTS voice catalog."""
+    return {
+        "pt-BR": ["pf_dora", "pm_alex", "pm_santa"],
+        "en-US": ["af_heart", "af_bella", "am_adam", "am_fenrir"],
+        "en-UK": ["bf_alice", "bm_george"],
+        "es": ["ef_dora", "em_alex"],
+        "it": ["if_sara", "im_nicola"],
+    }
+
+@tool
+def add_fortscript_app(name: str, executable: str):
+    """Adds a program to FortScript monitoring (economy mode)."""
+    if not name or not executable:
+        return "Error: name and executable are required"
+
+    from database.models import SessionLocal, GamingApp
+    exe_norm = executable.strip().lower()
+    db = SessionLocal()
+    try:
+        existing = db.query(GamingApp).filter(GamingApp.executable == exe_norm).first()
+        if existing:
+            existing.name = name
+            existing.is_active = True
+        else:
+            db.add(GamingApp(name=name, executable=exe_norm, is_active=True))
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        from services.system.resource_manager import resource_manager
+        if resource_manager.thread and resource_manager.thread.is_alive():
+            return "OK: app added (restart required to reload monitoring list)"
+        resource_manager.start()
+    except Exception:
+        pass
+
+    return "OK"
+
+@tool
+def stop_generation():
+    """Stops the current AI response generation."""
+    try:
+        import ai.orchestrator as orchestrator
+        orchestrator.request_cancel_generation()
+        return "OK"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@tool
+def stop_voice():
+    """Stops any ongoing TTS playback."""
+    try:
+        import services.voice.tts as tts
+        tts.stop_all()
+        return "OK"
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 # System Resource Helper (needed for core)
 def get_momai_resources():
@@ -562,6 +740,16 @@ TOOLS = [
     search,
     show_interface, show_chat_card, close_interface, ask_confirmation,
     open_extension_store,
+    set_theme,
+    open_settings_panel,
+    open_sidebar_tab,
+    set_tts_enabled,
+    set_wake_word_enabled,
+    set_tts_voice,
+    get_tts_voice_catalog,
+    add_fortscript_app,
+    stop_generation,
+    stop_voice,
     get_momai_resources_tool,
     create_reminder_tool, list_reminders_tool, delete_reminder_tool,
     get_capabilities
@@ -577,6 +765,16 @@ SAFE_TOOLS_NAMES = {
     "close_interface", 
     "ask_confirmation", 
     "open_extension_store",
+    "set_theme",
+    "open_settings_panel",
+    "open_sidebar_tab",
+    "set_tts_enabled",
+    "set_wake_word_enabled",
+    "set_tts_voice",
+    "get_tts_voice_catalog",
+    "add_fortscript_app",
+    "stop_generation",
+    "stop_voice",
     "get_momai_resources_tool",
     "create_reminder_tool", 
     "list_reminders_tool", 

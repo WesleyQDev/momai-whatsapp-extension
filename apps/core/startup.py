@@ -151,7 +151,7 @@ async def init_system_task() -> None:
 
         await app_state.send_init_event("brain", "Starting voice detector...", 85)
         app_state.ww = app_state.WakeWordDetector(
-            keyword="Sistema",
+            keyword="Momai",
             callback=on_wake_word,
             bypass_condition=should_bypass_wake_word
         )
@@ -168,6 +168,11 @@ async def init_system_task() -> None:
 
         await app_state.send_init_event("ready", "System ready.", 100)
         app_state.system_ready.set()
+        
+        # 7. Check Daily Briefing
+        from services.system.briefing import check_and_run_daily_briefing
+        asyncio.create_task(check_and_run_daily_briefing())
+
         db.close()
     except Exception as exc:
         app_state.logger.exception("[InitTask] Fatal error: %s", exc)

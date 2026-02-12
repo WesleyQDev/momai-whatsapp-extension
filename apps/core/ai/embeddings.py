@@ -112,7 +112,7 @@ class EmbeddingEngine:
                 "--port", str(self._port),
                 "--embedding",
                 "--ctx-size", "512",              # Embeddings não precisam de 2048
-                "--n-gpu-layers", "0",            # Força rodar na CPU para sobrar VRAM para o LLM principal
+                "--n-gpu-layers", "20",           # Use GPU for embeddings (it's a tiny 0.6B model, takes < 400MB VRAM)
                 "--parallel", "1",
                 "--threads", "4",                 # Limita threads para evitar lentidão no boot
                 "--mmap"                          # Usa memory mapping
@@ -125,6 +125,19 @@ class EmbeddingEngine:
                 stderr=subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
             )
+
+            # Assign to Windows Job Object so it auto-terminates if parent dies
+            if os.name == 'nt' and self._process:
+                try:
+                    from ai.providers.local_llama import job_handle
+                    import ctypes
+                    if job_handle:
+                        ctypes.windll.kernel32.AssignProcessToJobObject(
+                            job_handle,
+                            ctypes.c_void_p(self._process._handle)
+                        )
+                except Exception:
+                    pass
 
             # Aguarda healthcheck
             for _ in range(30): # 15 segundos max
@@ -158,11 +171,16 @@ class EmbeddingEngine:
         """Internal synchronous version for the executor."""
         self.load()
         try:
+            start_time = time.time()
             response = requests.post(
                 f"http://127.0.0.1:{self._port}/embedding",
                 json={"content": text},
                 timeout=10
             )
+            elapsed = (time.time() - start_time) * 1000
+            if elapsed > 1000:
+                logger.warning(f"[Embeddings] SLOW EMBEDDING: {elapsed:.1f}ms for text: '{text[:50]}...'")
+            
             data = response.json()
             vec = []
 

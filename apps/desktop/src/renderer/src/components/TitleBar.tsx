@@ -1,14 +1,10 @@
 import React from 'react'
 import icon from '../assets/icon.png'
-import { useI18n } from '../i18n'
 
 interface TitleBarProps {
-  onClearHistory?: () => void
-  activeRoute?: string
 }
 
-export default function TitleBar({ onClearHistory, activeRoute }: TitleBarProps) {
-  const { t } = useI18n()
+export default function TitleBar({}: TitleBarProps) {
   const handleMinimize = () => {
     window.api.minimize()
   }
@@ -35,28 +31,7 @@ export default function TitleBar({ onClearHistory, activeRoute }: TitleBarProps)
         className="flex h-full items-center"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
-        {/* Clear History Button */}
-        {activeRoute === '/' && onClearHistory && (
-          <button
-            onClick={() => onClearHistory()}
-            title={t('titlebar.clearHistory')}
-            className="h-full px-3 flex items-center justify-center text-text-muted hover:bg-red-500/10 hover:text-red-400 transition-all border-none bg-transparent cursor-pointer group"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 6h18"></path>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          </button>
-        )}
+
 
         <button
           onClick={handleMinimize}

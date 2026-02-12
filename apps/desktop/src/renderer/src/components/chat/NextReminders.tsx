@@ -1,5 +1,6 @@
 import { useActiveReminders } from '../../hooks/useActiveReminders'
 import { useI18n } from '../../i18n'
+import { getNextOccurrence } from '../../utils/reminders'
 
 export default function NextReminders() {
   const { reminders } = useActiveReminders()
@@ -22,7 +23,7 @@ export default function NextReminders() {
               {r.title}
             </span>
             <span className="text-accent/70 font-mono text-[10px]">
-              {formatTime(new Date(r.scheduled_time), {
+              {formatTime(getNextOccurrence(r), {
                 hour: '2-digit',
                 minute: '2-digit'
               })}

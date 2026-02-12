@@ -13,6 +13,9 @@ interface ContainerChatProps {
   onReopenGraph: (data: any) => void
   onGraphOption: (option: string) => void
   statusInfo: StatusData | null
+  stopCurrentGeneration?: () => void
+  stopCurrentVoice?: () => void
+  speakingIndex?: number | null
 }
 
 export default function ContainerChat({
@@ -24,7 +27,10 @@ export default function ContainerChat({
   isModeChanging = false,
   onReopenGraph,
   onGraphOption,
-  statusInfo
+  statusInfo,
+  stopCurrentGeneration,
+  stopCurrentVoice,
+  speakingIndex
 }: ContainerChatProps): JSX.Element {
   return (
     <div className="bg-transparent w-full h-full flex flex-col overflow-hidden relative">
@@ -35,6 +41,9 @@ export default function ContainerChat({
         onReopenGraph={onReopenGraph}
         onGraphOption={onGraphOption}
         onSendMessage={onSendMessage}
+        onStopVoice={stopCurrentVoice}
+        speakingIndex={speakingIndex}
+        statusInfo={statusInfo}
       />
 
       <ChatInput
@@ -43,6 +52,7 @@ export default function ContainerChat({
         isLoading={isLoading}
         isModeChanging={isModeChanging}
         statusInfo={statusInfo}
+        onStopGeneration={stopCurrentGeneration}
       />
     </div>
   )

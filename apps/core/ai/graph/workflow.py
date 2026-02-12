@@ -1,5 +1,8 @@
 import operator
 import os
+import json
+import re
+import asyncio
 from typing import Annotated, Sequence, TypedDict, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langgraph.graph import END, StateGraph
@@ -23,6 +26,8 @@ class AgentState(TypedDict):
     pending_tool_call: str | None # Tracks the tool waiting for approval
     summary: str | None
     no_tools: bool | None
+    fast_path: bool | None
+    memory_context: str | None
 
 class Router(BaseModel):
     next: str = Field(description="The name of the specialist agent to handle the request.")
@@ -97,54 +102,75 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
              # If no messages, fallback to responder to avoid crash
              return {"next": "responder"}
 
-        last_msg = state["messages"][-1].content
-        try:
-            from services.memory.external_memory import search_memory
-            memory_hits = await search_memory(str(last_msg), limit=1)
-            if memory_hits:
-                log_event("Semantic Router", "Memory hit -> responder", "magenta")
-                return {"next": "responder"}
-        except Exception as e:
-            logger.warning(f"[Router] Memory precheck failed: {e}")
-        print(f">>> [Semantic Router] Query: {last_msg}") # Explicit print for debugging
+        last_msg = str(state["messages"][-1].content)
         log_event("Semantic Router", f"Query: {last_msg}", "magenta")
         
+        # 0. Quick Greeting Heuristic (Sub-millisecond shortcut)
+        greetings = r"^(oi|ol[aá]|tudo bem|bom dia|boa tarde|boa noite|opa|e ai|eae|salve|oba|co[eé]|ei|hey|hello|hi)(\?|\!|\s|$)"
+        clean_msg = last_msg.strip().lower()
+        if re.search(greetings, clean_msg):
+            log_event("Semantic Router", "Heuristic match: Greeting -> Fast Path bypass", "green")
+            return {"next": "responder", "fast_path": True, "memory_context": ""}
+
+        # 1. Fetch memory context once
+        mem_context = ""
         try:
-            # Use run_in_executor if vector_db is not fully async yet (safeguard)
-            import asyncio
-            loop = asyncio.get_running_loop()
-            
-            # Assuming vector_db.search_intent calls embeddedings.embed_text which IS correct (run_in_executor)
-            # But just in case vector_db interactions themselves are slow lancedb.open_table()
-            
+            from services.memory.external_memory import build_memory_context
+            start_mem = asyncio.get_event_loop().time()
+            mem_context = await build_memory_context(last_msg)
+            mem_time = (asyncio.get_event_loop().time() - start_mem) * 1000
+            log_event("Semantic Router", f"Memory search took {mem_time:.1f}ms", "magenta")
+        except Exception as e:
+            logger.warning(f"[Router] Memory fetch failed: {e}")
+
+        # If we have a memory hit, we almost always want the general responder
+        # to handle the context, unless the user explicitly wants a tool (handled next)
+        if mem_context:
+            log_event("Semantic Router", "Memory hit -> favoring responder", "magenta")
+            # We don't return immediately because a tool intent might be stronger
+        
+        try:
+            # 2. Intent Search (Vector DB)
             results = await vector_db.search_intent(last_msg, limit=1)
             if results:
                 match = results[0]
                 distance = match.get("_distance", 1.0)
-                confidence = round((1 - distance) * 100, 1) # Convert distance to rough % confidence
-                target = match["agent"]
+                confidence = round((1 - distance) * 100, 1) if distance <= 1.0 else 0.0
+                target = match.get("agent", "responder")
                 matched_text = match.get("text", "unknown intent")
+
+                # EDGE CASE: If distance is 0.000, it usually means Embeddings failed 
+                # (returning all zeroes) unless it's an extremely short exact match.
+                # In this state, LanceDB finds distance 0 to the first item.
+                # We should favor responder in this suspicious state.
+                if distance < 0.001:
+                    log_event("Semantic Router", "Suspicious Dist 0.0 -> Forcing responder for safety", "yellow")
+                    target = "responder"
+                    confidence = 100.0
+
+                log_event("Semantic Router", f"Match: '{matched_text}' | Agent: {target} | Conf: {confidence}% (Dist: {distance:.3f})", "magenta")
+
+                # If confidence is mediocre or it's a general responder hit, don't let it trigger complex system agents
+                if (target != "responder" and confidence < 75.0) or (mem_context and target == "responder"):
+                    log_event("Semantic Router", "Ambiguous or memory-rich -> favoring responder", "magenta")
+                    return {"next": "responder", "fast_path": not mem_context, "memory_context": mem_context}
 
                 if (1 - distance) < intent_confidence_threshold:
                     log_event("Semantic Router", "Low intent confidence -> orchestrator", "magenta")
-                    return {"next": "mom_orchestrator"}
+                    return {"next": "mom_orchestrator", "memory_context": mem_context}
 
-                if target in ["interface", "search"]:
-                    log_event("Semantic Router", f"Delegating {target} to orchestrator", "magenta")
-                    return {"next": "mom_orchestrator"}
-                
-                # Rich Log for Thinking Trace
-                log_content = f"Matched intent: '{matched_text}' ({confidence}% confidence) -> Routing to {target}"
-                log_event("Semantic Router", log_content, "magenta")
-                
-                # We can't easily return metadata to the stream from here without changing State,
-                # so we rely on the logger which orchestrator reads, OR we update a scratchpad in state (cleaner).
-                # For now, let's stick to logging which Orchestrator captures via 'on_chain_start' or we improve orchestrator logic.
-                return {"next": target}
+                # Fast Path Detection
+                is_fast = False
+                if target == "responder" and confidence >= 85.0:
+                    log_event("Semantic Router", "High confidence conversation -> Fast Path enabled", "green")
+                    is_fast = True
+
+                log_event("Semantic Router", f"Matched intent: '{matched_text}' ({confidence}% confidence) -> {target}", "magenta")
+                return {"next": target, "fast_path": is_fast, "memory_context": mem_context}
         except Exception as e:
             logger.error(f"[Router] Error: {e}")
             
-        return {"next": "mom_orchestrator"}
+        return {"next": "mom_orchestrator", "memory_context": mem_context}
 
     async def mom_orchestrator(state: AgentState):
         """Strategic orchestrator (LLM) as fallback."""
@@ -191,17 +217,19 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
              # Critical fallback if even responder is missing
              return {"messages": [AIMessage(content="System Error: 'responder' agent is missing. Please check your installation.")]}
 
-        # Tool RAG: Search relevant tools in the vector database
-        from tools.system_actions import get_all_tools_registry
         last_msg = state["messages"][-1].content
         
-        # Skip Tool RAG for 'responder' to save latency in general conversation
+        # Tool RAG: Search relevant tools for non-responder agents
         tool_results = []
         if agent_name != "responder":
-            # Reduced limit from 10 to 4 for local LLM reliability
             tool_results = await vector_db.search_tools(str(last_msg), limit=4)
         
-        all_registry = get_all_tools_registry()
+        # Cache the registry to avoid repeated complex imports and iterations
+        if not hasattr(create_momai_graph, "_tools_cache"):
+            from tools.system_actions import get_all_tools_registry
+            create_momai_graph._tools_cache = get_all_tools_registry()
+        
+        all_registry = create_momai_graph._tools_cache
         
         active_tools = []
         
@@ -225,37 +253,37 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
              # Only UI and Capabilities for general chat
              relevant_globals = ["show_interface", "close_interface", "get_capabilities", "ask_confirmation", "open_extension_store"]
         
-        for t_name in relevant_globals:
-             if t_name in AVAILABLE_TOOLS and t_name not in [t.name for t in active_tools]:
-                 active_tools.append(AVAILABLE_TOOLS[t_name])
+        if not state.get("fast_path"):
+            for t_name in relevant_globals:
+                 if t_name in AVAILABLE_TOOLS and t_name not in [t.name for t in active_tools]:
+                     active_tools.append(AVAILABLE_TOOLS[t_name])
+        else:
+            # Even in fast path, if we are 'responder', we might need show_interface if the answer is long
+            # but we can omit others to save prompt tokens
+            if "show_interface" in AVAILABLE_TOOLS:
+                active_tools.append(AVAILABLE_TOOLS["show_interface"])
+            logger.info("[FastPath] Using minimal tool set for speed.")
 
         no_tools_available = not active_tools
 
         # Logic for Persona Injection
         system_prompt = manifest.system_prompt
         
-        # Inject Current Date/Time for scheduling accuracy
-        from datetime import datetime
-        now = datetime.now()
-        current_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
-        weekday = now.strftime("%A")
-        time_context = f"CURRENT DATE/TIME: {current_time_str} ({weekday}). Use this as reference for any scheduling."
-        
-        # Global Persona Injection
+        # 1. Static Persona & Instructions (Prime candidate for KV Cache)
         persona_instruction = PERSONA_INJECTION_TEMPLATE.format(
             user_name=user_name,
             assistant_persona=assistant_persona if assistant_persona else ""
         )
-
         language_instruction = get_language_instruction()
         
-        # Merge prompts
+        # Merge static parts first
         final_system_prompt = (
-            f"{time_context}\n\n{language_instruction}\n\n{persona_instruction}\n\n"
+            f"{language_instruction}\n\n"
+            f"{persona_instruction}\n\n"
             f"# AGENT INSTRUCTIONS\n{system_prompt}"
         )
 
-        # Dynamic prompt customization via hooks
+        # 2. Less static (Extension prompts, Summary, Memory)
         custom_prompts = extension_manager.get_agent_init_prompts(agent_name)
         if custom_prompts:
             for cp in custom_prompts:
@@ -266,17 +294,23 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         if summary_text:
             final_system_prompt += f"\n\n# CONVERSATION SUMMARY\n{summary_text}"
 
-        memory_context = ""
-        try:
-            from services.memory.external_memory import build_memory_context
-            memory_context = await build_memory_context(str(last_msg))
-        except Exception as e:
-            logger.warning(f"[Memory] External memory lookup failed: {e}")
-
+        memory_context = state.get("memory_context")
         if memory_context:
             final_system_prompt += f"\n\n# EXTERNAL MEMORY\n{memory_context}"
 
-        if not active_tools:
+        # 3. Dynamic context (Changes every Turn/Second - Keeps prefix cached)
+        # Inject Current Date/Time
+        from datetime import datetime
+        now = datetime.now()
+        current_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        weekday = now.strftime("%A")
+        time_context = f"CURRENT DATE/TIME: {current_time_str} ({weekday})"
+        final_system_prompt += f"\n\n{time_context}"
+
+        # 4. Tool Protocol (Kept at end)
+        if state.get("fast_path"):
+            final_system_prompt += "\n\nResponda de forma direta e amigável. Caso a resposta seja longa ou técnica, você pode usar a ferramenta show_interface se necessário."
+        elif not active_tools:
             final_system_prompt += f"\n\n{NO_TOOLS_WARNING}"
         else:
             final_system_prompt += f"\n\n{TOOL_PROTOCOL}"
@@ -331,6 +365,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
     async def dynamic_tools_node(state: AgentState):
         """Dynamic tool executor that fetches fresh tools at runtime."""
         from langchain_core.messages import ToolMessage
+        import app_state
         
         last_msg = state["messages"][-1]
         if not hasattr(last_msg, "tool_calls") or not last_msg.tool_calls:
@@ -339,6 +374,20 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         # Get fresh tools registry at runtime
         tools_registry = get_all_tools_registry()
         
+        def _stringify_payload(value: object) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, (dict, list, tuple)):
+                try:
+                    text = json.dumps(value, ensure_ascii=False, indent=2, default=str)
+                except Exception:
+                    text = str(value)
+            else:
+                text = str(value)
+            if len(text) > 2000:
+                return text[:2000] + "... (truncated)"
+            return text
+
         tool_messages = []
         for tool_call in last_msg.tool_calls:
             tool_name = tool_call["name"]
@@ -348,19 +397,76 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             tool = tools_registry.get(tool_name)
             if tool:
                 try:
+                    if app_state.main_loop:
+                        payload = {
+                            "type": "tool_start",
+                            "data": {
+                                "id": tool_id,
+                                "name": tool_name,
+                                "args": tool_args
+                            }
+                        }
+                        asyncio.run_coroutine_threadsafe(
+                            app_state.broadcast_to_sockets(payload),
+                            app_state.main_loop
+                        )
                     # Support both sync and async tools
-                    import asyncio
                     if hasattr(tool, 'ainvoke'):
                         result = await tool.ainvoke(tool_args)
                     elif asyncio.iscoroutinefunction(getattr(tool, '_arun', None)):
                         result = await tool._arun(**tool_args)
                     else:
                         result = tool.invoke(tool_args)
+                    if app_state.main_loop:
+                        payload = {
+                            "type": "tool_result",
+                            "data": {
+                                "id": tool_id,
+                                "name": tool_name,
+                                "args": tool_args,
+                                "result": _stringify_payload(result),
+                                "status": "ok"
+                            }
+                        }
+                        asyncio.run_coroutine_threadsafe(
+                            app_state.broadcast_to_sockets(payload),
+                            app_state.main_loop
+                        )
                     tool_messages.append(ToolMessage(content=str(result), tool_call_id=tool_id))
                 except Exception as e:
                     logger.error(f"[Tools] Error executing {tool_name}: {e}")
+                    if app_state.main_loop:
+                        payload = {
+                            "type": "tool_result",
+                            "data": {
+                                "id": tool_id,
+                                "name": tool_name,
+                                "args": tool_args,
+                                "result": _stringify_payload(str(e)),
+                                "status": "error"
+                            }
+                        }
+                        asyncio.run_coroutine_threadsafe(
+                            app_state.broadcast_to_sockets(payload),
+                            app_state.main_loop
+                        )
                     tool_messages.append(ToolMessage(content=f"Error: {str(e)}", tool_call_id=tool_id))
             else:
+                if app_state.main_loop:
+                    payload = {
+                        "type": "tool_result",
+                        "data": {
+                            "id": tool_id,
+                            "name": tool_name,
+                            "args": tool_args,
+                            "result": "Tool not found",
+                            "status": "error"
+                        }
+                    }
+                    asyncio.run_coroutine_threadsafe(
+                        app_state.broadcast_to_sockets(payload),
+                        app_state.main_loop
+                    )
                 tool_messages.append(ToolMessage(content=f"Error: Tool '{tool_name}' not found.", tool_call_id=tool_id))
         
         return {"messages": tool_messages}

@@ -58,14 +58,14 @@ class ResourceManager:
             if self.thread and self.thread.is_alive():
                 return
 
-            if not FortScript:
+            if FortScript is None:
                 print("[ResourceManager] FortScript not found. Monitoring disabled.")
                 logger.error("[ResourceManager] FortScript not found. Monitoring disabled.")
                 return
 
             db = SessionLocal()
             try:
-                from fortscript.main import FortScript, Callbacks, RamConfig
+                from fortscript.main import RamConfig
                 
                 # 1. Carrega apps configurados pelo usuário
                 apps = db.query(GamingApp).filter(GamingApp.is_active == True).all()
