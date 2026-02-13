@@ -56,7 +56,9 @@ function runProcess(command: string, args: string[], env: NodeJS.ProcessEnv): Pr
         return
       }
 
-      rejectPromise(new Error(`Comando falhou (${command} ${args.join(' ')}) com código ${code}. ${stderr}`))
+      rejectPromise(
+        new Error(`Comando falhou (${command} ${args.join(' ')}) com código ${code}. ${stderr}`)
+      )
     })
   })
 }
@@ -177,7 +179,7 @@ async function checkBackendRunning(): Promise<boolean> {
 
 async function startPythonBackend(): Promise<void> {
   const isExternalBackend = process.env.MOMAI_EXTERNAL_BACKEND === '1'
-  
+
   if (isExternalBackend) {
     console.log('[Electron] Modo externo: verificando se backend já está rodando...')
     const running = await checkBackendRunning()
@@ -279,9 +281,9 @@ async function startPythonBackend(): Promise<void> {
 
 function killAllLlamaServers(): void {
   if (process.platform !== 'win32') return
-  
+
   const processes = ['llama-server.exe', 'llama-server', 'python.exe', 'python3.exe']
-  
+
   for (const proc of processes) {
     try {
       execSync(`taskkill /f /im ${proc}`, { stdio: 'ignore' })
@@ -339,7 +341,7 @@ function monitorPythonProcess(): void {
 
     const pid = pythonProcess.pid
     if (!pid) return
-    
+
     const isAlive = await isProcessRunning(pid)
     if (!isAlive) {
       console.log('[Electron] Python processo detectado como encerrado pelo monitor.')
@@ -381,7 +383,7 @@ async function killPythonBackend(): Promise<void> {
   try {
     console.log('[Electron] Fase 1: Tentando shutdown via API do Node...')
     pythonProcess.kill()
-    
+
     if (await waitForPythonExit(2000)) {
       console.log('[Electron] ✓ Python encerrado graciosamente.')
       pythonProcess = null
