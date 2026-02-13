@@ -23,6 +23,7 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
         isLoading={props.chat.isLoading}
         text={props.chat.text}
         onSendMessage={props.chat.sendMessage}
+        onClearHistory={props.chat.clearHistory}
         messagesEndRef={props.chat.messagesEndRef}
         onReopenGraph={props.chat.reopenGraph}
         onGraphOption={props.chat.handleGraphOption}

@@ -1,4 +1,4 @@
-import { JSX, memo, useState } from 'react'
+import { JSX, memo, useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Message } from '../../services/api'
@@ -22,28 +22,43 @@ const MessageItem = memo(function MessageItem({
   onStopVoice
 }: MessageItemProps): JSX.Element {
   const [showTrace, setShowTrace] = useState(false)
+  const [showToolDetails, setShowToolDetails] = useState(false)
+  const [openToolIndex, setOpenToolIndex] = useState<number | null>(null)
+  const [hideStopButton, setHideStopButton] = useState(false)
+
+  const handleStopVoiceClick = () => {
+    if (!onStopVoice) return
+    onStopVoice()
+    setHideStopButton(true)
+  }
+
+  useEffect(() => {
+    if (isSpeaking) {
+      setHideStopButton(false)
+    }
+  }, [isSpeaking])
 
   const isSystemModelChange =
     message.role === 'assistant' && message.content.startsWith('Brain changed to:')
   const isDone = message.content.includes('✅')
 
-  const toolCardPrefix = 'TOOL_CARD::'
-  const toolCardTextDelimiter = '\n\nTOOL_TEXT::\n'
-  const isToolCard = message.role === 'assistant' && message.content.startsWith(toolCardPrefix)
-  let toolCard: { name: string; args?: string; status?: string } | null = null
-  let toolCardText = ''
+  const toolTracePrefix = 'TOOL_TRACE::'
+  const toolTraceTextDelimiter = '\n\nTOOL_TEXT::\n'
+  const isToolTrace = message.role === 'assistant' && message.content.startsWith(toolTracePrefix)
+  let toolTrace: { status?: string; steps?: any[] } | null = null
+  let toolTraceText = ''
 
-  if (isToolCard) {
+  if (isToolTrace) {
     try {
-      const idx = message.content.indexOf(toolCardTextDelimiter)
+      const idx = message.content.indexOf(toolTraceTextDelimiter)
       const jsonPart =
         idx >= 0
-          ? message.content.slice(toolCardPrefix.length, idx)
-          : message.content.slice(toolCardPrefix.length)
-      toolCardText = idx >= 0 ? message.content.slice(idx + toolCardTextDelimiter.length) : ''
-      toolCard = JSON.parse(jsonPart)
+          ? message.content.slice(toolTracePrefix.length, idx)
+          : message.content.slice(toolTracePrefix.length)
+      toolTraceText = idx >= 0 ? message.content.slice(idx + toolTraceTextDelimiter.length) : ''
+      toolTrace = JSON.parse(jsonPart)
     } catch {
-      toolCard = { name: 'tool', status: 'error' }
+      toolTrace = { status: 'error', steps: [] }
     }
   }
 
@@ -54,10 +69,78 @@ const MessageItem = memo(function MessageItem({
       ? ''
       : isChatCard && message.graphData?.content
         ? message.graphData.content
-        : isToolCard
-          ? toolCardText
+        : isToolTrace
+          ? toolTraceText
           : message.content
   const optionsMap = message.graphData?.optionsMap || message.graphData?.options_map || {}
+  const toolSteps = Array.isArray(toolTrace?.steps) ? toolTrace.steps : []
+  const completedSteps = toolSteps.filter((s) => s.status === 'done').length
+  const errorSteps = toolSteps.filter((s) => s.status === 'error').length
+  const runningSteps = toolSteps.filter((s) => s.status === 'running').length
+  const activityCount = message.activities?.length || 0
+  const hasStageData = activityCount > 0 || toolSteps.length > 0
+
+  const minimizeText = (value: unknown, max = 180) => {
+    if (value === null || value === undefined) return ''
+    const text = String(value).replace(/\s+/g, ' ').trim()
+    if (text.length <= max) return text
+    return `${text.slice(0, max)}...`
+  }
+
+  const humanizeToolName = (name: string) => {
+    const lower = (name || '').toLowerCase()
+    if (lower.includes('duckduckgo') || lower.includes('search')) return 'Busca na web'
+    if (lower.includes('reminder')) return 'Lembretes'
+    if (lower.includes('interface')) return 'Interface'
+    return name || 'Ferramenta'
+  }
+
+  const humanizeActivity = (activity: string) => {
+    const lower = activity.toLowerCase()
+    if (lower.includes('running capability')) {
+      const raw = activity.replace(/running capability\s*:/i, '').trim()
+      const match = raw.match(/^([a-zA-Z0-9_\-.]+)/)
+      const toolName = match?.[1] || raw
+      return humanizeToolName(toolName)
+    }
+    if (lower.includes('router decision')) return 'Entendendo a melhor forma de responder'
+    if (lower.includes('router')) return 'Entendendo seu pedido'
+    if (lower.includes('orchestrator')) return 'Organizando a resposta'
+    if (lower.includes('agent')) return 'Preparando resposta'
+    if (lower.includes('specialist')) return 'Preparando resposta'
+    return activity
+  }
+
+  const latestActivityText =
+    activityCount > 0
+      ? humanizeActivity(message.activities![activityCount - 1])
+      : 'Preparando resposta...'
+
+  const liveStageText = (() => {
+    if (runningSteps > 0) {
+      const current = toolSteps.find((s) => s.status === 'running')
+      const name = current?.name ? humanizeToolName(String(current.name)) : 'ação'
+      return `Executando ${name.toLowerCase()}...`
+    }
+    if (isLoading) return latestActivityText
+    if (errorSteps > 0) return `${toolSteps.length} ação(ões) executadas com ${errorSteps} erro(s)`
+    if (toolSteps.length > 0) return `${completedSteps} ação(ões) executadas`
+    return latestActivityText
+  })()
+
+  useEffect(() => {
+    if (isLoading && hasStageData) {
+      setShowTrace(true)
+      setShowToolDetails(true)
+      return
+    }
+
+    if (!isLoading && hasStageData) {
+      setShowTrace(false)
+      setShowToolDetails(false)
+      setOpenToolIndex(null)
+    }
+  }, [isLoading, hasStageData])
 
   if (isSystemModelChange) {
     const modelName =
@@ -153,70 +236,67 @@ const MessageItem = memo(function MessageItem({
               MomAI
             </span>
 
-            {/* TRACE TOGGLE BUTTON (INLINE) */}
-            {!isLoading && message.activities && message.activities.length > 0 && (
-              <button
-                onClick={() => setShowTrace(!showTrace)}
-                className={`flex items-center justify-center w-4 h-4 rounded transition-all cursor-pointer ${showTrace ? 'text-accent bg-accent/10' : 'text-text-muted/40 hover:text-accent hover:bg-accent/10'}`}
-                title="View System Trace"
-              >
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  className={`transition-transform duration-300 ${showTrace ? 'rotate-180' : ''}`}
+            {/* ETAPAS TOGGLE BUTTON (INLINE) */}
+            {hasStageData && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setShowTrace(!showTrace)}
+                  className="text-[10px] text-text-muted hover:text-accent transition-colors"
+                  title="Ver etapas da resposta"
                 >
-                  <polyline points="6 9 12 15 18 9"></polyline>
+                  {showTrace
+                    ? 'Ocultar etapas'
+                    : isLoading
+                      ? liveStageText
+                      : `Ver etapas da resposta (${activityCount + toolSteps.length})`}
+                </button>
+
+                {isSpeaking && onStopVoice && !hideStopButton && (
+                  <button
+                    type="button"
+                    onClick={handleStopVoiceClick}
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border/25 text-text-muted hover:text-text hover:border-border/50 transition-all"
+                    title="Pausar voz"
+                    aria-label="Pausar voz"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="5" width="4" height="14" rx="1" />
+                      <rect x="14" y="5" width="4" height="14" rx="1" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!hasStageData && isSpeaking && onStopVoice && !hideStopButton && (
+              <button
+                type="button"
+                onClick={handleStopVoiceClick}
+                className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border/25 text-text-muted hover:text-text hover:border-border/50 transition-all"
+                title="Pausar voz"
+                aria-label="Pausar voz"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
                 </svg>
               </button>
             )}
           </div>
         )}
-        {message.role === 'assistant' && isSpeaking && onStopVoice && (
-          <div className="absolute -top-2 right-0">
-            <button
-              type="button"
-              onClick={onStopVoice}
-              className="flex items-center gap-1 rounded-full bg-card/80 border border-border/20 px-2 py-1 text-[10px] font-semibold text-text-muted hover:text-text hover:border-border/40 transition-all"
-              title="Parar voz"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-              Parar
-            </button>
-          </div>
-        )}
         <div className="flex flex-col gap-2">
           {message.role === 'assistant' && (
             <>
-              {/* ACTIVE STATUS (Only while loading) */}
-              {isLoading && (
-                <div className="flex items-center gap-2 px-1 py-0.5 animate-in fade-in duration-700 mb-1">
-                  <div className="w-2.5 h-2.5 flex items-center justify-center relative">
-                    <span className="absolute inset-0 rounded-full bg-accent/40 animate-ping"></span>
-                    <div className="w-1.5 h-1.5 bg-accent rounded-full" />
-                  </div>
-                  <span className="text-[10px] font-bold text-accent/80 uppercase tracking-[0.15em] animate-pulse">
-                    {message.activities && message.activities.length > 0
-                      ? message.activities[message.activities.length - 1]
-                          .split(':')[0]
-                          .replace('Running capability', 'Executing')
-                      : 'Thinking...'}
-                  </span>
-                </div>
-              )}
-
-              {/* TRACE CONTAINER (Visible via State) */}
-              {!isLoading && showTrace && message.activities && message.activities.length > 0 && (
-                <div className="flex flex-col gap-1 mt-1 mb-2 animate-in slide-in-from-top-2 duration-200">
-                  {message.activities.map((activity, idx) => {
+              {/* STAGES CONTAINER (dynamic during loading, collapses after done) */}
+              {showTrace && hasStageData && (
+                <div className="flex flex-col gap-1 mt-1 mb-2 animate-in slide-in-from-top-2 duration-200 border border-border/20 rounded-lg p-2 bg-card/30">
+                  {message.activities?.map((activity, idx) => {
+                    const normalizedActivity = humanizeActivity(activity)
                     let iconInfo = <div className="w-1 h-1 rounded-full bg-border" />
-                    let content = activity
+                    let content = normalizedActivity
                     let highlightColor = 'text-text-muted'
 
-                    if (activity.toLowerCase().includes('router')) {
+                    if (normalizedActivity.toLowerCase().includes('entendendo')) {
                       highlightColor = 'text-purple-400'
                       iconInfo = (
                         <svg
@@ -233,12 +313,8 @@ const MessageItem = memo(function MessageItem({
                           <line x1="4" y1="4" x2="9" y2="9"></line>
                         </svg>
                       )
-                    } else if (
-                      activity.toLowerCase().includes('running capability') ||
-                      activity.toLowerCase().includes('executing')
-                    ) {
+                    } else if (normalizedActivity.toLowerCase().includes('usando recurso')) {
                       highlightColor = 'text-cyan-400'
-                      content = content.replace('Running capability:', '').trim()
                       iconInfo = (
                         <svg
                           className="w-3 h-3 text-cyan-400"
@@ -250,7 +326,7 @@ const MessageItem = memo(function MessageItem({
                           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
                         </svg>
                       )
-                    } else if (activity.toLowerCase().includes('orchestrator')) {
+                    } else if (normalizedActivity.toLowerCase().includes('organizando')) {
                       highlightColor = 'text-blue-400'
                       iconInfo = (
                         <svg
@@ -272,10 +348,7 @@ const MessageItem = memo(function MessageItem({
                           <line x1="1" y1="14" x2="4" y2="14"></line>
                         </svg>
                       )
-                    } else if (
-                      activity.toLowerCase().includes('specialist') ||
-                      activity.toLowerCase().includes('agent')
-                    ) {
+                    } else if (normalizedActivity.toLowerCase().includes('preparando')) {
                       highlightColor = 'text-emerald-400'
                       iconInfo = (
                         <svg
@@ -306,7 +379,7 @@ const MessageItem = memo(function MessageItem({
                       <div key={idx} className="relative group/item py-1 first:pt-0">
                         <div className="flex items-start gap-2 opacity-60 group-hover/item:opacity-100 transition-opacity">
                           <div className="mt-0.5 opacity-80">{iconInfo}</div>
-                          <span className="text-[11px] font-medium tracking-wide text-text-muted leading-relaxed font-mono">
+                          <span className="text-[11px] font-medium tracking-wide text-text-muted leading-relaxed">
                             {label && (
                               <span
                                 className={`${highlightColor} font-bold opacity-80 uppercase text-[9px] mr-2 tracking-wider`}
@@ -320,40 +393,81 @@ const MessageItem = memo(function MessageItem({
                       </div>
                     )
                   })}
+
+                  {toolTrace && toolSteps.length > 0 && (
+                    <div className="mt-1 pl-4 pr-1 max-h-64 overflow-auto border-l border-border/30">
+                      {toolSteps.map((step, idx) => (
+                        <div
+                          key={`${step.id || step.name || 'tool'}-${idx}`}
+                          className="relative text-[11px] text-text-muted pl-3 py-1.5"
+                        >
+                          <span className="absolute -left-[6px] top-3 w-2.5 h-2.5 rounded-full bg-card border border-border/40" />
+
+                          <button
+                            type="button"
+                            onClick={() => setOpenToolIndex((prev) => (prev === idx ? null : idx))}
+                            className="w-full flex items-center justify-between gap-2 text-left hover:text-accent transition-colors"
+                          >
+                            <span className="text-text font-semibold">
+                              {humanizeToolName(String(step.name || 'Ferramenta'))}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-[10px] font-semibold ${
+                                  step.status === 'running'
+                                    ? 'text-accent'
+                                    : step.status === 'error'
+                                      ? 'text-red-400'
+                                      : 'text-emerald-400'
+                                }`}
+                              >
+                                {step.status === 'running'
+                                  ? 'executando'
+                                  : step.status === 'error'
+                                    ? 'erro'
+                                    : 'ok'}
+                              </span>
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                className={`text-accent/80 transition-transform ${openToolIndex === idx ? 'rotate-90' : ''}`}
+                              >
+                                <polyline points="9 6 15 12 9 18"></polyline>
+                              </svg>
+                            </div>
+                          </button>
+
+                          {(showToolDetails || openToolIndex === idx) && openToolIndex === idx && (
+                            <div className="mt-1.5 pl-0.5 space-y-1.5">
+                              {step.query && (
+                                <p className="break-words">
+                                  <span className="text-accent/80 font-semibold">Query:</span>{' '}
+                                  {minimizeText(step.query, 120)}
+                                </p>
+                              )}
+
+                              {step.result && (
+                                <p className="break-words">{minimizeText(step.result, 220)}</p>
+                              )}
+
+                              {step.error && (
+                                <p className="text-red-300 break-words">
+                                  <span className="font-semibold">Erro:</span> {String(step.error)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </>
-          )}
-
-          {toolCard && (
-            <div className="w-full max-w-[520px] rounded-xl border border-border/20 bg-white/5 px-3 py-2 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[11px] text-text-muted">
-                  <span className="font-semibold">process</span>
-                </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                    toolCard.status === 'running'
-                      ? 'text-accent bg-accent/10'
-                      : toolCard.status === 'error'
-                        ? 'text-red-400 bg-red-500/10'
-                        : 'text-emerald-400 bg-emerald-500/10'
-                  }`}
-                >
-                  {toolCard.status === 'running'
-                    ? 'Running'
-                    : toolCard.status === 'error'
-                      ? 'Error'
-                      : 'Done'}
-                </span>
-              </div>
-              <div className="mt-1 text-[12px] font-semibold text-text truncate">{toolCard.name}</div>
-              {toolCard.args && (
-                <div className="mt-2 rounded-md bg-black/20 px-2 py-1.5 text-[11px] text-text-muted max-h-28 overflow-auto">
-                  {toolCard.args}
-                </div>
-              )}
-            </div>
           )}
 
           {displayContent && (

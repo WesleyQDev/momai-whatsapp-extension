@@ -52,7 +52,7 @@ class WakeWordDetector:
             logger.info(f"[WakeWord] Initializing Faster-Whisper (small) on {device} ({compute_type})...")
             self.model = WhisperModel("small", device=device, compute_type=compute_type)
         except Exception as e:
-            logger.error(f"[WakeWord] Failed to load 'small' Whisper: {e}. Falling back to 'base' on CPU.")
+            logger.warning(f"[WakeWord] Could not load 'small' Whisper ({e}). Falling back to 'base' on CPU.")
             self.model = WhisperModel("base", device="cpu", compute_type="int8")
 
         self.audio_queue = queue.Queue(maxsize=200)

@@ -104,8 +104,8 @@ export function useStatus() {
       statusInterval = setInterval(checkStatus, pollInterval)
     }
 
-    if (isBooting && initProgress < 100) {
-      initInterval = setInterval(checkInitProgress, 1000)
+    if (isBooting && initProgress < 100 && !hasReceivedWSEvent) {
+      initInterval = setInterval(checkInitProgress, 2000)
     }
 
     startPolling()
@@ -113,7 +113,7 @@ export function useStatus() {
       clearInterval(statusInterval)
       if (initInterval) clearInterval(initInterval)
     }
-  }, [checkStatus, checkInitProgress, isBooting, initProgress])
+  }, [checkStatus, checkInitProgress, isBooting, initProgress, hasReceivedWSEvent])
 
   return {
     statusInfo,

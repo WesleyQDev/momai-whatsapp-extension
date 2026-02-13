@@ -1,5 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Message, sendChatMessage, fetchChatHistory, clearChatHistory, stopGeneration, stopVoice } from '../services/api'
+import {
+  Message,
+  sendChatMessage,
+  fetchChatHistory,
+  clearChatHistory,
+  stopGeneration,
+  stopVoice
+} from '../services/api'
 
 export function useChat() {
   const [text, setText] = useState('')
@@ -24,23 +31,73 @@ export function useChat() {
   // Ref para as opções atuais do gráfico para o listener de voz não precisar de dependência
   const currentGraphOptionsRef = useRef<string[]>([])
   const isGraphOpenRef = useRef<boolean>(false)
-  const toolMessageRef = useRef<Record<string, { msgId: string; startedAt: number }>>({})
-  const toolCardPrefix = 'TOOL_CARD::'
-  const toolCardTextDelimiter = '\n\nTOOL_TEXT::\n'
+  const toolTraceRef = useRef<{
+    activeMsgId: string | null
+    byToolId: Record<string, { msgId: string; stepIndex: number }>
+  }>({ activeMsgId: null, byToolId: {} })
+  const toolTracePrefix = 'TOOL_TRACE::'
+  const toolTraceTextDelimiter = '\n\nTOOL_TEXT::\n'
 
-  const isToolCardMessage = (msg?: Message) =>
-    !!msg && msg.role === 'assistant' && msg.content.startsWith(toolCardPrefix)
+  const isToolTraceMessage = (msg?: Message) =>
+    !!msg && msg.role === 'assistant' && msg.content.startsWith(toolTracePrefix)
 
-  const splitToolCardContent = (content: string) => {
-    if (!content.startsWith(toolCardPrefix)) return null
-    const idx = content.indexOf(toolCardTextDelimiter)
-    const jsonPart = idx >= 0 ? content.slice(toolCardPrefix.length, idx) : content.slice(toolCardPrefix.length)
-    const textPart = idx >= 0 ? content.slice(idx + toolCardTextDelimiter.length) : ''
+  const splitToolTraceContent = (content: string) => {
+    if (!content.startsWith(toolTracePrefix)) return null
+    const idx = content.indexOf(toolTraceTextDelimiter)
+    const jsonPart =
+      idx >= 0 ? content.slice(toolTracePrefix.length, idx) : content.slice(toolTracePrefix.length)
+    const textPart = idx >= 0 ? content.slice(idx + toolTraceTextDelimiter.length) : ''
     return { jsonPart, textPart }
   }
 
-  const buildToolCardContent = (cardData: any, text: string) => {
-    return `${toolCardPrefix}${JSON.stringify(cardData)}${toolCardTextDelimiter}${text || ''}`
+  const buildToolTraceContent = (traceData: any, text: string) => {
+    return `${toolTracePrefix}${JSON.stringify(traceData)}${toolTraceTextDelimiter}${text || ''}`
+  }
+
+  const parseStructuredToolResult = (value: any) => {
+    if (value === undefined || value === null) return { result: '', error: '' }
+
+    let parsed = value
+    if (typeof value === 'string') {
+      try {
+        parsed = JSON.parse(value)
+      } catch {
+        return { result: value, error: '' }
+      }
+    }
+
+    if (parsed && typeof parsed === 'object' && 'status' in parsed) {
+      if (parsed.status === 'error') {
+        const errMessage = parsed.error?.message || parsed.error?.code || 'Erro de ferramenta'
+        return { result: '', error: String(errMessage) }
+      }
+      const resultValue = parsed.result
+      if (typeof resultValue === 'string') return { result: resultValue, error: '' }
+      try {
+        return { result: JSON.stringify(resultValue, null, 2), error: '' }
+      } catch {
+        return { result: String(resultValue ?? ''), error: '' }
+      }
+    }
+
+    if (typeof parsed === 'string') return { result: parsed, error: '' }
+    try {
+      return { result: JSON.stringify(parsed, null, 2), error: '' }
+    } catch {
+      return { result: String(parsed), error: '' }
+    }
+  }
+
+  const extractToolQuery = (args: any): string | undefined => {
+    if (!args || typeof args !== 'object') return undefined
+    const candidates = ['query', 'q', 'text', 'content', 'prompt', 'message', 'input']
+    for (const key of candidates) {
+      const value = args[key]
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim()
+      }
+    }
+    return undefined
   }
 
   const findLastAssistantIndex = (list: Message[]) => {
@@ -49,6 +106,9 @@ export function useChat() {
     }
     return -1
   }
+
+  const createAssistantMessageId = () =>
+    `assistant:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
 
   // Atualiza refs quando o graphState muda
   useEffect(() => {
@@ -104,6 +164,7 @@ export function useChat() {
     setIsLoading(true)
     try {
       await clearChatHistory(threadId)
+      toolTraceRef.current = { activeMsgId: null, byToolId: {} }
       window.dispatchEvent(new CustomEvent('momai_clear_history'))
     } catch (err) {
       console.error('Erro ao limpar histórico:', err)
@@ -142,9 +203,12 @@ export function useChat() {
       const userMessage: Message = { role: 'user', content: option }
       setMessages((prev) => [...prev, userMessage])
       setIsLoading(true)
+      toolTraceRef.current = { activeMsgId: null, byToolId: {} }
 
       // Prepara a bolha de resposta da IA
-      setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
+      const assistantMsgId = createAssistantMessageId()
+      toolTraceRef.current.activeMsgId = assistantMsgId
+      setMessages((prev) => [...prev, { id: assistantMsgId, role: 'assistant', content: '...' }])
 
       // Envia para o backend
       sendChatMessage(option, threadId, {
@@ -300,18 +364,6 @@ export function useChat() {
       return text
     }
 
-    const formatToolCard = (payload: any, status: 'running' | 'done' | 'error') => {
-      const name = payload?.name || 'tool'
-      const args = toCompactJson(payload?.args)
-      const data = {
-        name,
-        args,
-        status,
-        at: new Date().toISOString()
-      }
-      return buildToolCardContent(data, '')
-    }
-
     const connect = () => {
       if (isUnmounting) return
 
@@ -367,61 +419,174 @@ export function useChat() {
           setSpeakingIndex(null)
         } else if (msg.type === 'tool_start') {
           const toolId = msg.data?.id || `${msg.data?.name || 'tool'}-${Date.now()}`
-          const msgId = `tool:${toolId}`
-          const content = formatToolCard(msg.data, 'running')
           setMessages((prev) => {
             const updated = [...prev]
-            const lastIdx = updated.length - 1
-            if (
-              lastIdx >= 0 &&
-              updated[lastIdx].role === 'assistant' &&
-              (updated[lastIdx].content === '' || updated[lastIdx].content === '...')
-            ) {
-              const existingId = updated[lastIdx].id || msgId
-              updated[lastIdx] = { ...updated[lastIdx], id: existingId, content }
-              toolMessageRef.current[toolId] = { msgId: existingId, startedAt: Date.now() }
-              return updated
+            const fallbackMsgId = `tool-trace:${Date.now()}`
+
+            const ensureTraceTarget = () => {
+              const active = toolTraceRef.current.activeMsgId
+              if (active) {
+                const activeIdx = updated.findIndex((m) => m.id === active)
+                if (activeIdx >= 0) return { idx: activeIdx, msgId: active }
+              }
+
+              const latestAssistantIdx = findLastAssistantIndex(updated)
+              if (latestAssistantIdx >= 0) {
+                const existingId = updated[latestAssistantIdx].id || fallbackMsgId
+                updated[latestAssistantIdx] = { ...updated[latestAssistantIdx], id: existingId }
+                return { idx: latestAssistantIdx, msgId: existingId }
+              }
+
+              updated.push({ id: fallbackMsgId, role: 'assistant', content: '...' })
+              return { idx: updated.length - 1, msgId: fallbackMsgId }
             }
 
-            toolMessageRef.current[toolId] = { msgId, startedAt: Date.now() }
-            return [...prev, { id: msgId, role: 'assistant', content }]
+            const { idx, msgId } = ensureTraceTarget()
+            const current = updated[idx]
+            const parsed = splitToolTraceContent(current.content)
+
+            let traceData: any = {
+              kind: 'tool_trace',
+              steps: [],
+              startedAt: new Date().toISOString()
+            }
+            let textPart = parsed?.textPart || ''
+            try {
+              if (parsed?.jsonPart) {
+                traceData = JSON.parse(parsed.jsonPart)
+              }
+            } catch {
+              traceData = { kind: 'tool_trace', steps: [], startedAt: new Date().toISOString() }
+            }
+
+            if (!parsed) {
+              textPart = current.content && current.content !== '...' ? current.content : ''
+            }
+
+            const steps = Array.isArray(traceData.steps) ? [...traceData.steps] : []
+            const stepIndex = steps.length
+            steps.push({
+              id: toolId,
+              name: msg.data?.name || 'tool',
+              status: 'running',
+              args: toCompactJson(msg.data?.args),
+              query: extractToolQuery(msg.data?.args),
+              startedAt: new Date().toISOString()
+            })
+
+            const nextTrace = {
+              ...traceData,
+              kind: 'tool_trace',
+              steps,
+              status: 'running',
+              updatedAt: new Date().toISOString()
+            }
+
+            updated[idx] = {
+              ...current,
+              id: msgId,
+              content: buildToolTraceContent(nextTrace, textPart)
+            }
+
+            toolTraceRef.current.activeMsgId = msgId
+            toolTraceRef.current.byToolId[toolId] = { msgId, stepIndex }
+
+            return updated
           })
         } else if (msg.type === 'tool_result') {
           const toolId = msg.data?.id
           const status = msg.data?.status === 'error' ? 'error' : 'done'
-          const ref = toolId ? toolMessageRef.current[toolId] : null
+          const ref = toolId ? toolTraceRef.current.byToolId[toolId] : null
+          const parsedOutcome = parseStructuredToolResult(msg.data?.result)
 
           setMessages((prev) => {
             const updated = [...prev]
-            const idx = ref ? updated.findIndex((m) => m.id === ref.msgId) : -1
+            let idx = ref ? updated.findIndex((m) => m.id === ref.msgId) : -1
+            if (idx < 0) {
+              idx = findLastAssistantIndex(updated)
+            }
             if (idx >= 0) {
               const current = updated[idx]
-              const parsed = splitToolCardContent(current.content)
+              const parsed = splitToolTraceContent(current.content)
               let textPart = parsed?.textPart || ''
-              let cardData: any = null
+              let traceData: any = null
 
               try {
-                cardData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
+                traceData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
               } catch {
-                cardData = null
+                traceData = null
               }
 
-              const nextCard = {
-                ...(cardData || {}),
-                name: msg.data?.name || cardData?.name || 'tool',
-                args: cardData?.args || msg.data?.args,
-                status
+              const steps = Array.isArray(traceData?.steps) ? [...traceData.steps] : []
+              const stepIndex = typeof ref?.stepIndex === 'number' ? ref.stepIndex : -1
+
+              if (stepIndex >= 0 && steps[stepIndex]) {
+                steps[stepIndex] = {
+                  ...steps[stepIndex],
+                  name: msg.data?.name || steps[stepIndex].name || 'tool',
+                  status,
+                  result: parsedOutcome.result || undefined,
+                  error: parsedOutcome.error || undefined,
+                  finishedAt: new Date().toISOString()
+                }
+              }
+
+              const hasRunning = steps.some((s: any) => s.status === 'running')
+              const nextTrace = {
+                ...(traceData || {}),
+                kind: 'tool_trace',
+                steps,
+                status: hasRunning ? 'running' : status,
+                updatedAt: new Date().toISOString()
               }
 
               updated[idx] = {
                 ...current,
-                content: buildToolCardContent(nextCard, textPart)
+                content: buildToolTraceContent(nextTrace, textPart)
+              }
+
+              if (!hasRunning) {
+                toolTraceRef.current.activeMsgId = null
+              }
+              if (toolId) {
+                delete toolTraceRef.current.byToolId[toolId]
               }
               return updated
             }
 
-            const content = formatToolCard(msg.data, status)
-            return [...updated, { role: 'assistant', content }]
+            const fallbackTrace = {
+              kind: 'tool_trace',
+              status,
+              steps: [
+                {
+                  id: toolId,
+                  name: msg.data?.name || 'tool',
+                  status,
+                  args: toCompactJson(msg.data?.args),
+                  query: extractToolQuery(msg.data?.args),
+                  result: parsedOutcome.result || undefined,
+                  error: parsedOutcome.error || undefined,
+                  finishedAt: new Date().toISOString()
+                }
+              ]
+            }
+            const fallbackAssistantIdx = findLastAssistantIndex(updated)
+            if (fallbackAssistantIdx >= 0) {
+              const existing = updated[fallbackAssistantIdx]
+              updated[fallbackAssistantIdx] = {
+                ...existing,
+                content: buildToolTraceContent(
+                  fallbackTrace,
+                  existing.content && existing.content !== '...' ? existing.content : ''
+                )
+              }
+              return updated
+            }
+
+            return [
+              ...updated,
+              { role: 'assistant', content: buildToolTraceContent(fallbackTrace, '') }
+            ]
           })
         } else if (msg.type === 'fortscript_event') {
           window.dispatchEvent(new CustomEvent('momai_fortscript_event', { detail: msg }))
@@ -528,7 +693,12 @@ export function useChat() {
           }
 
           setMessages((prev) => [...prev, { role: 'user', content: msg.content }])
-          setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
+          const assistantMsgId = createAssistantMessageId()
+          toolTraceRef.current.activeMsgId = assistantMsgId
+          setMessages((prev) => [
+            ...prev,
+            { id: assistantMsgId, role: 'assistant', content: '...' }
+          ])
           setIsLoading(true)
         } else if (msg.type === 'assistant') {
           const { data } = msg
@@ -582,20 +752,20 @@ export function useChat() {
                   cleanToken = cleanToken.split(':')[1]?.trim() || ''
                 }
 
-                if (isToolCardMessage(updated[lastIdx])) {
-                  const parsed = splitToolCardContent(updated[lastIdx].content)
-                  let cardData: any = null
+                if (isToolTraceMessage(updated[lastIdx])) {
+                  const parsed = splitToolTraceContent(updated[lastIdx].content)
+                  let traceData: any = null
                   let textPart = parsed?.textPart || ''
 
                   try {
-                    cardData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
+                    traceData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
                   } catch {
-                    cardData = null
+                    traceData = null
                   }
 
                   updated[lastIdx] = {
                     ...updated[lastIdx],
-                    content: buildToolCardContent(cardData || {}, textPart + cleanToken)
+                    content: buildToolTraceContent(traceData || {}, textPart + cleanToken)
                   }
                 } else {
                   updated[lastIdx] = {
@@ -686,9 +856,12 @@ export function useChat() {
       if (!overrideText) setText('')
 
       setIsLoading(true)
+      toolTraceRef.current = { activeMsgId: null, byToolId: {} }
 
       // Adiciona mensagem de expectativa do assistente para streaming
-      setMessages((prev) => [...prev, { role: 'assistant', content: '...' }])
+      const assistantMsgId = createAssistantMessageId()
+      toolTraceRef.current.activeMsgId = assistantMsgId
+      setMessages((prev) => [...prev, { id: assistantMsgId, role: 'assistant', content: '...' }])
 
       try {
         await sendChatMessage(messageText, threadId, {
@@ -703,20 +876,20 @@ export function useChat() {
                 const currentContent = updated[lastIdx].content
                 const newBase = currentContent === '...' ? '' : currentContent
 
-                if (isToolCardMessage(updated[lastIdx])) {
-                  const parsed = splitToolCardContent(updated[lastIdx].content)
-                  let cardData: any = null
+                if (isToolTraceMessage(updated[lastIdx])) {
+                  const parsed = splitToolTraceContent(updated[lastIdx].content)
+                  let traceData: any = null
                   let textPart = parsed?.textPart || ''
 
                   try {
-                    cardData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
+                    traceData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
                   } catch {
-                    cardData = null
+                    traceData = null
                   }
 
                   updated[lastIdx] = {
                     ...updated[lastIdx],
-                    content: buildToolCardContent(cardData || {}, textPart + token)
+                    content: buildToolTraceContent(traceData || {}, textPart + token)
                   }
                 } else {
                   updated[lastIdx] = {
@@ -776,25 +949,25 @@ export function useChat() {
     [text, isLoading, threadId]
   )
 
-    const stopCurrentGeneration = useCallback(async () => {
-      try {
-        await stopGeneration()
-      } catch (error) {
-        console.error('Erro ao parar geracao:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }, [])
+  const stopCurrentGeneration = useCallback(async () => {
+    try {
+      await stopGeneration()
+    } catch (error) {
+      console.error('Erro ao parar geracao:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-    const stopCurrentVoice = useCallback(async () => {
-      try {
-        await stopVoice()
-      } catch (error) {
-        console.error('Erro ao parar voz:', error)
-      } finally {
-        setSpeakingIndex(null)
-      }
-    }, [])
+  const stopCurrentVoice = useCallback(async () => {
+    try {
+      await stopVoice()
+    } catch (error) {
+      console.error('Erro ao parar voz:', error)
+    } finally {
+      setSpeakingIndex(null)
+    }
+  }, [])
 
   return {
     text,

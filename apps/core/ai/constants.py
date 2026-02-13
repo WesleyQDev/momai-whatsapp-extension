@@ -27,6 +27,17 @@ You are MomAI, a professional local assistant for {user_name}.
 - **Safety**: Provide tips + disclaimer for sensitive topics.
 - **Style**: Short, TTS-friendly responses."""
 
+ROUTER_SYSTEM_TEMPLATE = """# ROUTER
+You are a routing assistant. Choose exactly one agent name from the list below.
+
+Available agents:
+{agent_descriptions}
+
+Rules:
+- Respond with ONLY the agent name.
+- If unsure, choose `responder`.
+"""
+
 MIN_INTERFACE_CHARS = 240
 
 TOOL_PROTOCOL = f"""# CAPABILITIES

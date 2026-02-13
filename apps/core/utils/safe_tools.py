@@ -62,23 +62,37 @@ class SafeExtensionTool(BaseTool):
         self.safe = tool_is_safe or manifest_is_safe
 
     def _check_permission(self) -> bool:
-        """Heuristic to check if the tool usage is consistent with declared permissions."""
+        """Checks permissions declared explicitly by the extension tool."""
         if not self.plugin_manifest:
             return True # Native/Core tools
-            
-        # Example: If tool name or description suggests filesystem access
-        fs_keywords = ["read", "write", "file", "delete", "save", "open"]
-        is_fs_tool = any(k in self.name.lower() or k in self.description.lower() for k in fs_keywords)
-        
-        if is_fs_tool and not self.plugin_manifest.permissions.filesystem:
-            logger.warning(f"Blocking {self.name}: Plugin {self.plugin_manifest.id} attempted FS access without permission.")
+
+        required = getattr(self.original_tool, "required_permissions", None)
+        if not required:
+            return True
+
+        if isinstance(required, str):
+            required = [required]
+
+        denied = []
+        for permission in required:
+            key = str(permission).strip().lower()
+            if not key:
+                continue
+            allowed = bool(getattr(self.plugin_manifest.permissions, key, False))
+            if not allowed:
+                denied.append(key)
+
+        if denied:
+            logger.warning(
+                f"Blocking {self.name}: Plugin {self.plugin_manifest.id} missing permissions: {', '.join(denied)}"
+            )
             return False
             
         return True
 
     def _run(self, *args, **kwargs):
         if not self._check_permission():
-            return f"Error: The extension '{self.plugin_manifest.name}' does not have 'filesystem' permission required for this action."
+            return f"Error: The extension '{self.plugin_manifest.name}' does not have the required permission for this action."
             
         try:
             tool_input = None
@@ -95,7 +109,7 @@ class SafeExtensionTool(BaseTool):
 
     async def _arun(self, *args, **kwargs):
         if not self._check_permission():
-            return f"Error: The extension '{self.plugin_manifest.name}' does not have 'filesystem' permission required for this action."
+            return f"Error: The extension '{self.plugin_manifest.name}' does not have the required permission for this action."
 
         try:
             tool_input = None

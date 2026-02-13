@@ -22,6 +22,13 @@ class PluginRegistry:
         self.plugins: Dict[str, Dict[str, Any]] = {}
         self._ensure_dirs()
 
+    def _invalidate_tools_cache(self) -> None:
+        try:
+            from tools.system_actions import invalidate_tools_registry_cache
+            invalidate_tools_registry_cache()
+        except Exception:
+            pass
+
     def _get_user_extensions_dir(self) -> Path:
         """Retorna o diretório de extensões do usuário."""
         if sys.platform == "win32":
@@ -60,6 +67,7 @@ class PluginRegistry:
                 print(f"[Registry] Error scanning category {category}: {e}")
         
         print(f"[Microkernel] {len(self.plugins)} plugins registered.")
+        self._invalidate_tools_cache()
         try:
             self.pm.hook.on_startup()
         except Exception as e:
@@ -355,6 +363,8 @@ class PluginRegistry:
             if self.plugins[extension_id]["module"]:
                 self.pm.hook.on_enable()
                 self.pm.hook.on_startup()
+
+            self._invalidate_tools_cache()
             
             return True
         except Exception as e:
@@ -398,6 +408,8 @@ class PluginRegistry:
             
             plugin["enabled"] = False
             plugin["module"] = None
+
+            self._invalidate_tools_cache()
             
             return True
         except Exception as e:
@@ -439,6 +451,8 @@ class PluginRegistry:
             
             # 5. Remove from registry
             del self.plugins[extension_id]
+
+            self._invalidate_tools_cache()
             
             return True
         except Exception as e:

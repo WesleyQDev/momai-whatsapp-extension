@@ -6,7 +6,8 @@ import {
   globalShortcut,
   Tray,
   Menu,
-  nativeImage
+  nativeImage,
+  screen
 } from 'electron'
 import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -20,6 +21,8 @@ let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let appQuitting = false
 let pythonStartTime: number = 0
+let ipcHandlersRegistered = false
+let quitHandled = false
 
 // ... (bootstrapPython code)
 
@@ -168,8 +171,24 @@ async function startPythonBackend(): Promise<void> {
     })
 
     pythonProcess.stderr?.setEncoding('utf8')
-    pythonProcess.stderr?.on('data', (data) => {
-      process.stderr.write(`[Python Error]: ${data}`)
+    pythonProcess.stderr?.on('data', (data: string) => {
+      const lines = data
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+
+      for (const line of lines) {
+        const lower = line.toLowerCase()
+        if (
+          lower.startsWith('info:') ||
+          lower.includes('warning') ||
+          lower.includes('couldn\'t access the hub')
+        ) {
+          process.stdout.write(`[Python]: ${line}\n`)
+        } else {
+          process.stderr.write(`[Python Error]: ${line}\n`)
+        }
+      }
     })
 
     pythonProcess.on('close', (code) => {
@@ -203,6 +222,36 @@ function killAllLlamaServers(): void {
   } catch (err) {
     // Silent failure - llama-server may not be running
   }
+}
+
+function runCommand(command: string, args: string[]): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    const child = spawn(command, args, {
+      stdio: 'ignore',
+      shell: false,
+      windowsHide: true
+    })
+
+    child.on('close', (code) => resolvePromise(code === 0))
+    child.on('error', () => resolvePromise(false))
+  })
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms))
+}
+
+async function waitForPythonExit(timeoutMs: number): Promise<boolean> {
+  const start = Date.now()
+
+  while (Date.now() - start < timeoutMs) {
+    if (!pythonProcess || pythonProcess.killed || pythonProcess.exitCode !== null) {
+      return true
+    }
+    await delay(100)
+  }
+
+  return !pythonProcess || pythonProcess.killed || pythonProcess.exitCode !== null
 }
 
 /**
@@ -247,7 +296,7 @@ function monitorPythonProcess(): void {
  * 2. Force kill /f /t → espera 1s
  * 3. Nuclear option: Kill by name + llama-server cleanup
  */
-function killPythonBackend(): void {
+async function killPythonBackend(): Promise<void> {
   if (!pythonProcess || !pythonProcess.pid) {
     console.log('[Electron] Python process não está rodando.')
     return
@@ -261,53 +310,92 @@ function killPythonBackend(): void {
     console.log('[Electron] Fase 1: Tentando shutdown gracioso (SIGTERM)...')
     pythonProcess.kill('SIGTERM')
 
-    // Aguarda até 2 segundos
-    const phase1End = Date.now() + 2000
-    while (Date.now() < phase1End) {
-      if (pythonProcess.exitCode !== null || pythonProcess.killed) {
-        console.log('[Electron] ✓ Python encerrado graciosamente.')
-        return
-      }
-      // Busy-wait com verificações frequentes
-      if (Date.now() % 100 === 0) {
-        // Small sleep equivalent
-        try {
-          execSync('timeout /t 0 /nobreak', { stdio: 'ignore', shell: 'cmd.exe' })
-        } catch {}
-      }
+    if (await waitForPythonExit(2000)) {
+      console.log('[Electron] ✓ Python encerrado graciosamente.')
+      return
     }
 
     // FASE 2: Force kill com tree termination (/f /t)
     console.log('[Electron] Fase 2: Force-kill com tree termination (/f /t)...')
-    execSync(`taskkill /pid ${pid} /f /t`, { stdio: 'ignore' })
 
-    // Aguarda até 1 segundo
-    const phase2End = Date.now() + 1000
-    while (Date.now() < phase2End) {
-      try {
-        // Tenta verificar se processo ainda existe
-        execSync(`tasklist | findstr ${pid}`, { stdio: 'ignore' })
-      } catch {
-        // Se não encontra, já morreu
-        console.log('[Electron] ✓ Python encerrado por force-kill.')
-        return
-      }
-      if (Date.now() % 100 === 0) {
-        try {
-          execSync('timeout /t 0 /nobreak', { stdio: 'ignore', shell: 'cmd.exe' })
-        } catch {}
-      }
+    if (process.platform === 'win32') {
+      await runCommand('taskkill', ['/pid', String(pid), '/f', '/t'])
+    } else {
+      pythonProcess.kill('SIGKILL')
     }
 
-    // FASE 3: Nuclear option - kill by name (último recurso)
-    console.log('[Electron] Fase 3: Nuclear option - matando python.exe por nome...')
-    execSync('taskkill /f /im python.exe', { stdio: 'ignore' })
-    console.log('[Electron] ✓ Python eliminado por force (nome).')
+    if (await waitForPythonExit(1000)) {
+      console.log('[Electron] ✓ Python encerrado por force-kill.')
+      return
+    }
+
+    console.warn('[Electron] Python não confirmou encerramento após force-kill.')
   } catch (err) {
     console.error('[Electron] Erro durante shutdown de Python:', err)
   } finally {
     pythonProcess = null
   }
+}
+
+function registerIpcHandlers(): void {
+  if (ipcHandlersRegistered) return
+  ipcHandlersRegistered = true
+
+  ipcMain.on('window-minimize', () => {
+    mainWindow?.minimize()
+  })
+
+  ipcMain.on('window-maximize', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow.maximize()
+    }
+  })
+
+  ipcMain.on('window-close', () => app.quit())
+
+  ipcMain.handle('get-window-state', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { minimized: false, visible: false }
+    }
+    return {
+      minimized: mainWindow.isMinimized(),
+      visible: mainWindow.isVisible()
+    }
+  })
+
+  ipcMain.on('open-overlay', (_, data) => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) createOverlayWindow()
+
+    if (overlayWindow) {
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width } = primaryDisplay.workAreaSize
+      overlayWindow.setPosition(width - 480, 50)
+      overlayWindow.showInactive()
+      overlayWindow.webContents.send('update-overlay-content', data)
+    }
+  })
+
+  ipcMain.on('close-overlay', () => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.hide()
+    }
+  })
+
+  ipcMain.on('overlay-action', (_, action) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.webContents.send('trigger-action', action)
+  })
+
+  ipcMain.on('app-ready', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.setResizable(true)
+    mainWindow.setMinimumSize(450, 500)
+    mainWindow.setSize(900, 670, true)
+    mainWindow.center()
+  })
 }
 
 function createWindow(): void {
@@ -340,59 +428,6 @@ function createWindow(): void {
 
   window.on('ready-to-show', () => {
     window.show()
-  })
-
-  ipcMain.on('window-minimize', () => window.minimize())
-  ipcMain.on('window-maximize', () => {
-    if (window.isMaximized()) {
-      window.unmaximize()
-    } else {
-      window.maximize()
-    }
-  })
-  ipcMain.on('window-close', () => app.quit())
-
-  // Overlay IPC handlers
-  ipcMain.handle('get-window-state', () => {
-    return {
-      minimized: window.isMinimized(),
-      visible: window.isVisible()
-    }
-  })
-
-  ipcMain.on('open-overlay', (_, data) => {
-    if (!overlayWindow || overlayWindow.isDestroyed()) createOverlayWindow()
-
-    // Position overlay relative to screen
-    if (overlayWindow) {
-      const { screen } = require('electron')
-      const primaryDisplay = screen.getPrimaryDisplay()
-      const { width } = primaryDisplay.workAreaSize
-      // Position top right
-      overlayWindow.setPosition(width - 480, 50)
-      overlayWindow.showInactive() // Show without stealing focus fully? Or show()
-      overlayWindow.show()
-      overlayWindow.webContents.send('update-overlay-content', data)
-    }
-  })
-
-  ipcMain.on('close-overlay', () => {
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.hide()
-    }
-  })
-
-  ipcMain.on('overlay-action', (_, action) => {
-    // Forward action to main window to handle logic
-    window.webContents.send('trigger-action', action)
-  })
-
-  // Transição de Splash para App principal
-  ipcMain.on('app-ready', () => {
-    window.setResizable(true)
-    window.setMinimumSize(450, 500)
-    window.setSize(900, 670, true)
-    window.center()
   })
 
   // Tray configuration
@@ -474,6 +509,7 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+  registerIpcHandlers()
 
   startPythonBackend() // Inicia o Python
   createWindow()
@@ -508,50 +544,32 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('will-quit', () => {
+app.on('will-quit', async (event) => {
+  if (quitHandled) return
+  quitHandled = true
+  event.preventDefault()
+
   appQuitting = true
   console.log('[Electron] will-quit event triggered. Iniciando shutdown cascata...')
   globalShortcut.unregisterAll()
 
   // Fase 1: Shutdown Python (max 5s)
   console.log('[Electron] Fase 1/3: Encerrando Python...')
-  killPythonBackend()
+  await killPythonBackend()
 
   // Fase 2: Aguarda 1s para Python limpar
-  try {
-    execSync('timeout /t 1 /nobreak', {
-      stdio: 'ignore',
-      shell: 'cmd.exe'
-    })
-  } catch {
-    // Ignore
-  }
+  await delay(1000)
 
   // Fase 3: Kill orphaned llama-servers
   console.log('[Electron] Fase 2/3: Limpando llama-servers órfãos...')
   killAllLlamaServers()
 
-  // Fase 4: Verificação final - se ainda há python.exe, matar
-  try {
-    console.log('[Electron] Fase 3/3: Verificação final de processos...')
-    execSync('tasklist | findstr python.exe', { stdio: 'ignore' })
-    console.warn('[Electron] AVISO: Ainda existem processos python.exe. Limpando...')
-    execSync('taskkill /f /im python.exe', { stdio: 'ignore' })
-  } catch {
-    // Não há mais processos Python - bom!
-  }
-
   console.log('[Electron] ✓ Shutdown completo.')
+  app.quit()
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

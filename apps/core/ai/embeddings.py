@@ -77,16 +77,7 @@ class EmbeddingEngine:
                 local_dir=MODELS_DIR
             )
         else:
-            # Garante que o objeto de referência seja atualizado sem checar rede
-            try:
-                hf_hub_download(
-                    repo_id=MODEL_REPO,
-                    filename=MODEL_FILE,
-                    local_dir=MODELS_DIR,
-                    local_files_only=True
-                )
-            except:
-                pass
+            print(f"[Embeddings] Using cached model: {MODEL_FILE}")
         return str(model_path.resolve())
 
     def load(self):

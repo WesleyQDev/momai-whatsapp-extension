@@ -1,19 +1,21 @@
-import operator
 import os
 import json
 import re
 import asyncio
-from typing import Annotated, Sequence, TypedDict, Literal
+from typing import Annotated, Sequence, TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel, Field
 from services.extensions.manager import extension_manager
 from utils.tokenizer import count_tokens, count_message_tokens, get_context_window
+from ai.tool_selector import select_tool_names_for_query
 
 import logging
 logger = logging.getLogger("momai.graph")
+
+TOOL_TIMEOUT_SECONDS = float(os.getenv("MOMAI_TOOL_TIMEOUT_SECONDS", "12"))
+KNOWN_EXTENSION_PERMISSIONS = {"network", "filesystem", "system_actions", "shell", "user_data"}
 
 def log_event(title: str, content: str, color: str = ""):
     """Log via standard logging to ensure visibility in Electron terminal."""
@@ -28,9 +30,6 @@ class AgentState(TypedDict):
     no_tools: bool | None
     fast_path: bool | None
     memory_context: str | None
-
-class Router(BaseModel):
-    next: str = Field(description="The name of the specialist agent to handle the request.")
 
 def _compute_history_budget(system_prompt: str, summary: str | None, budget_pct: float = 0.7) -> int:
     ctx_total = get_context_window()
@@ -86,21 +85,16 @@ from ai.constants import (
     get_language_instruction,
     PERSONA_INJECTION_TEMPLATE,
     TOOL_PROTOCOL,
-    NO_TOOLS_WARNING,
-    ROUTER_SYSTEM_TEMPLATE
+    NO_TOOLS_WARNING
 )
 
 def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointer=None):
     from database.vector_db import vector_db
 
-    intent_confidence_threshold = float(os.getenv("MOMAI_INTENT_CONFIDENCE", "0.45"))
-
     async def semantic_router(state: AgentState):
-        """Dynamic routing via LanceDB."""
-        # Safety fallback
+        """Deterministic fast router focused on latency and stability."""
         if not state.get("messages"):
-             # If no messages, fallback to responder to avoid crash
-             return {"next": "responder"}
+            return {"next": "responder", "memory_context": "", "fast_path": True}
 
         last_msg = str(state["messages"][-1].content)
         log_event("Semantic Router", f"Query: {last_msg}", "magenta")
@@ -123,80 +117,10 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         except Exception as e:
             logger.warning(f"[Router] Memory fetch failed: {e}")
 
-        # If we have a memory hit, we almost always want the general responder
-        # to handle the context, unless the user explicitly wants a tool (handled next)
         if mem_context:
-            log_event("Semantic Router", "Memory hit -> favoring responder", "magenta")
-            # We don't return immediately because a tool intent might be stronger
-        
-        try:
-            # 2. Intent Search (Vector DB)
-            results = await vector_db.search_intent(last_msg, limit=1)
-            if results:
-                match = results[0]
-                distance = match.get("_distance", 1.0)
-                confidence = round((1 - distance) * 100, 1) if distance <= 1.0 else 0.0
-                target = match.get("agent", "responder")
-                matched_text = match.get("text", "unknown intent")
+            log_event("Semantic Router", "Memory hit -> responder with context", "magenta")
 
-                # EDGE CASE: If distance is 0.000, it usually means Embeddings failed 
-                # (returning all zeroes) unless it's an extremely short exact match.
-                # In this state, LanceDB finds distance 0 to the first item.
-                # We should favor responder in this suspicious state.
-                if distance < 0.001:
-                    log_event("Semantic Router", "Suspicious Dist 0.0 -> Forcing responder for safety", "yellow")
-                    target = "responder"
-                    confidence = 100.0
-
-                log_event("Semantic Router", f"Match: '{matched_text}' | Agent: {target} | Conf: {confidence}% (Dist: {distance:.3f})", "magenta")
-
-                # If confidence is mediocre or it's a general responder hit, don't let it trigger complex system agents
-                if (target != "responder" and confidence < 75.0) or (mem_context and target == "responder"):
-                    log_event("Semantic Router", "Ambiguous or memory-rich -> favoring responder", "magenta")
-                    return {"next": "responder", "fast_path": not mem_context, "memory_context": mem_context}
-
-                if (1 - distance) < intent_confidence_threshold:
-                    log_event("Semantic Router", "Low intent confidence -> orchestrator", "magenta")
-                    return {"next": "mom_orchestrator", "memory_context": mem_context}
-
-                # Fast Path Detection
-                is_fast = False
-                if target == "responder" and confidence >= 85.0:
-                    log_event("Semantic Router", "High confidence conversation -> Fast Path enabled", "green")
-                    is_fast = True
-
-                log_event("Semantic Router", f"Matched intent: '{matched_text}' ({confidence}% confidence) -> {target}", "magenta")
-                return {"next": target, "fast_path": is_fast, "memory_context": mem_context}
-        except Exception as e:
-            logger.error(f"[Router] Error: {e}")
-            
-        return {"next": "mom_orchestrator", "memory_context": mem_context}
-
-    async def mom_orchestrator(state: AgentState):
-        """Strategic orchestrator (LLM) as fallback."""
-        log_event("Strategic Orchestrator", "Analyzing intent...", "blue")
-        
-        # Generate the list of available agents dynamically for the router prompt
-        manifests = extension_manager.get_active_manifests()
-        agent_descriptions = "\n".join([f"- `{m['features']['agent_name']}`: {m['description']}" for m in manifests])
-
-        system_msg = ROUTER_SYSTEM_TEMPLATE.format(agent_descriptions=agent_descriptions)
-        summary_text = state.get("summary") or ""
-        if summary_text:
-            system_msg = f"{system_msg}\n\n# CONTEXT SUMMARY\n{summary_text}"
-
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_msg),
-            MessagesPlaceholder(variable_name="messages"),
-        ])
-        
-        try:
-            chain = prompt | llm.with_structured_output(Router)
-            budget = _compute_history_budget(system_msg, None)
-            response = await chain.ainvoke({"messages": get_valid_history(state["messages"], 6, budget)})
-            return {"next": response.next}
-        except:
-            return {"next": "responder"}
+        return {"next": "responder", "fast_path": not bool(mem_context), "memory_context": mem_context}
 
     async def specialist_node(state: AgentState):
         """Universal Node of the Microkernel: Loads prompt and tools from PluginRegistry."""
@@ -219,31 +143,10 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
 
         last_msg = state["messages"][-1].content
         
-        # Tool RAG: Search relevant tools for non-responder agents
-        tool_results = []
-        if agent_name != "responder":
-            tool_results = await vector_db.search_tools(str(last_msg), limit=4)
-        
-        # Cache the registry to avoid repeated complex imports and iterations
-        if not hasattr(create_momai_graph, "_tools_cache"):
-            from tools.system_actions import get_all_tools_registry
-            create_momai_graph._tools_cache = get_all_tools_registry()
-        
-        all_registry = create_momai_graph._tools_cache
-        
-        active_tools = []
-        
-        # 1. Add tools from Manifest (High Priority)
-        if manifest.features and hasattr(manifest.features, 'tools'):
-             for t_name in manifest.features.tools:
-                 if t_name in all_registry:
-                    active_tools.append(all_registry[t_name])
+        from tools.system_actions import get_all_tools_registry
+        all_registry = get_all_tools_registry()
 
-        # 2. Add tools from RAG
-        for t_data in tool_results:
-            t_name = t_data["name"]
-            if t_name in all_registry and t_name not in [t.name for t in active_tools]:
-                active_tools.append(all_registry[t_name])
+        active_tools = []
         
         # 3. Always include core system tools (Safeguard)
         from tools.system_actions import AVAILABLE_TOOLS
@@ -254,15 +157,24 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
              relevant_globals = ["show_interface", "close_interface", "get_capabilities", "ask_confirmation", "open_extension_store"]
         
         if not state.get("fast_path"):
-            for t_name in relevant_globals:
-                 if t_name in AVAILABLE_TOOLS and t_name not in [t.name for t in active_tools]:
-                     active_tools.append(AVAILABLE_TOOLS[t_name])
+            selected_names = await select_tool_names_for_query(
+                str(last_msg),
+                limit=10,
+                seed_names=(manifest.features.tools if manifest.features and hasattr(manifest.features, "tools") else []),
+                include_names=relevant_globals,
+            )
         else:
-            # Even in fast path, if we are 'responder', we might need show_interface if the answer is long
-            # but we can omit others to save prompt tokens
-            if "show_interface" in AVAILABLE_TOOLS:
-                active_tools.append(AVAILABLE_TOOLS["show_interface"])
+            selected_names = await select_tool_names_for_query(
+                str(last_msg),
+                limit=4,
+                include_names=["show_interface"],
+            )
             logger.info("[FastPath] Using minimal tool set for speed.")
+
+        for tool_name in selected_names:
+            tool_obj = all_registry.get(tool_name) or AVAILABLE_TOOLS.get(tool_name)
+            if tool_obj and tool_name not in [t.name for t in active_tools]:
+                active_tools.append(tool_obj)
 
         no_tools_available = not active_tools
 
@@ -355,12 +267,99 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
     
     workflow.add_node("specialist_node", specialist_node)
     workflow.add_node("semantic_router", semantic_router)
-    workflow.add_node("mom_orchestrator", mom_orchestrator)
     workflow.add_node("ask_permission", ask_permission_node) # Safety Node
     # workflow.add_node("responder", responder_node) # Removed mandatory responder node
 
-    from langgraph.prebuilt import ToolNode
-    from tools.system_actions import get_all_tools_list, get_all_tools_registry
+    from tools.system_actions import get_all_tools_registry
+
+    def _normalize_required_permissions(tool_obj) -> set[str]:
+        required = getattr(tool_obj, "required_permissions", None)
+        if required is None and hasattr(tool_obj, "original_tool"):
+            required = getattr(tool_obj.original_tool, "required_permissions", None)
+
+        if not required:
+            return set()
+
+        if isinstance(required, str):
+            required = [required]
+
+        normalized = set()
+        for item in required:
+            key = str(item).strip().lower()
+            if key in KNOWN_EXTENSION_PERMISSIONS:
+                normalized.add(key)
+        return normalized
+
+    def _check_tool_permissions(tool_obj) -> tuple[bool, list[str]]:
+        manifest = getattr(tool_obj, "plugin_manifest", None)
+        if manifest is None:
+            return True, []
+
+        required = _normalize_required_permissions(tool_obj)
+        if not required:
+            return True, []
+
+        denied: list[str] = []
+        permissions = getattr(manifest, "permissions", None)
+        for permission in sorted(required):
+            allowed = bool(getattr(permissions, permission, False)) if permissions else False
+            if not allowed:
+                denied.append(permission)
+
+        return len(denied) == 0, denied
+
+    def _tool_payload_ok(tool_name: str, result) -> dict:
+        return {
+            "status": "ok",
+            "tool": tool_name,
+            "result": result,
+            "error": None,
+        }
+
+    def _tool_payload_error(
+        tool_name: str,
+        code: str,
+        message: str,
+        retryable: bool,
+        details: dict | None = None,
+    ) -> dict:
+        return {
+            "status": "error",
+            "tool": tool_name,
+            "result": None,
+            "error": {
+                "code": code,
+                "message": message,
+                "retryable": retryable,
+                "details": details or {},
+            },
+        }
+
+    def _serialize_tool_message(payload: dict) -> str:
+        try:
+            return json.dumps(payload, ensure_ascii=False, default=str)
+        except Exception:
+            fallback = {
+                "status": "error",
+                "tool": payload.get("tool", "unknown"),
+                "result": None,
+                "error": {
+                    "code": "PAYLOAD_SERIALIZATION_ERROR",
+                    "message": "Failed to serialize tool payload.",
+                    "retryable": False,
+                    "details": {},
+                },
+            }
+            return json.dumps(fallback, ensure_ascii=False)
+
+    async def _execute_tool_call(tool_obj, tool_args: dict) -> object:
+        if hasattr(tool_obj, "ainvoke"):
+            return await asyncio.wait_for(tool_obj.ainvoke(tool_args), timeout=TOOL_TIMEOUT_SECONDS)
+
+        if asyncio.iscoroutinefunction(getattr(tool_obj, "_arun", None)):
+            return await asyncio.wait_for(tool_obj._arun(**tool_args), timeout=TOOL_TIMEOUT_SECONDS)
+
+        return await asyncio.wait_for(asyncio.to_thread(tool_obj.invoke, tool_args), timeout=TOOL_TIMEOUT_SECONDS)
     
     async def dynamic_tools_node(state: AgentState):
         """Dynamic tool executor that fetches fresh tools at runtime."""
@@ -396,6 +395,33 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             
             tool = tools_registry.get(tool_name)
             if tool:
+                allowed, denied_permissions = _check_tool_permissions(tool)
+                if not allowed:
+                    payload_data = _tool_payload_error(
+                        tool_name,
+                        code="PERMISSION_DENIED",
+                        message=f"Extension tool requires permissions not granted: {', '.join(denied_permissions)}",
+                        retryable=False,
+                        details={"missing_permissions": denied_permissions},
+                    )
+                    if app_state.main_loop:
+                        payload = {
+                            "type": "tool_result",
+                            "data": {
+                                "id": tool_id,
+                                "name": tool_name,
+                                "args": tool_args,
+                                "result": _stringify_payload(payload_data),
+                                "status": "error"
+                            }
+                        }
+                        asyncio.run_coroutine_threadsafe(
+                            app_state.broadcast_to_sockets(payload),
+                            app_state.main_loop
+                        )
+                    tool_messages.append(ToolMessage(content=_serialize_tool_message(payload_data), tool_call_id=tool_id))
+                    continue
+
                 try:
                     if app_state.main_loop:
                         payload = {
@@ -410,13 +436,8 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                             app_state.broadcast_to_sockets(payload),
                             app_state.main_loop
                         )
-                    # Support both sync and async tools
-                    if hasattr(tool, 'ainvoke'):
-                        result = await tool.ainvoke(tool_args)
-                    elif asyncio.iscoroutinefunction(getattr(tool, '_arun', None)):
-                        result = await tool._arun(**tool_args)
-                    else:
-                        result = tool.invoke(tool_args)
+                    result = await _execute_tool_call(tool, tool_args)
+                    payload_data = _tool_payload_ok(tool_name, result)
                     if app_state.main_loop:
                         payload = {
                             "type": "tool_result",
@@ -424,7 +445,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                                 "id": tool_id,
                                 "name": tool_name,
                                 "args": tool_args,
-                                "result": _stringify_payload(result),
+                                "result": _stringify_payload(payload_data),
                                 "status": "ok"
                             }
                         }
@@ -432,9 +453,15 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                             app_state.broadcast_to_sockets(payload),
                             app_state.main_loop
                         )
-                    tool_messages.append(ToolMessage(content=str(result), tool_call_id=tool_id))
-                except Exception as e:
-                    logger.error(f"[Tools] Error executing {tool_name}: {e}")
+                    tool_messages.append(ToolMessage(content=_serialize_tool_message(payload_data), tool_call_id=tool_id))
+                except asyncio.TimeoutError:
+                    payload_data = _tool_payload_error(
+                        tool_name,
+                        code="TOOL_TIMEOUT",
+                        message=f"Tool execution exceeded {TOOL_TIMEOUT_SECONDS:.1f}s timeout.",
+                        retryable=True,
+                        details={"timeout_seconds": TOOL_TIMEOUT_SECONDS},
+                    )
                     if app_state.main_loop:
                         payload = {
                             "type": "tool_result",
@@ -442,7 +469,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                                 "id": tool_id,
                                 "name": tool_name,
                                 "args": tool_args,
-                                "result": _stringify_payload(str(e)),
+                                "result": _stringify_payload(payload_data),
                                 "status": "error"
                             }
                         }
@@ -450,8 +477,38 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                             app_state.broadcast_to_sockets(payload),
                             app_state.main_loop
                         )
-                    tool_messages.append(ToolMessage(content=f"Error: {str(e)}", tool_call_id=tool_id))
+                    tool_messages.append(ToolMessage(content=_serialize_tool_message(payload_data), tool_call_id=tool_id))
+                except Exception as e:
+                    logger.error(f"[Tools] Error executing {tool_name}: {e}")
+                    payload_data = _tool_payload_error(
+                        tool_name,
+                        code="TOOL_EXECUTION_ERROR",
+                        message=str(e),
+                        retryable=False,
+                    )
+                    if app_state.main_loop:
+                        payload = {
+                            "type": "tool_result",
+                            "data": {
+                                "id": tool_id,
+                                "name": tool_name,
+                                "args": tool_args,
+                                "result": _stringify_payload(payload_data),
+                                "status": "error"
+                            }
+                        }
+                        asyncio.run_coroutine_threadsafe(
+                            app_state.broadcast_to_sockets(payload),
+                            app_state.main_loop
+                        )
+                    tool_messages.append(ToolMessage(content=_serialize_tool_message(payload_data), tool_call_id=tool_id))
             else:
+                payload_data = _tool_payload_error(
+                    tool_name,
+                    code="TOOL_NOT_FOUND",
+                    message=f"Tool '{tool_name}' is not registered.",
+                    retryable=False,
+                )
                 if app_state.main_loop:
                     payload = {
                         "type": "tool_result",
@@ -459,7 +516,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                             "id": tool_id,
                             "name": tool_name,
                             "args": tool_args,
-                            "result": "Tool not found",
+                            "result": _stringify_payload(payload_data),
                             "status": "error"
                         }
                     }
@@ -467,7 +524,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                         app_state.broadcast_to_sockets(payload),
                         app_state.main_loop
                     )
-                tool_messages.append(ToolMessage(content=f"Error: Tool '{tool_name}' not found.", tool_call_id=tool_id))
+                tool_messages.append(ToolMessage(content=_serialize_tool_message(payload_data), tool_call_id=tool_id))
         
         return {"messages": tool_messages}
     
@@ -475,15 +532,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
     
     workflow.set_entry_point("semantic_router")
 
-    def router_condition(state: AgentState):
-        if state["next"] == "mom_orchestrator": return "mom_orchestrator"
-        # If next is 'responder', we treat it as a specialist now (since we unified the logic)
-        return "specialist_node"
-
-    workflow.add_conditional_edges("semantic_router", router_condition)
-    
-    # Orchestrator always delegates to specialist (which includes responder)
-    workflow.add_conditional_edges("mom_orchestrator", lambda x: "specialist_node")
+    workflow.add_edge("semantic_router", "specialist_node")
 
     def route_tool_execution(state: AgentState):
         """

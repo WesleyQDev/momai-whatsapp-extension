@@ -170,23 +170,17 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
 
     try:
         paths = get_paths()
+        local_model_path = paths['models'] / filename
 
-        try:
-            model_path = hf_hub_download(
-                repo_id=repo_id,
-                filename=filename,
-                local_dir=paths['models'],
-                local_dir_use_symlinks=False,
-                local_files_only=True # Evita checagem de rede se o arquivo já existir
-            )
-        except Exception:
-            # Se não existir localmente, tenta baixar (requer internet na primeira vez)
+        if local_model_path.exists():
+            model_path = str(local_model_path)
+            report(f"Using cached model: {filename}")
+        else:
             report(f"Model not found locally, attempting to download {filename}...")
             model_path = hf_hub_download(
                 repo_id=repo_id,
                 filename=filename,
-                local_dir=paths['models'],
-                local_dir_use_symlinks=False
+                local_dir=paths['models']
             )
         
         abs_model_path = str(Path(model_path).resolve())

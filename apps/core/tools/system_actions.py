@@ -781,10 +781,21 @@ SAFE_TOOLS_NAMES = {
     "get_capabilities"
 }
 
-def get_all_tools_registry():
+_TOOL_REGISTRY_CACHE: dict[str, Any] = {
+    "registry": None
+}
+
+
+def invalidate_tools_registry_cache() -> None:
+    _TOOL_REGISTRY_CACHE["registry"] = None
+
+def get_all_tools_registry(force_refresh: bool = False):
     """Returns a unified dictionary of all tools (native + extensions)."""
     from services.extensions.manager import extension_manager
     from utils.safe_tools import SafeExtensionTool
+
+    if not force_refresh and _TOOL_REGISTRY_CACHE["registry"] is not None:
+        return _TOOL_REGISTRY_CACHE["registry"].copy()
     
     registry = AVAILABLE_TOOLS.copy()
     
@@ -795,8 +806,9 @@ def get_all_tools_registry():
             registry[t.name] = t
         else:
             registry[t.name] = SafeExtensionTool(original_tool=t)
-        
-    return registry
+
+    _TOOL_REGISTRY_CACHE["registry"] = registry
+    return registry.copy()
 
 def get_all_tools_list():
     """Returns a list of all tools (native + extensions)."""
