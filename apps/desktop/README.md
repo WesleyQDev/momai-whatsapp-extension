@@ -1,34 +1,50 @@
-# desktop
+# MomAI Desktop
 
-An Electron application with React and TypeScript
+Interface desktop Electron para MomAI - assistente virtual de código aberto.
 
-## Recommended IDE Setup
+## Stack
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+- **Electron** + **React 19** + **TypeScript**
+- **Tailwind CSS** para estilização
+- **Lucide Icons**
 
-## Project Setup
+## Funcionalidades
+
+- Interface moderna com suporte a temas
+- Monitoramento de recursos em tempo real
+- Visualização de grafo de interações
+- Comunicação via HTTP e WebSocket com o backend
+- Chat em tempo real com streaming de respostas e TTS
+
+## Configuração
 
 ### Install
 
 ```bash
-$ pnpm install
+pnpm install
 ```
 
 ### Development
 
 ```bash
-$ pnpm dev
+pnpm dev
 ```
 
 ### Build
 
 ```bash
 # For windows
-$ pnpm build:win
+pnpm build:win
 
 # For macOS
-$ pnpm build:mac
+pnpm build:mac
 
 # For Linux
-$ pnpm build:linux
+pnpm build:linux
 ```
+
+## Requisitos
+
+- Node.js 18+
+- pnpm 8+
+- Backend MomAI Core rodando em `http://127.0.0.1:8000`

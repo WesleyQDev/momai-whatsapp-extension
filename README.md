@@ -15,10 +15,11 @@ MomAI é uma assistente virtual de código aberto, **local-first** e focada em p
 
 - **Roteamento Semântico (LanceDB):** Identifica intenções do usuário em milissegundos usando busca vetorial local, economizando tokens e tempo.
 - **Tool RAG:** Carrega dinamicamente apenas as ferramentas necessárias para cada tarefa, permitindo um ecossistema de centenas de extensões sem perda de performance.
-- **Motor de IA Local (Server Mode):** Roda modelos Llama/Qwen via `llama.cpp` em processo dedicado, garantindo performance máxima.
-- **Streaming TTS Real-time:** Fala com você enquanto ainda está pensando, com latência mínima.
-- **Wake Word Local:** Diga "Sistema" para ativar a assistente sem precisar tocar no teclado.
+- **Motor de IA Local:** Roda modelos Llama/Qwen via `llama-server.exe` em processo dedicado, garantindo performance máxima.
+- **Streaming TTS Real-time:** Fala com você enquanto ainda está pensando, com latência mínima usando Kokoro-82m.
+- **Wake Word Local:** Diga "Sistema" para ativar a assistente sem precisar tocar no teclado (processamento offline).
 - **Interface Moderna:** Dashboard com monitoramento de recursos em tempo real e interface gráfica dinâmica.
+- **Modo Gaming:** Pausa automaticamente processos de IA quando jogos são detectados (via FortScript).
 
 ### Por que usar MomAI?
 
@@ -31,9 +32,11 @@ MomAI é uma assistente virtual de código aberto, **local-first** e focada em p
 
 - **Agentes Especialistas:** Pesquisa web, controle de sistema, agendador e interface.
 - **Lembretes Inteligentes:** Notificações por voz e repetições customizáveis.
-- **Comandos de Voz:** Ativação por palavra-chave ("Sistema") e processamento natural.
+- **Comandos de Voz:** Ativação por palavra-chave ("Sistema") e processamento natural offline.
 - **Conexão com Extensões:** Suporte a ferramentas externas via RAG dinâmico.
-- **Instalador Automático:** Baixa e configura o motor local (`llama.cpp`) de acordo com seu hardware (Vulkan/CPU).
+- **Modo Gaming:** Pausa automática de processos de IA quando jogos são detectados.
+- **Instalador Automático:** Baixa e configura o motor local (`llama-server.exe`) de acordo com seu hardware (Vulkan/CPU).
+- **Pesquisa Web:** Busca via DuckDuckGo com conexão direta local.
 
 ## Arquitetura
 
