@@ -263,11 +263,11 @@ const MessageItem = memo(function MessageItem({
                 <button
                   type="button"
                   onClick={handleStopVoiceClick}
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border/30 text-text-muted/80 hover:text-accent hover:border-accent/40 transition-all"
-                  title="Pausar voz"
-                  aria-label="Pausar voz"
+                  className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all ml-1 animate-pulse"
+                  title="Parar voz"
+                  aria-label="Parar voz"
                 >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="6" y="5" width="4" height="14" rx="1" />
                     <rect x="14" y="5" width="4" height="14" rx="1" />
                   </svg>

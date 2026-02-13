@@ -24,6 +24,7 @@ export default function ChatInput({
   const [localText, setLocalText] = useState(text)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [voiceSettings, setVoiceSettings] = useState({
     wake_word_enabled: true,
     tts_enabled: false
@@ -88,6 +89,21 @@ export default function ChatInput({
     loadSettings()
   }, [statusInfo, settingsLoaded])
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.voice-dropdown')) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    if (isDropdownOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+    return undefined
+  }, [isDropdownOpen])
+
   const handleSend = () => {
     if (!localText.trim() || isLoading || isModeChanging || !isBrainReady || isBrainLoading) return
     onSend(localText)
@@ -101,6 +117,7 @@ export default function ChatInput({
     const next = !previous
     setVoiceSettings((prev) => ({ ...prev, [key]: next }))
     setIsSavingSettings(true)
+    setIsDropdownOpen(false)
 
     try {
       await updateSettingsPartial({ [key]: next })
@@ -131,44 +148,85 @@ export default function ChatInput({
         />
 
         <div className="flex items-center justify-between px-2 pb-0.5">
-          <div className="flex gap-2 relative">
+          <div className="relative voice-dropdown">
             <button
               type="button"
-              onClick={() => toggleSetting('wake_word_enabled')}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               disabled={!settingsLoaded || isSavingSettings}
-              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all ${
-                voiceSettings.wake_word_enabled
-                  ? 'bg-bg/40 border-border/20 text-text-muted'
-                  : 'bg-bg/30 border-border/15 text-text-muted/70'
+              className={`flex items-center gap-1.5 border rounded-lg px-2 py-1 transition-all ${
+                isDropdownOpen
+                  ? 'bg-accent/20 border-accent/40 text-text'
+                  : 'bg-bg/40 border-border/20 text-text-muted'
               } ${!settingsLoaded ? 'opacity-60' : ''}`}
-              title={t('chatInput.wakeTitle')}
+              title={t('chatInput.opcoesVoz')}
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider">
-                {t('chatInput.wakeLabel')}
-              </span>
-              <span className="text-[9px] font-mono tracking-wider">
-                {voiceSettings.wake_word_enabled ? t('common.on') : t('common.off')}
-              </span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+              <span className="text-[9px] font-bold">{t('chatInput.voz')}</span>
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
 
-            <button
-              type="button"
-              onClick={() => toggleSetting('tts_enabled')}
-              disabled={!settingsLoaded || isSavingSettings}
-              className={`flex items-center gap-2 border rounded-xl px-2.5 py-1.5 transition-all ${
-                voiceSettings.tts_enabled
-                  ? 'bg-bg/40 border-border/20 text-text-muted'
-                  : 'bg-bg/30 border-border/15 text-text-muted/70'
-              } ${!settingsLoaded ? 'opacity-60' : ''}`}
-              title={t('chatInput.ttsTitle')}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider">
-                {t('chatInput.ttsLabel')}
-              </span>
-              <span className="text-[9px] font-mono tracking-wider">
-                {voiceSettings.tts_enabled ? t('common.on') : t('common.off')}
-              </span>
-            </button>
+            {isDropdownOpen && (
+              <div className="absolute bottom-full left-0 mb-2 bg-card border border-border/30 rounded-xl shadow-xl overflow-hidden min-w-[160px] z-50">
+                <button
+                  type="button"
+                  onClick={() => toggleSetting('wake_word_enabled')}
+                  disabled={!settingsLoaded || isSavingSettings}
+                  className={`w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 transition-all ${
+                    voiceSettings.wake_word_enabled ? 'bg-accent/10' : ''
+                  }`}
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="text-[11px] font-bold text-text">
+                      {t('chatInput.reconhecimento')}
+                    </span>
+                    <span className="text-[9px] text-text-muted">
+                      {t('chatInput.reconhecimentoDesc')}
+                    </span>
+                  </div>
+                  <div
+                    className={`w-2 h-2 rounded-full ${voiceSettings.wake_word_enabled ? 'bg-green-500' : 'bg-text-muted/30'}`}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleSetting('tts_enabled')}
+                  disabled={!settingsLoaded || isSavingSettings}
+                  className={`w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 transition-all border-t border-border/20 ${
+                    voiceSettings.tts_enabled ? 'bg-accent/10' : ''
+                  }`}
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="text-[11px] font-bold text-text">{t('chatInput.falar')}</span>
+                    <span className="text-[9px] text-text-muted">{t('chatInput.falarDesc')}</span>
+                  </div>
+                  <div
+                    className={`w-2 h-2 rounded-full ${voiceSettings.tts_enabled ? 'bg-green-500' : 'bg-text-muted/30'}`}
+                  />
+                </button>
+              </div>
+            )}
           </div>
 
           {isLoading ? (
@@ -178,12 +236,7 @@ export default function ChatInput({
               onClick={onStopGeneration}
               title="Parar"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="6" width="12" height="12" rx="2" />
               </svg>
             </button>

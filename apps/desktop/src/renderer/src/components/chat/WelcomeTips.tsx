@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { StatusData, listMemoryNotes, fetchSettings, SettingsData } from '../../services/api'
 
 interface WelcomeTipsProps {
@@ -6,16 +6,48 @@ interface WelcomeTipsProps {
   statusInfo: StatusData | null
 }
 
-const STATIC_SUGGESTIONS = [
-  "Liste meus compromissos",
-  "Buscar algo aleatorio na internet",
-  "O que MomAI consegue fazer?"
+const ALL_SUGGESTIONS = [
+  'Liste meus compromissos de hoje',
+  'Liste meus compromissos de amanha',
+  'Criar lembrete para amanha as 9h',
+  'O que tenho na agenda para esta semana?',
+  'Listar minhas anotacoes',
+  'Criar anotacao: Compras do mes',
+  'Do que trata minha ultima anotacao?',
+  'O que MomAI consegue fazer?',
+  'Me explique como funciona a interface',
+  'Quais extensoes estao instaladas?',
+  'Me conte uma piada',
+  'Qual e o clima hoje?',
+  'Me ensine algo novo',
+  'Faca uma resumo do dia',
+  'Liste meus lembretes pendentes',
+  'Quando e meu proximo evento?',
+  'Editar configuracoes de voz',
+  'Ver status do sistema',
+  'Buscar palavra no meu conhecimento',
+  'Explicar como usar lembretes'
 ]
+
+const MAX_SUGGESTIONS = 3
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
 
 export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsProps) {
   const [dynamicSuggestion, setDynamicSuggestion] = useState<string | null>(null)
   const [settings, setSettings] = useState<SettingsData | null>(null)
   const isBrainReady = statusInfo?.brain_ready ?? false
+
+  const randomSuggestions = useMemo(() => {
+    return shuffleArray(ALL_SUGGESTIONS).slice(0, MAX_SUGGESTIONS)
+  }, [])
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -36,10 +68,11 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
       try {
         const notes = await listMemoryNotes()
         // Filtra notas sem título significativo
-        const validNotes = notes?.filter((note) => {
-          const t = note.title.toLowerCase().trim()
-          return t !== '' && t !== 'new note' && t !== 'nova nota'
-        }) || []
+        const validNotes =
+          notes?.filter((note) => {
+            const t = note.title.toLowerCase().trim()
+            return t !== '' && t !== 'new note' && t !== 'nova nota'
+          }) || []
 
         if (validNotes.length > 0) {
           const randomNote = validNotes[Math.floor(Math.random() * validNotes.length)]
@@ -60,11 +93,8 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
         <h2 className="text-2xl font-bold text-text tracking-tight animate-in fade-in slide-in-from-bottom-2 duration-700">
           Olá, <span className="text-white">{userName}</span>
         </h2>
-        <p className="text-[13px] text-text-muted/60 font-medium">
-          Como posso te ajudar hoje?
-        </p>
+        <p className="text-[13px] text-text-muted/60 font-medium">Como posso te ajudar hoje?</p>
       </div>
-
 
       <div className="w-full max-w-sm flex flex-col gap-2">
         {/* Sugestão Dinâmica (Nota/Conhecimento) */}
@@ -78,8 +108,8 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
           </button>
         )}
 
-        {/* Sugestões Fixas */}
-        {STATIC_SUGGESTIONS.map((suggestion, index) => (
+        {/* Sugestoes Aleatorias */}
+        {randomSuggestions.map((suggestion, index) => (
           <button
             key={index}
             onClick={() => onSendMessage(suggestion)}

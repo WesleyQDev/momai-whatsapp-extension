@@ -60,6 +60,19 @@ def initialize_ai_stack() -> None:
     ReminderManager = RM
     import services.voice.tts as t
     tts = t
+    
+    # Connect TTS callbacks to socket broadcast
+    def on_tts_start():
+        if main_loop:
+            asyncio.run_coroutine_threadsafe(broadcast_to_sockets({"type": "tts_start"}), main_loop)
+            
+    def on_tts_stop():
+        if main_loop:
+            asyncio.run_coroutine_threadsafe(broadcast_to_sockets({"type": "tts_stop"}), main_loop)
+            
+    t.tts.on_speech_start = on_tts_start
+    t.tts.on_speech_stop = on_tts_stop
+
     from services.extensions.manager import extension_manager as em
     extension_manager = em
 

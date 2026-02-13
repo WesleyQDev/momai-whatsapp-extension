@@ -613,11 +613,7 @@ async def _broadcast_tts_event(event_type: str) -> None:
 async def speak_and_notify(text: str) -> None:
     if not text:
         return
-    await _broadcast_tts_event("tts_start")
-    try:
-        safe_speak(text)
-    finally:
-        await _broadcast_tts_event("tts_stop")
+    safe_speak(text)
 
 async def generate(message: ChatMessage):
     """

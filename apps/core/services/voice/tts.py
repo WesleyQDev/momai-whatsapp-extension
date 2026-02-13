@@ -61,6 +61,8 @@ class TTSManager:
         self.active_stream = None
         self.pipeline = None
         self._is_playing = False
+        self.on_speech_start = None
+        self.on_speech_stop = None
 
         # Start initialization in background
         threading.Thread(target=self._initialize_kokoro, daemon=True).start()
@@ -124,6 +126,9 @@ class TTSManager:
                         f"[TTS Work] Processing: {text[:30]}... (Session {current_session_id})")
 
                     self._is_playing = True
+                    if self.on_speech_start:
+                        self.on_speech_start()
+
                     # Generate and play chunks
                     interrupted = False
                     audio_generator = self.pipeline(text, voice=self.voice)
@@ -156,6 +161,8 @@ class TTSManager:
                                 offset = end
                     
                     self._is_playing = False
+                    if self.on_speech_stop:
+                        self.on_speech_stop()
                     self.text_queue.task_done()
                 except queue.Empty:
                     continue
