@@ -47,10 +47,31 @@ class WakeWordDetector:
         try:
             device = "cuda" if torch.cuda.is_available() else "cpu"
             compute_type = "float16" if device == "cuda" else "int8"
-
+            
             # Upgrade to 'small' for MUCH better English/Technical recognition
             logger.info(f"[WakeWord] Initializing Faster-Whisper (small) on {device} ({compute_type})...")
-            self.model = WhisperModel("small", device=device, compute_type=compute_type)
+            
+            try:
+                # 1. TENTA CAMINHO CURTO: Carregar apenas do cache local (Performance Máxima)
+                self.model = WhisperModel("small", device=device, compute_type=compute_type, local_files_only=True)
+            except Exception:
+                # 2. CAMINHO DE DOWNLOAD: Se falhar (não existe), abre a internet e baixa
+                logger.info("[WakeWord] Model 'small' not found locally. Preparing download...")
+                
+                import huggingface_hub.constants
+                was_offline = os.environ.get("HF_HUB_OFFLINE") == "1"
+                if was_offline:
+                    os.environ["HF_HUB_OFFLINE"] = "0"
+                    huggingface_hub.constants.HF_HUB_OFFLINE = False
+                
+                try:
+                    self.model = WhisperModel("small", device=device, compute_type=compute_type, local_files_only=False)
+                finally:
+                    if was_offline:
+                        os.environ["HF_HUB_OFFLINE"] = "1"
+                        huggingface_hub.constants.HF_HUB_OFFLINE = True
+                        logger.info("[WakeWord] Internet access restored.")
+                    
         except Exception as e:
             logger.warning(f"[WakeWord] Could not load 'small' Whisper ({e}). Falling back to 'base' on CPU.")
             self.model = WhisperModel("base", device="cpu", compute_type="int8")

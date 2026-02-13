@@ -399,7 +399,7 @@ def _initialize_llm_task(on_init_progress=None):
         report_progress("Configurando motor Llama.cpp...")
         new_llm = load_model(
             repo_id="unsloth/Qwen3-4B-Instruct-2507-GGUF",
-            filename="Qwen3-4B-Instruct-2507-Q6_K.gguf",
+            filename="Qwen3-4B-Instruct-2507-UD-Q6_K_XL.gguf",
             on_progress=report_progress
         )
 

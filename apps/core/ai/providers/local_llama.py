@@ -173,15 +173,34 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
         local_model_path = paths['models'] / filename
 
         if local_model_path.exists():
+            # CAMINHO ULTRA-RÁPIDO: Se existe no disco, ignora a biblioteca HF completamente.
             model_path = str(local_model_path)
             report(f"Using cached model: {filename}")
         else:
+            # CAMINHO DE DOWNLOAD: Só entra aqui se o arquivo não existir.
             report(f"Model not found locally, attempting to download {filename}...")
-            model_path = hf_hub_download(
-                repo_id=repo_id,
-                filename=filename,
-                local_dir=paths['models']
-            )
+            
+            import huggingface_hub.constants
+            was_offline = os.environ.get("HF_HUB_OFFLINE") == "1"
+            if was_offline:
+                os.environ["HF_HUB_OFFLINE"] = "0"
+                huggingface_hub.constants.HF_HUB_OFFLINE = False
+                report("Internet access temporarily enabled for model download.")
+            
+            try:
+                # Import dinâmico para não pesar no startup caso não precise baixar
+                from huggingface_hub import hf_hub_download
+                model_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=filename,
+                    local_dir=paths['models'],
+                    local_files_only=False
+                )
+            finally:
+                if was_offline:
+                    os.environ["HF_HUB_OFFLINE"] = "1"
+                    huggingface_hub.constants.HF_HUB_OFFLINE = True
+                    report("Internet access restored to offline mode.")
         
         abs_model_path = str(Path(model_path).resolve())
         abs_exe_path = str(paths['exe'].resolve())

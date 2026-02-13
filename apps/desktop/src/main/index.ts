@@ -12,7 +12,7 @@ import {
 import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { spawn, execSync, type ChildProcess } from 'child_process'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, statSync, writeFileSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
 
 let pythonProcess: ChildProcess | null = null
@@ -23,6 +23,43 @@ let appQuitting = false
 let pythonStartTime: number = 0
 let ipcHandlersRegistered = false
 let quitHandled = false
+
+function runProcess(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<void> {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(command, args, {
+      shell: false,
+      windowsHide: true,
+      env,
+      stdio: 'pipe'
+    })
+
+    let stderr = ''
+
+    child.stdout?.setEncoding('utf8')
+    child.stdout?.on('data', (data) => {
+      process.stdout.write(`[Bootstrap] ${data}`)
+    })
+
+    child.stderr?.setEncoding('utf8')
+    child.stderr?.on('data', (data) => {
+      stderr += data
+      process.stderr.write(`[Bootstrap Error] ${data}`)
+    })
+
+    child.on('error', (err) => {
+      rejectPromise(err)
+    })
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolvePromise()
+        return
+      }
+
+      rejectPromise(new Error(`Comando falhou (${command} ${args.join(' ')}) com código ${code}. ${stderr}`))
+    })
+  })
+}
 
 function createOverlayWindow(): void {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
@@ -58,7 +95,7 @@ async function bootstrapPython(): Promise<{
   uvExe: string
   venvPath: string
 }> {
-  const isDev = is.dev && process.env['ELECTRON_RENDERER_URL']
+  const isDev = Boolean(is.dev && process.env['ELECTRON_RENDERER_URL'])
 
   const corePath = isDev
     ? resolve(app.getAppPath(), '..', 'core')
@@ -82,7 +119,7 @@ async function bootstrapPython(): Promise<{
     if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
 
     try {
-      execSync(`"${uvExe}" venv "${venvPath}" --python 3.12`, { stdio: 'inherit' })
+      await runProcess(uvExe, ['venv', venvPath, '--python', '3.12'], process.env)
       console.log('[Bootstrap] Venv criado.')
     } catch (err) {
       console.error('[Bootstrap] Erro crítico ao criar venv:', err)
@@ -91,22 +128,73 @@ async function bootstrapPython(): Promise<{
   }
 
   try {
-    console.log('[Bootstrap] Sincronizando dependências do core...')
-    execSync(`"${uvExe}" pip install --no-progress -e "${corePath}"`, {
-      env: { ...process.env, VIRTUAL_ENV: venvPath },
-      stdio: 'pipe'
-    })
-    console.log('[Bootstrap] Dependências sincronizadas com sucesso.')
+    const syncStampPath = join(venvPath, '.momai_core_sync.stamp')
+    const pyprojectPath = join(corePath, 'pyproject.toml')
+    const forceSync = process.env['MOMAI_FORCE_SYNC_DEPS'] === '1'
+    let shouldSyncDependencies = forceSync
+
+    if (!isDev || forceSync) {
+      shouldSyncDependencies = true
+      if (!forceSync && existsSync(syncStampPath) && existsSync(pyprojectPath)) {
+        const syncStampMtime = statSync(syncStampPath).mtimeMs
+        const pyprojectMtime = statSync(pyprojectPath).mtimeMs
+        shouldSyncDependencies = syncStampMtime < pyprojectMtime
+      }
+    }
+
+    if (shouldSyncDependencies) {
+      console.log('[Bootstrap] Sincronizando dependências do core...')
+      await runProcess(uvExe, ['pip', 'install', '--python', pythonExe, '-e', corePath], {
+        ...process.env,
+        VIRTUAL_ENV: venvPath
+      })
+      writeFileSync(syncStampPath, new Date().toISOString(), 'utf8')
+      console.log('[Bootstrap] Dependências sincronizadas com sucesso.')
+    } else {
+      console.log(
+        '[Bootstrap] Modo dev: sync de dependências pulado (use MOMAI_FORCE_SYNC_DEPS=1 para forçar).'
+      )
+    }
   } catch (err: any) {
     console.error('[Bootstrap] Erro ao sincronizar dependências:')
-    if (err.stdout) console.error(err.stdout.toString())
-    if (err.stderr) console.error(err.stderr.toString())
+    console.error(err?.message ?? err)
   }
 
   return { pythonExe, corePath, uvExe, venvPath }
 }
 
+async function checkBackendRunning(): Promise<boolean> {
+  try {
+    const response = await fetch('http://127.0.0.1:8000/status', {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000)
+    })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 async function startPythonBackend(): Promise<void> {
+  const isExternalBackend = process.env.MOMAI_EXTERNAL_BACKEND === '1'
+  
+  if (isExternalBackend) {
+    console.log('[Electron] Modo externo: verificando se backend já está rodando...')
+    const running = await checkBackendRunning()
+    if (running) {
+      console.log('[Electron] Backend externo detectado na porta 8000.')
+      return
+    }
+    console.warn('[Electron] MOMAI_EXTERNAL_BACKEND=1 mas backend não encontrado na porta 8000.')
+    console.warn('[Electron] Iniciando bootstrap automático...')
+  }
+
+  const alreadyRunning = await checkBackendRunning()
+  if (alreadyRunning) {
+    console.log('[Electron] Backend já está rodando na porta 8000. Pulando bootstrap.')
+    return
+  }
+
   try {
     const { pythonExe, corePath, uvExe, venvPath } = await bootstrapPython()
     const dataDir = join(app.getPath('userData'), 'data')
@@ -190,30 +278,33 @@ async function startPythonBackend(): Promise<void> {
 }
 
 function killAllLlamaServers(): void {
-  try {
-    console.log('[Electron] Attempting to kill orphaned llama-server processes...')
-    execSync('taskkill /f /im llama-server.exe', { stdio: 'ignore' })
-    console.log('[Electron] Orphaned llama-server processes terminated.')
-  } catch (err) {
-    // Silent failure - llama-server may not be running
+  if (process.platform !== 'win32') return
+  
+  const processes = ['llama-server.exe', 'llama-server', 'python.exe', 'python3.exe']
+  
+  for (const proc of processes) {
+    try {
+      execSync(`taskkill /f /im ${proc}`, { stdio: 'ignore' })
+    } catch {
+      // Silent - process may not exist
+    }
   }
-}
-
-function runCommand(command: string, args: string[]): Promise<boolean> {
-  return new Promise((resolvePromise) => {
-    const child = spawn(command, args, {
-      stdio: 'ignore',
-      shell: false,
-      windowsHide: true
-    })
-
-    child.on('close', (code) => resolvePromise(code === 0))
-    child.on('error', () => resolvePromise(false))
-  })
 }
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms))
+}
+
+async function isProcessRunning(pid: number): Promise<boolean> {
+  if (!pid || process.platform !== 'win32') {
+    return pythonProcess !== null && !pythonProcess.killed && pythonProcess.exitCode === null
+  }
+  try {
+    execSync(`tasklist /fi "PID eq ${pid}"`, { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
 }
 
 async function waitForPythonExit(timeoutMs: number): Promise<boolean> {
@@ -222,6 +313,13 @@ async function waitForPythonExit(timeoutMs: number): Promise<boolean> {
   while (Date.now() - start < timeoutMs) {
     if (!pythonProcess || pythonProcess.killed || pythonProcess.exitCode !== null) {
       return true
+    }
+    if (process.platform === 'win32' && pythonProcess.pid) {
+      const running = await isProcessRunning(pythonProcess.pid)
+      if (!running) {
+        pythonProcess = null
+        return true
+      }
     }
     await delay(100)
   }
@@ -232,8 +330,19 @@ async function waitForPythonExit(timeoutMs: number): Promise<boolean> {
 function monitorPythonProcess(): void {
   if (!pythonProcess || !pythonProcess.pid) return
 
-  const monitorInterval = setInterval(() => {
+  const monitorInterval = setInterval(async () => {
     if (!pythonProcess || pythonProcess.killed || pythonProcess.exitCode !== null) {
+      clearInterval(monitorInterval)
+      pythonProcess = null
+      return
+    }
+
+    const pid = pythonProcess.pid
+    if (!pid) return
+    
+    const isAlive = await isProcessRunning(pid)
+    if (!isAlive) {
+      console.log('[Electron] Python processo detectado como encerrado pelo monitor.')
       clearInterval(monitorInterval)
       pythonProcess = null
       return
@@ -241,11 +350,11 @@ function monitorPythonProcess(): void {
 
     if (
       appQuitting &&
-      Date.now() - pythonStartTime > 5000 &&
+      Date.now() - pythonStartTime > 3000 &&
       pythonProcess &&
       !pythonProcess.killed
     ) {
-      console.warn('[Electron] Python process ainda vivo 5s após shutdown signal. Force-killing...')
+      console.warn('[Electron] Python ainda vivo 3s após shutdown signal. Force-killing...')
       try {
         if (process.platform === 'win32') {
           execSync(`taskkill /pid ${pythonProcess.pid} /f /t`, { stdio: 'ignore' })
@@ -257,7 +366,7 @@ function monitorPythonProcess(): void {
       }
       clearInterval(monitorInterval)
     }
-  }, 1000)
+  }, 500)
 }
 
 async function killPythonBackend(): Promise<void> {
@@ -270,28 +379,45 @@ async function killPythonBackend(): Promise<void> {
   console.log(`[Electron] Iniciando shutdown de Python (PID ${pid})...`)
 
   try {
-    console.log('[Electron] Fase 1: Tentando shutdown gracioso (SIGTERM)...')
-    pythonProcess.kill('SIGTERM')
-
+    console.log('[Electron] Fase 1: Tentando shutdown via API do Node...')
+    pythonProcess.kill()
+    
     if (await waitForPythonExit(2000)) {
       console.log('[Electron] ✓ Python encerrado graciosamente.')
+      pythonProcess = null
       return
     }
 
-    console.log('[Electron] Fase 2: Force-kill com tree termination (/f /t)...')
+    console.log('[Electron] Fase 2: Force-kill com taskkill...')
 
     if (process.platform === 'win32') {
-      await runCommand('taskkill', ['/pid', String(pid), '/f', '/t'])
+      try {
+        execSync(`taskkill /pid ${pid} /f /t`, { stdio: 'ignore' })
+      } catch {}
     } else {
       pythonProcess.kill('SIGKILL')
     }
 
-    if (await waitForPythonExit(1000)) {
+    await delay(500)
+
+    if (process.platform === 'win32') {
+      const running = await isProcessRunning(pid)
+      if (running) {
+        console.log('[Electron] Fase 3: Tentando taskkill /im python.exe...')
+        try {
+          execSync('taskkill /f /im python.exe /t', { stdio: 'ignore' })
+          execSync('taskkill /f /im python3.exe /t', { stdio: 'ignore' })
+        } catch {}
+      }
+    }
+
+    if (await waitForPythonExit(2000)) {
       console.log('[Electron] ✓ Python encerrado por force-kill.')
+      pythonProcess = null
       return
     }
 
-    console.warn('[Electron] Python não confirmou encerramento após force-kill.')
+    console.warn('[Electron] Python não encerrou completamente.')
   } catch (err) {
     console.error('[Electron] Erro durante shutdown de Python:', err)
   } finally {
@@ -302,6 +428,10 @@ async function killPythonBackend(): Promise<void> {
 function registerIpcHandlers(): void {
   if (ipcHandlersRegistered) return
   ipcHandlersRegistered = true
+
+  ipcMain.handle('check-backend', async () => {
+    return await checkBackendRunning()
+  })
 
   ipcMain.on('window-minimize', () => {
     mainWindow?.minimize()
@@ -462,8 +592,8 @@ app.whenReady().then(() => {
   ipcMain.on('ping', () => console.log('pong'))
   registerIpcHandlers()
 
-  startPythonBackend()
   createWindow()
+  startPythonBackend()
 
   globalShortcut.register('Alt+Space', () => {
     const windows = BrowserWindow.getAllWindows()

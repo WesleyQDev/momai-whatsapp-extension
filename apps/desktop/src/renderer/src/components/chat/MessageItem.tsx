@@ -11,6 +11,7 @@ interface MessageItemProps {
   onGraphOption: (option: string) => void
   isSpeaking?: boolean
   onStopVoice?: () => void
+  onStopGeneration?: () => void
 }
 
 const MessageItem = memo(function MessageItem({
@@ -19,7 +20,8 @@ const MessageItem = memo(function MessageItem({
   onReopenGraph,
   onGraphOption,
   isSpeaking = false,
-  onStopVoice
+  onStopVoice,
+  onStopGeneration
 }: MessageItemProps): JSX.Element {
   const [showTrace, setShowTrace] = useState(false)
   const [showToolDetails, setShowToolDetails] = useState(false)
@@ -62,7 +64,6 @@ const MessageItem = memo(function MessageItem({
     }
   }
 
-  // Limpa o indicador de expectativa do conteúdo para não aparecer no texto
   const isChatCard = message.role === 'assistant' && message.graphData?.view === 'chat'
   const displayContent =
     message.content === '...'
@@ -74,11 +75,15 @@ const MessageItem = memo(function MessageItem({
           : message.content
   const optionsMap = message.graphData?.optionsMap || message.graphData?.options_map || {}
   const toolSteps = Array.isArray(toolTrace?.steps) ? toolTrace.steps : []
+  const filteredActivities = (message.activities || []).filter(
+    (a) => !a.toLowerCase().includes('running capability')
+  )
+  const totalStagesCount = filteredActivities.length + toolSteps.length
+  const hasStageData = totalStagesCount > 0
+
   const completedSteps = toolSteps.filter((s) => s.status === 'done').length
   const errorSteps = toolSteps.filter((s) => s.status === 'error').length
   const runningSteps = toolSteps.filter((s) => s.status === 'running').length
-  const activityCount = message.activities?.length || 0
-  const hasStageData = activityCount > 0 || toolSteps.length > 0
 
   const minimizeText = (value: unknown, max = 180) => {
     if (value === null || value === undefined) return ''
@@ -103,18 +108,18 @@ const MessageItem = memo(function MessageItem({
       const toolName = match?.[1] || raw
       return humanizeToolName(toolName)
     }
-    if (lower.includes('router decision')) return 'Entendendo a melhor forma de responder'
-    if (lower.includes('router')) return 'Entendendo seu pedido'
-    if (lower.includes('orchestrator')) return 'Organizando a resposta'
-    if (lower.includes('agent')) return 'Preparando resposta'
-    if (lower.includes('specialist')) return 'Preparando resposta'
+    if (lower.includes('router decision')) return 'Decidindo abordagem'
+    if (lower.includes('router')) return 'Analisando pedido'
+    if (lower.includes('orchestrator')) return 'Planejando'
+    if (lower.includes('agent')) return 'Gerando resposta'
+    if (lower.includes('specialist')) return 'Gerando resposta'
     return activity
   }
 
   const latestActivityText =
-    activityCount > 0
-      ? humanizeActivity(message.activities![activityCount - 1])
-      : 'Preparando resposta...'
+    filteredActivities.length > 0
+      ? humanizeActivity(filteredActivities[filteredActivities.length - 1])
+      : 'Gerando resposta...'
 
   const liveStageText = (() => {
     if (runningSteps > 0) {
@@ -122,9 +127,9 @@ const MessageItem = memo(function MessageItem({
       const name = current?.name ? humanizeToolName(String(current.name)) : 'ação'
       return `Executando ${name.toLowerCase()}...`
     }
-    if (isLoading) return latestActivityText
-    if (errorSteps > 0) return `${toolSteps.length} ação(ões) executadas com ${errorSteps} erro(s)`
-    if (toolSteps.length > 0) return `${completedSteps} ação(ões) executadas`
+    if (isLoading) return 'Gerando resposta...'
+    if (errorSteps > 0) return `${toolSteps.length} etapas (${errorSteps} erro)`
+    if (toolSteps.length > 0) return `${completedSteps} etapas concluídas`
     return latestActivityText
   })()
 
@@ -136,10 +141,14 @@ const MessageItem = memo(function MessageItem({
     }
 
     if (!isLoading && hasStageData) {
-      setShowTrace(false)
-      setShowToolDetails(false)
-      setOpenToolIndex(null)
+      const timer = setTimeout(() => {
+        setShowTrace(false)
+        setShowToolDetails(false)
+        setOpenToolIndex(null)
+      }, 800)
+      return () => clearTimeout(timer)
     }
+    return undefined
   }, [isLoading, hasStageData])
 
   if (isSystemModelChange) {
@@ -229,16 +238,14 @@ const MessageItem = memo(function MessageItem({
             : 'bg-accent/5 border border-border/30 p-3 px-4 rounded-xl rounded-tr-none text-text text-[14px] sm:text-[15px] message'
         }`}
       >
-        {' '}
         {message.role === 'assistant' && (
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] opacity-50">
               MomAI
             </span>
 
-            {/* ETAPAS TOGGLE BUTTON (INLINE) */}
-            {hasStageData && (
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
+              {hasStageData && (
                 <button
                   onClick={() => setShowTrace(!showTrace)}
                   className="text-[10px] text-text-muted hover:text-accent transition-colors"
@@ -248,142 +255,76 @@ const MessageItem = memo(function MessageItem({
                     ? 'Ocultar etapas'
                     : isLoading
                       ? liveStageText
-                      : `Ver etapas da resposta (${activityCount + toolSteps.length})`}
+                      : `Ver etapas da resposta (${totalStagesCount})`}
                 </button>
+              )}
 
-                {isSpeaking && onStopVoice && !hideStopButton && (
-                  <button
-                    type="button"
-                    onClick={handleStopVoiceClick}
-                    className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border/25 text-text-muted hover:text-text hover:border-border/50 transition-all"
-                    title="Pausar voz"
-                    aria-label="Pausar voz"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="5" width="4" height="14" rx="1" />
-                      <rect x="14" y="5" width="4" height="14" rx="1" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {!hasStageData && isSpeaking && onStopVoice && !hideStopButton && (
-              <button
-                type="button"
-                onClick={handleStopVoiceClick}
-                className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border/25 text-text-muted hover:text-text hover:border-border/50 transition-all"
-                title="Pausar voz"
-                aria-label="Pausar voz"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="5" width="4" height="14" rx="1" />
-                  <rect x="14" y="5" width="4" height="14" rx="1" />
-                </svg>
-              </button>
-            )}
+              {isSpeaking && onStopVoice && !hideStopButton && (
+                <button
+                  type="button"
+                  onClick={handleStopVoiceClick}
+                  className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-border/30 text-text-muted/80 hover:text-accent hover:border-accent/40 transition-all"
+                  title="Pausar voz"
+                  aria-label="Pausar voz"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="5" width="4" height="14" rx="1" />
+                    <rect x="14" y="5" width="4" height="14" rx="1" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         )}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-0 transition-all duration-300 overflow-hidden">
           {message.role === 'assistant' && (
-            <>
-              {/* STAGES CONTAINER (dynamic during loading, collapses after done) */}
-              {showTrace && hasStageData && (
-                <div className="flex flex-col gap-1 mt-1 mb-2 animate-in slide-in-from-top-2 duration-200 border border-border/20 rounded-lg p-2 bg-card/30">
-                  {message.activities?.map((activity, idx) => {
-                    const normalizedActivity = humanizeActivity(activity)
-                    let iconInfo = <div className="w-1 h-1 rounded-full bg-border" />
-                    let content = normalizedActivity
-                    let highlightColor = 'text-text-muted'
+            <div 
+              className={`transition-all duration-300 ease-out origin-top ${showTrace && hasStageData ? 'max-h-[800px] opacity-100 mb-1' : 'max-h-0 opacity-0 pointer-events-none'}`}
+            >
+              <div className="flex flex-col gap-1 pt-0.5">
+                <div className="relative flex flex-col gap-1">
+                  <div className="absolute left-[9px] top-0 bottom-0 w-[1px] bg-border/10" />
 
-                    if (normalizedActivity.toLowerCase().includes('entendendo')) {
-                      highlightColor = 'text-purple-400'
+                  {filteredActivities.map((activity, idx) => {
+                    const normalizedActivity = humanizeActivity(activity)
+                    let iconInfo = <div className="w-1 h-1 rounded-full bg-border/20" />
+
+                    if (normalizedActivity.toLowerCase().includes('analisando')) {
                       iconInfo = (
-                        <svg
-                          className="w-3 h-3 text-purple-400"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <polyline points="16 3 21 3 21 8"></polyline>
-                          <line x1="4" y1="20" x2="21" y2="3"></line>
-                          <polyline points="21 16 21 21 16 21"></polyline>
-                          <line x1="15" y1="15" x2="21" y2="21"></line>
-                          <line x1="4" y1="4" x2="9" y2="9"></line>
+                        <svg className="w-2.5 h-2.5 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
                       )
-                    } else if (normalizedActivity.toLowerCase().includes('usando recurso')) {
-                      highlightColor = 'text-cyan-400'
+                    } else if (normalizedActivity.toLowerCase().includes('planejando')) {
                       iconInfo = (
-                        <svg
-                          className="w-3 h-3 text-cyan-400"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                        <svg className="w-2.5 h-2.5 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h6z"></path>
                         </svg>
                       )
-                    } else if (normalizedActivity.toLowerCase().includes('organizando')) {
-                      highlightColor = 'text-blue-400'
+                    } else if (normalizedActivity.toLowerCase().includes('gerando')) {
                       iconInfo = (
-                        <svg
-                          className="w-3 h-3 text-blue-400"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
-                          <rect x="9" y="9" width="6" height="6"></rect>
-                          <line x1="9" y1="1" x2="9" y2="4"></line>
-                          <line x1="15" y1="1" x2="15" y2="4"></line>
-                          <line x1="9" y1="20" x2="9" y2="23"></line>
-                          <line x1="15" y1="20" x2="15" y2="23"></line>
-                          <line x1="20" y1="9" x2="23" y2="9"></line>
-                          <line x1="20" y1="14" x2="23" y2="14"></line>
-                          <line x1="1" y1="9" x2="4" y2="9"></line>
-                          <line x1="1" y1="14" x2="4" y2="14"></line>
-                        </svg>
-                      )
-                    } else if (normalizedActivity.toLowerCase().includes('preparando')) {
-                      highlightColor = 'text-emerald-400'
-                      iconInfo = (
-                        <svg
-                          className="w-3 h-3 text-emerald-400"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <rect x="3" y="11" width="18" height="10" rx="2" />
-                          <circle cx="12" cy="5" r="2" />
-                          <path d="M12 7v4" />
-                          <line x1="8" y1="16" x2="8.01" y2="16" />
-                          <line x1="16" y1="16" x2="16.01" y2="16" />
+                        <svg className="w-2.5 h-2.5 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M12 20h9"></path>
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                         </svg>
                       )
                     }
 
-                    // Split content for highlighting (e.g. key: value)
-                    const parts = content.split(':')
-                    let label = parts.length > 1 ? parts[0] : null
-                    const value = parts.length > 1 ? parts.slice(1).join(':') : content
-
-                    // Rename generic terms for better UX
-                    if (label && label.toUpperCase() === 'SPECIALIST') label = 'AGENT'
+                    const parts = normalizedActivity.split(':')
+                    const label = parts.length > 1 ? parts[0] : null
+                    const value = parts.length > 1 ? parts.slice(1).join(':') : normalizedActivity
 
                     return (
-                      <div key={idx} className="relative group/item py-1 first:pt-0">
-                        <div className="flex items-start gap-2 opacity-60 group-hover/item:opacity-100 transition-opacity">
-                          <div className="mt-0.5 opacity-80">{iconInfo}</div>
-                          <span className="text-[11px] font-medium tracking-wide text-text-muted leading-relaxed">
+                      <div key={`act-${idx}`} className="relative flex items-center gap-2 z-10">
+                        <div className="flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center bg-card">
+                          {iconInfo}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[9px] font-medium text-text-muted/40 leading-tight">
                             {label && (
-                              <span
-                                className={`${highlightColor} font-bold opacity-80 uppercase text-[9px] mr-2 tracking-wider`}
-                              >
+                              <span className="font-black opacity-40 uppercase text-[6px] mr-1.5 tracking-tighter">
                                 {label}
                               </span>
                             )}
@@ -394,80 +335,107 @@ const MessageItem = memo(function MessageItem({
                     )
                   })}
 
-                  {toolTrace && toolSteps.length > 0 && (
-                    <div className="mt-1 pl-4 pr-1 max-h-64 overflow-auto border-l border-border/30">
-                      {toolSteps.map((step, idx) => (
-                        <div
-                          key={`${step.id || step.name || 'tool'}-${idx}`}
-                          className="relative text-[11px] text-text-muted pl-3 py-1.5"
-                        >
-                          <span className="absolute -left-[6px] top-3 w-2.5 h-2.5 rounded-full bg-card border border-border/40" />
+                  {toolSteps.map((step, idx) => {
+                    const toolName = String(step.name || 'tool')
+                    let toolIcon = (
+                      <svg className="w-2 h-2 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                      </svg>
+                    )
 
+                    if (toolName.includes('duckduckgo') || toolName.includes('search')) {
+                      toolIcon = (
+                        <svg className="w-2 h-2 opacity-25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="2" y1="12" x2="22" y2="12"></line>
+                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                      )
+                    } else if (toolName.includes('reminder')) {
+                      toolIcon = (
+                        <svg className="w-2 h-2 opacity-25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                      )
+                    } else if (toolName.includes('interface')) {
+                      toolIcon = (
+                        <svg className="w-2 h-2 opacity-25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <line x1="3" y1="9" x2="21" y2="9"></line>
+                          <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                      )
+                    }
+
+                    const isExpanded = openToolIndex === idx || (isLoading && step.status === 'running')
+
+                    return (
+                      <div key={`tool-${idx}`} className="relative flex flex-col gap-0.5 z-10">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center bg-card">
+                            {toolIcon}
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setOpenToolIndex((prev) => (prev === idx ? null : idx))}
-                            className="w-full flex items-center justify-between gap-2 text-left hover:text-accent transition-colors"
+                            onClick={() => setOpenToolIndex(openToolIndex === idx ? null : idx)}
+                            className="flex-1 flex items-center justify-between group/btn text-left"
                           >
-                            <span className="text-text font-semibold">
-                              {humanizeToolName(String(step.name || 'Ferramenta'))}
+                            <span className="text-[9px] font-bold text-text-muted/50 group-hover/btn:text-accent transition-colors">
+                              {humanizeToolName(toolName)}
                             </span>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`text-[10px] font-semibold ${
-                                  step.status === 'running'
-                                    ? 'text-accent'
-                                    : step.status === 'error'
-                                      ? 'text-red-400'
-                                      : 'text-emerald-400'
-                                }`}
-                              >
-                                {step.status === 'running'
-                                  ? 'executando'
-                                  : step.status === 'error'
-                                    ? 'erro'
-                                    : 'ok'}
-                              </span>
+                            <div className="flex items-center gap-1.5">
+                              {step.status === 'running' && (
+                                <span className="text-[7px] font-black uppercase text-accent/60 animate-pulse">
+                                  executando
+                                </span>
+                              )}
                               <svg
-                                width="12"
-                                height="12"
+                                width="7"
+                                height="7"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
-                                strokeWidth="2.5"
-                                className={`text-accent/80 transition-transform ${openToolIndex === idx ? 'rotate-90' : ''}`}
+                                strokeWidth="4"
+                                className={`text-text-muted/10 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-accent/40' : ''}`}
                               >
                                 <polyline points="9 6 15 12 9 18"></polyline>
                               </svg>
                             </div>
                           </button>
-
-                          {(showToolDetails || openToolIndex === idx) && openToolIndex === idx && (
-                            <div className="mt-1.5 pl-0.5 space-y-1.5">
-                              {step.query && (
-                                <p className="break-words">
-                                  <span className="text-accent/80 font-semibold">Query:</span>{' '}
-                                  {minimizeText(step.query, 120)}
-                                </p>
-                              )}
-
-                              {step.result && (
-                                <p className="break-words">{minimizeText(step.result, 220)}</p>
-                              )}
-
-                              {step.error && (
-                                <p className="text-red-300 break-words">
-                                  <span className="font-semibold">Erro:</span> {String(step.error)}
-                                </p>
-                              )}
-                            </div>
-                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        {isExpanded && (
+                          <div className="ml-5 mr-1 my-0.5 flex flex-col gap-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                            {step.query && (
+                              <div className="border-l border-border/10 pl-2 py-0.5">
+                                <p className="text-[8px] text-text-muted/40 leading-tight break-words font-mono italic">
+                                  {minimizeText(step.query, 100)}
+                                </p>
+                              </div>
+                            )}
+                            {step.result && (
+                              <div className="border-l border-border/10 pl-2 py-0.5">
+                                <p className="text-[8px] text-text-muted/40 leading-tight break-words font-mono opacity-60">
+                                  {minimizeText(step.result, 200)}
+                                </p>
+                              </div>
+                            )}
+                            {step.error && (
+                              <div className="border-l border-red-500/10 pl-2 py-0.5">
+                                <p className="text-[8px] text-red-400/40 leading-tight break-words font-mono">
+                                  {String(step.error)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
-            </>
+              </div>
+            </div>
           )}
 
           {displayContent && (

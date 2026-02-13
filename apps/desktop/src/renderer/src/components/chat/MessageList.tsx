@@ -11,6 +11,7 @@ interface MessageListProps {
   onGraphOption: (option: string) => void
   onSendMessage: (text: string) => void
   onStopVoice?: () => void
+  onStopGeneration?: () => void
   speakingIndex?: number | null
   statusInfo: StatusData | null
 }
@@ -23,6 +24,7 @@ const MessageList = memo(function MessageList({
   onGraphOption,
   onSendMessage,
   onStopVoice,
+  onStopGeneration,
   speakingIndex = null,
   statusInfo
 }: MessageListProps): JSX.Element {
@@ -40,6 +42,7 @@ const MessageList = memo(function MessageList({
           onGraphOption={onGraphOption}
           isSpeaking={speakingIndex === i}
           onStopVoice={onStopVoice}
+          onStopGeneration={onStopGeneration}
         />
       ))}
 

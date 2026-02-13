@@ -69,6 +69,7 @@ export default function ContainerChat({
         onGraphOption={onGraphOption}
         onSendMessage={onSendMessage}
         onStopVoice={stopCurrentVoice}
+        onStopGeneration={stopCurrentGeneration}
         speakingIndex={speakingIndex}
         statusInfo={statusInfo}
       />
