@@ -128,7 +128,7 @@ async function startPythonBackend(): Promise<void> {
     }
 
     console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
-    
+
     // Otimização: Passar apenas o essencial no env para acelerar o spawn
     const sanitizedEnv = {
       // Sistema Básicos
@@ -182,7 +182,7 @@ async function startPythonBackend(): Promise<void> {
         if (
           lower.startsWith('info:') ||
           lower.includes('warning') ||
-          lower.includes('couldn\'t access the hub')
+          lower.includes("couldn't access the hub")
         ) {
           process.stdout.write(`[Python]: ${line}\n`)
         } else {
