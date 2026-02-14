@@ -216,19 +216,6 @@ export default function NotesView() {
 
   // --- Editor Extensions & Theme ---
 
-  const insertText = (before: string, after: string = '') => {
-    const view = editorViewRef.current
-    if (!view) return
-    const { from, to } = view.state.selection.main
-    const selected = view.state.sliceDoc(from, to)
-    const insert = `${before}${selected}${after}`
-    view.dispatch({
-      changes: { from, to, insert },
-      selection: { anchor: from + before.length, head: from + before.length + selected.length }
-    })
-    view.focus()
-  }
-
   const markdownHighlighting = useMemo(() => {
     const textColor = 'rgb(var(--text-primary))'
     return HighlightStyle.define([
@@ -240,9 +227,8 @@ export default function NotesView() {
       // Text styles
       { tag: tags.strong, fontWeight: '700', color: textColor },
       { tag: tags.emphasis, fontStyle: 'italic' },
-      // Markdown markers (#, **, *, etc.) — use a custom class so we can
-      // conditionally hide them on non-active lines via EditorView.theme
-      { tag: tags.processingInstruction, class: 'cm-md-marker' },
+      // Markdown markers
+      { tag: [tags.processingInstruction, tags.punctuation, tags.meta, tags.modifier], class: 'cm-md-marker' },
       // Links
       { tag: tags.link, textDecoration: 'underline', opacity: '0.8' },
       { tag: tags.url, textDecoration: 'underline', opacity: '0.7' },
@@ -273,16 +259,20 @@ export default function NotesView() {
         caretColor: 'rgb(var(--text-primary)) !important',
         backgroundColor: 'transparent !important'
       },
-      // Markdown markers: collapsed by default, shown on active line
       '.cm-md-marker': {
-        fontSize: '0',
-        opacity: '0',
-        display: 'inline-block',
-        transition: 'font-size 0.15s ease, opacity 0.15s ease'
+        display: 'none'
       },
       '.cm-activeLine .cm-md-marker': {
-        fontSize: '0.85em',
-        opacity: '0.3'
+        display: 'inline',
+        opacity: '0.3',
+        marginRight: '4px'
+      },
+      // Heading styles - using CodeMirror's built-in header classes
+      '.cm-line:not(.cm-activeLine) .cm-header': {
+        marginLeft: '-0.3em'
+      },
+      '.cm-header': {
+        fontWeight: '700'
       },
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { 
         backgroundColor: 'rgb(var(--accent) / 0.25) !important'
@@ -292,24 +282,6 @@ export default function NotesView() {
       '.cm-gutters': { display: 'none' }
     })
   ], [markdownHighlighting])
-
-  const BoldIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M3.5 3a1 1 0 0 0 0 2h.5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-.5a1 1 0 0 0 0 2h10a5 5 0 0 0 0-10H6.5V5h4.75A2.75 2.75 0 0 1 14 7.75v.5A2.75 2.75 0 0 1 11.25 11h-.5v2h.5A2.75 2.75 0 0 1 14 15.75v.5A2.75 2.75 0 0 1 11.25 19H6v-3h5.25a.75.75 0 0 0 .75-.75v-.5a.75.75 0 0 0-.75-.75H6V8h5.25a.75.75 0 0 0 .75-.75v-.5a.75.75 0 0 0-.75-.75H4.5a1 1 0 0 1-1-1Z" clipRule="evenodd" />
-    </svg>
-  )
-
-  const ItalicIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M5.25 3.75a.75.75 0 0 1 .75-.75h12a.75.75 0 0 1 0 1.5H12.75l-4.5 15h3.75a.75.75 0 0 1 0 1.5h-12a.75.75 0 0 1 0-1.5h5.25l4.5-15H6a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-    </svg>
-  )
-
-  const ListBulletIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M2.625 6.75a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0Zm4.875 0A.75.75 0 0 1 8.25 6h12a.75.75 0 0 1 0 1.5h-12a.75.75 0 0 1-.75-.75ZM2.625 12a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0ZM7.5 12a.75.75 0 0 1 .75-.75h12a.75.75 0 0 1 0 1.5h-12A.75.75 0 0 1 7.5 12Zm-4.875 5.25a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0Zm4.875 0a.75.75 0 0 1 .75-.75h12a.75.75 0 0 1 0 1.5h-12a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-    </svg>
-  )
 
   return (
     <div 
@@ -477,18 +449,6 @@ export default function NotesView() {
           </div>
         )}
 
-        {/* Floating Toolbar (Interactive) */}
-        {activeId && (
-          <div className="mt-4 mx-8 px-4 py-2 bg-card border border-border/10 rounded-xl flex items-center gap-4 z-10 w-fit shadow-xl">
-              <ToolbarAction onClick={() => insertText('**', '**')} icon={<BoldIcon className="w-4 h-4" />} />
-              <ToolbarAction onClick={() => insertText('*', '*')} icon={<ItalicIcon className="w-4 h-4" />} />
-              <ToolbarAction onClick={() => insertText('- ', '')} icon={<ListBulletIcon className="w-4 h-4" />} />
-              <div className="w-px h-4 bg-border/20"></div>
-              <button onClick={() => insertText('# ', '')} className="text-[10px] font-black hover:text-accent transition-colors">H1</button>
-              <button onClick={() => insertText('## ', '')} className="text-[10px] font-black hover:text-accent transition-colors">H2</button>
-          </div>
-        )}
-
         <div className="flex-1 relative overflow-hidden flex mt-4 h-full">
            {activeId ? (
               <div className="flex-1 overflow-y-auto custom-scrollbar w-full">
@@ -507,12 +467,14 @@ export default function NotesView() {
                      basicSetup={{
                        lineNumbers: false,
                        foldGutter: false,
-                       highlightActiveLine: false,
+                        highlightActiveLine: true,
                        highlightSelectionMatches: false,
                        bracketMatching: false,
                        closeBrackets: false
                      }}
-                     onCreateEditor={(view) => { editorViewRef.current = view }}
+                      onCreateEditor={(view) => { 
+                        editorViewRef.current = view
+                      }}
                      className="w-full bg-transparent"
                    />
                 </div>
@@ -540,13 +502,5 @@ export default function NotesView() {
         />
       )}
     </div>
-  )
-}
-
-function ToolbarAction({ icon, onClick }: { icon: any, onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="text-text-muted hover:text-accent transition-colors p-1.5 hover:bg-white/5 rounded-lg">
-      {icon}
-    </button>
   )
 }
