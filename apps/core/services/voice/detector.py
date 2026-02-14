@@ -411,9 +411,7 @@ class WakeWordDetector:
             self.keyword,
         ]
 
-        keyword_pattern = (
-            r"\\b(?:" + "|".join(re.escape(v) for v in variations) + r")\\b"
-        )
+        keyword_pattern = r"\b(?:" + "|".join(re.escape(v) for v in variations) + r")\b"
         match = re.search(keyword_pattern, text)
         detected_variation = match.group(0) if match else None
 

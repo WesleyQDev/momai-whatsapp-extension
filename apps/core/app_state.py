@@ -22,7 +22,7 @@ ai_busy = False
 last_init_event: dict[str, Any] = {
     "stage": "pending",
     "message": "Aguardando inicializacao...",
-    "progress": 0
+    "progress": 0,
 }
 
 orchestrator = None
@@ -33,50 +33,66 @@ ReminderManager = None
 tts = None
 extension_manager = None
 
-active_graph = {
-    "view": None,
-    "bypass_wake_word": False
-}
+active_graph = {"view": None, "bypass_wake_word": False}
 
 pending_graph_data: dict[str, dict[str, Any]] = {}
 
 
 def initialize_ai_stack() -> None:
     """Lazy load heavy AI modules."""
-    global orchestrator, generate, initialize_llm, WakeWordDetector, ReminderManager, tts, extension_manager, ai_stack_loaded
+    global \
+        orchestrator, \
+        generate, \
+        initialize_llm, \
+        WakeWordDetector, \
+        ReminderManager, \
+        tts, \
+        extension_manager, \
+        ai_stack_loaded
 
     if ai_stack_loaded:
         return
 
     logger.info("[Main] Loading AI stack...")
     import ai.orchestrator as orch
+
     orchestrator = orch
     from ai.orchestrator import generate as gen_func, initialize_llm as init_llm
+
     generate = gen_func
     initialize_llm = init_llm
     from services.voice.detector import WakeWordDetector as WWD
+
     WakeWordDetector = WWD
     from services.reminders.manager import ReminderManager as RM
+
     ReminderManager = RM
     import services.voice.tts as t
+
     tts = t
-    
+
     # Connect TTS callbacks to socket broadcast
     def on_tts_start():
         if main_loop:
-            asyncio.run_coroutine_threadsafe(broadcast_to_sockets({"type": "tts_start"}), main_loop)
-            
+            asyncio.run_coroutine_threadsafe(
+                broadcast_to_sockets({"type": "tts_start"}), main_loop
+            )
+
     def on_tts_stop():
         if main_loop:
-            asyncio.run_coroutine_threadsafe(broadcast_to_sockets({"type": "tts_stop"}), main_loop)
-            
+            asyncio.run_coroutine_threadsafe(
+                broadcast_to_sockets({"type": "tts_stop"}), main_loop
+            )
+
     t.tts.on_speech_start = on_tts_start
     t.tts.on_speech_stop = on_tts_stop
 
     from services.extensions.manager import extension_manager as em
+
     extension_manager = em
 
     from ai.embeddings import embeddings
+
     try:
         # Pre-load/Warmup embedding engine in background to avoid first-request latency
         embeddings.load()
@@ -140,16 +156,9 @@ async def send_init_event(stage: str, message: str, progress: int = 0) -> None:
     """Envia eventos de progresso de inicializacao para o frontend."""
     global last_init_event
 
-    last_init_event = {
-        "stage": stage,
-        "message": message,
-        "progress": progress
-    }
+    last_init_event = {"stage": stage, "message": message, "progress": progress}
 
-    await broadcast_to_sockets({
-        "type": "init_progress",
-        "data": last_init_event
-    })
+    await broadcast_to_sockets({"type": "init_progress", "data": last_init_event})
     logger.info("[Init %s%%] %s: %s", progress, stage, message)
 
 
@@ -158,6 +167,7 @@ async def process_voice_command(text: str) -> None:
     if not text:
         return
     logger.info("[Voice] Processing: %s", text)
+    logger.info("[Voice] Active websockets: %d", len(active_websockets))
 
     for ws in active_websockets:
         try:
@@ -169,6 +179,7 @@ async def process_voice_command(text: str) -> None:
 
     msg = ChatMessage(content=text, thread_id="default")
     try:
+        logger.info("[Voice] Calling generate...")
         async for chunk in generate(msg):
             if chunk.startswith("data: "):
                 json_str = chunk.replace("data: ", "").strip()
@@ -183,6 +194,7 @@ async def process_voice_command(text: str) -> None:
                             logger.warning("[Voice] Chunk send error: %s", exc)
                 except json.JSONDecodeError:
                     pass
+        logger.info("[Voice] Generate completed")
     except Exception as exc:
         logger.exception("Error processing voice: %s", exc)
 
@@ -193,11 +205,9 @@ async def broadcast_resource_usage() -> None:
         if active_websockets:
             try:
                 import tools.system_actions as sys_tools
+
                 stats = sys_tools.get_momai_resources()
-                await broadcast_to_sockets({
-                    "type": "resource_usage",
-                    "data": stats
-                })
+                await broadcast_to_sockets({"type": "resource_usage", "data": stats})
             except Exception as exc:
                 logger.debug("Error getting resource usage: %s", exc)
         await asyncio.sleep(5)
@@ -207,9 +217,13 @@ def notify_economy_change(status: str) -> None:
     """Callback para o ResourceManager notificar a UI via WebSocket."""
     if main_loop:
         main_loop.call_soon_threadsafe(
-            lambda: asyncio.create_task(broadcast_to_sockets({
-                "type": "fortscript_event",
-                "status": status,
-                "timestamp": datetime.now().isoformat()
-            }))
+            lambda: asyncio.create_task(
+                broadcast_to_sockets(
+                    {
+                        "type": "fortscript_event",
+                        "status": status,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+            )
         )

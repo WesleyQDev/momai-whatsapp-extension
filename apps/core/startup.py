@@ -34,8 +34,7 @@ async def init_system_task() -> None:
         def on_brain_init(status: str) -> None:
             if app_state.main_loop:
                 asyncio.run_coroutine_threadsafe(
-                    app_state.send_init_event("brain", status, 82),
-                    app_state.main_loop
+                    app_state.send_init_event("brain", status, 82), app_state.main_loop
                 )
 
         # Inicia o motor de IA em paralelo
@@ -44,11 +43,14 @@ async def init_system_task() -> None:
         # 2. Continue with other initializations in parallel
         app_state.extension_manager.load_all()
         ext_count = len(app_state.extension_manager.get_active_manifests())
-        await app_state.send_init_event("extensions", f"{ext_count} extensions loaded", 45)
+        await app_state.send_init_event(
+            "extensions", f"{ext_count} extensions loaded", 45
+        )
 
         # Indexing tools and intents
         try:
             from utils.indexer import index_all_system_tools, index_initial_intents
+
             await app_state.send_init_event("brain", "Indexing tools...", 50)
             await index_all_system_tools()
             await app_state.send_init_event("brain", "Indexing intents...", 55)
@@ -84,15 +86,33 @@ async def init_system_task() -> None:
                 try:
                     for row in conn.execute(f"PRAGMA table_info({table_name})"):
                         cols.add(str(row[1]))
-                except: pass
+                except:
+                    pass
                 return cols
 
-            expected_checkpoints = {"thread_id", "checkpoint_ns", "checkpoint_id", "parent_checkpoint_id", "type", "checkpoint", "metadata"}
-            expected_writes = {"thread_id", "checkpoint_ns", "checkpoint_id", "task_id", "idx", "channel", "type", "value"}
+            expected_checkpoints = {
+                "thread_id",
+                "checkpoint_ns",
+                "checkpoint_id",
+                "parent_checkpoint_id",
+                "type",
+                "checkpoint",
+                "metadata",
+            }
+            expected_writes = {
+                "thread_id",
+                "checkpoint_ns",
+                "checkpoint_id",
+                "task_id",
+                "idx",
+                "channel",
+                "type",
+                "value",
+            }
 
             checkpoints_cols = _get_columns("checkpoints")
             writes_cols = _get_columns("writes")
-            
+
             if checkpoints_cols and not expected_checkpoints.issubset(checkpoints_cols):
                 conn.execute("DROP TABLE IF EXISTS checkpoints")
                 checkpoints_cols = set()
@@ -137,13 +157,15 @@ async def init_system_task() -> None:
         # 5. Services
         app_state.reminder_manager = app_state.ReminderManager(
             broadcast_callback=app_state.broadcast_to_sockets,
-            tts_callback=app_state.tts.speak_sentence
+            tts_callback=app_state.tts.speak_sentence,
         )
         app_state.reminder_manager.start()
 
         def on_wake_word(text: str) -> None:
             if app_state.main_loop:
-                asyncio.run_coroutine_threadsafe(app_state.process_voice_command(text), app_state.main_loop)
+                asyncio.run_coroutine_threadsafe(
+                    app_state.process_voice_command(text), app_state.main_loop
+                )
 
         def should_bypass_wake_word() -> bool:
             state = app_state.get_graph_state()
@@ -151,16 +173,18 @@ async def init_system_task() -> None:
 
         await app_state.send_init_event("brain", "Starting voice detector...", 85)
         app_state.ww = app_state.WakeWordDetector(
-            keyword="Momai",
+            keyword="sistema",
             callback=on_wake_word,
-            bypass_condition=should_bypass_wake_word
+            bypass_condition=should_bypass_wake_word,
         )
         if settings.wake_word_enabled:
             app_state.ww.start()
 
         # 6. Final Sync - Aguarda o LLM e Voz apenas no final se necessário
         await app_state.send_init_event("brain", "Finalizing brain connection...", 90)
-        await asyncio.to_thread(app_state.orchestrator.llm_ready_event.wait, timeout=30.0)
+        await asyncio.to_thread(
+            app_state.orchestrator.llm_ready_event.wait, timeout=30.0
+        )
 
         if settings.tts_enabled:
             await app_state.send_init_event("voice", "Syncing local voice...", 95)
@@ -168,9 +192,10 @@ async def init_system_task() -> None:
 
         await app_state.send_init_event("ready", "System ready.", 100)
         app_state.system_ready.set()
-        
+
         # 7. Check Daily Briefing
         from services.system.briefing import check_and_run_daily_briefing
+
         asyncio.create_task(check_and_run_daily_briefing())
 
         db.close()
@@ -204,9 +229,15 @@ async def lifespan(app):
         app_state.reminder_manager.stop()
     resource_manager.stop()
 
-    if app_state.orchestrator and hasattr(app_state.orchestrator, "checkpointer_cleanup") and app_state.orchestrator.checkpointer_cleanup:
+    if (
+        app_state.orchestrator
+        and hasattr(app_state.orchestrator, "checkpointer_cleanup")
+        and app_state.orchestrator.checkpointer_cleanup
+    ):
         try:
-            await app_state.orchestrator.checkpointer_cleanup.__aexit__(None, None, None)
+            await app_state.orchestrator.checkpointer_cleanup.__aexit__(
+                None, None, None
+            )
             app_state.logger.info("[Main] Checkpointer closed.")
         except Exception as exc:
             app_state.logger.exception("[Main] Error closing checkpointer: %s", exc)
@@ -215,6 +246,7 @@ async def lifespan(app):
 
     try:
         from ai.embeddings import embeddings
+
         embeddings.stop()
         app_state.logger.info("[FastAPI] Embeddings server stopped.")
     except Exception as exc:
@@ -225,17 +257,22 @@ async def lifespan(app):
             app_state.reminder_manager.stop()
             app_state.logger.info("[FastAPI] Reminder manager stopped.")
         except Exception as exc:
-            app_state.logger.exception("[FastAPI] Error stopping reminder manager: %s", exc)
+            app_state.logger.exception(
+                "[FastAPI] Error stopping reminder manager: %s", exc
+            )
 
     if app_state.ww:
         try:
             app_state.ww.stop()
             app_state.logger.info("[FastAPI] Wake word detector stopped.")
         except Exception as exc:
-            app_state.logger.exception("[FastAPI] Error stopping wake word detector: %s", exc)
+            app_state.logger.exception(
+                "[FastAPI] Error stopping wake word detector: %s", exc
+            )
 
     try:
         from ai.providers.local_llama import stop_server
+
         stop_server()
         app_state.logger.info("[FastAPI] Main LLM server stopped.")
     except Exception as exc:
