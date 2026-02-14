@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -150,7 +150,7 @@ export default function RemindersView() {
     const prevMonthDays = new Date(year, month, 0).getDate()
     for (let i = firstDay - 1; i >= 0; i--) days.push({ d: new Date(year, month - 1, prevMonthDays - i), curr: false })
     for (let i = 1; i <= new Date(year, month + 1, 0).getDate(); i++) days.push({ d: new Date(year, month, i), curr: true })
-    while (days.length < 42) days.push({ d: new Date(year, month + 1, days.length - (firstDay + new Date(year, month + 1, 0).getDate()) + 1), curr: false })
+    while (days.length < 35) days.push({ d: new Date(year, month + 1, days.length - (firstDay + new Date(year, month + 1, 0).getDate()) + 1), curr: false })
     return days
   }, [currentDate])
 
@@ -220,7 +220,7 @@ export default function RemindersView() {
           <h2 className="text-xs font-bold text-accent uppercase tracking-tighter mb-1">
             {formatDate(selectedDate, { weekday: 'short' }).replace('.', '')}
           </h2>
-          <div className="text-2xl font-bold tracking-tight">
+          <div className="text-3xl font-bold tracking-tight">
             {selectedDate.getDate()} {formatDate(selectedDate, { month: 'short' })}
           </div>
         </div>
@@ -245,14 +245,14 @@ export default function RemindersView() {
                       : 'hover:bg-accent/5 border-transparent hover:border-border/10'
                   }`}>
                   <div className="flex justify-between items-start">
-                    <span className={`text-[9px] font-mono font-bold opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent/80'}`}>
+                    <span className={`text-[11px] font-mono font-bold opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent/80'}`}>
                       {formatTime(occurrence, { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 transition-opacity">
-                      <TrashIcon className="w-3 h-3" />
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-opacity">
+                      <TrashIcon className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className={`text-[11px] font-medium leading-tight truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}>
+                  <div className={`text-[12px] font-medium leading-tight truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}>
                     {r.title}
                   </div>
                 </div>
@@ -262,7 +262,7 @@ export default function RemindersView() {
         </div>
 
         <div className="p-3 border-t border-border/10">
-           <button onClick={() => handleOpenCreate(selectedDate)} className="w-full py-2 bg-accent text-black rounded text-[10px] font-bold uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
+           <button onClick={() => handleOpenCreate(selectedDate)} className="w-full py-3 bg-accent text-black rounded text-xs font-bold uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
              {t('reminders.newReminder')}
            </button>
         </div>
@@ -281,24 +281,24 @@ export default function RemindersView() {
             <div className="flex bg-input border border-border/10 rounded p-0.5">
               <button 
                 onClick={() => setViewMode('month')}
-                className={`px-3 py-1 text-[9px] font-bold uppercase rounded transition-all ${viewMode === 'month' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}>
+                className={`px-4 py-1.5 text-[11px] font-bold uppercase rounded transition-all ${viewMode === 'month' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}>
                 Mês
               </button>
               <button 
                 onClick={() => setViewMode('week')}
-                className={`px-3 py-1 text-[9px] font-bold uppercase rounded transition-all ${viewMode === 'week' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}>
+                className={`px-4 py-1.5 text-[11px] font-bold uppercase rounded transition-all ${viewMode === 'week' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}>
                 Semana
               </button>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }} className="px-3 py-1 border border-border/10 rounded text-[10px] uppercase font-bold text-text-muted hover:text-text hover:bg-accent/5">
+            <button onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }} className="px-4 py-1.5 border border-border/10 rounded text-[11px] uppercase font-bold text-text-muted hover:text-text hover:bg-accent/5">
               Hoje
             </button>
             <div className="flex border border-border/10 rounded overflow-hidden">
-              <button onClick={handlePrev} className="p-1 hover:bg-accent/5 border-r border-border/10"><ChevronLeftIcon className="w-4 h-4" /></button>
-              <button onClick={handleNext} className="p-1 hover:bg-accent/5"><ChevronRightIcon className="w-4 h-4" /></button>
+              <button onClick={handlePrev} className="p-2 hover:bg-accent/5 border-r border-border/10"><ChevronLeftIcon className="w-4 h-4" /></button>
+              <button onClick={handleNext} className="p-2 hover:bg-accent/5"><ChevronRightIcon className="w-4 h-4" /></button>
             </div>
           </div>
         </header>
@@ -309,25 +309,28 @@ export default function RemindersView() {
             <div className="flex-1 flex flex-col">
               <div className="grid grid-cols-7 border-b border-border/5 bg-bg/50">
                 {['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'].map(day => (
-                  <div key={day} className="py-2 text-center text-[9px] font-bold uppercase text-text-muted/60 tracking-widest">{day}</div>
+                  <div key={day} className="py-3 text-center text-[11px] font-bold uppercase text-text-muted/60 tracking-widest">{day}</div>
                 ))}
               </div>
-              <div className="flex-1 grid grid-cols-7 grid-rows-6">
+              <div className="flex-1 grid grid-cols-7 grid-rows-5">
                 {monthData.map((cell, i) => {
                   const key = `${cell.d.getFullYear()}-${cell.d.getMonth()}-${cell.d.getDate()}`
                   const items = (remindersMap.get(key) || []).filter(r => getRecurrenceMeta(r.repeat_interval) !== 'intraday')
                   const isToday = isSameDay(cell.d, new Date())
                   return (
                     <div key={i} onClick={() => setSelectedDate(cell.d)} 
-                      className={`border-r border-b border-border/10 p-1 flex flex-col gap-0.5 transition-colors cursor-pointer hover:bg-accent/5 ${!cell.curr ? 'opacity-30 bg-black/5' : ''} ${isSameDay(cell.d, selectedDate) ? 'bg-accent/5' : ''}`}>
-                      <span className={`text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-text-muted'}`}>
+                      className={`border-r border-b border-border/10 p-1.5 flex flex-col gap-0.5 transition-colors cursor-pointer hover:bg-accent/5 ${!cell.curr ? 'opacity-30 bg-black/5' : ''} ${isSameDay(cell.d, selectedDate) ? 'bg-accent/5' : ''}`}>
+                      <span className={`text-[11px] font-bold w-7 h-7 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-text-muted'}`}>
                         {cell.d.getDate()}
                       </span>
-                      <div className="flex-1 space-y-0.5 overflow-hidden">
-                        {items.slice(0, 3).map(r => (
-                          <div key={r.id} className="px-1 py-0.5 bg-accent/10 border-l border-accent text-[9px] truncate font-medium text-accent/90">{r.title}</div>
+                      <div className="flex flex-col gap-px overflow-hidden">
+                        {items.slice(0, 4).map(r => (
+                          <div key={r.id} className="flex items-center gap-1 overflow-hidden">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0"></span>
+                            <span className="text-[10px] truncate font-medium text-text-muted">{r.title}</span>
+                          </div>
                         ))}
-                        {items.length > 3 && <div className="text-[8px] font-bold text-text-muted/50 pl-1">+{items.length-3} tasks</div>}
+                        {items.length > 4 && <div className="text-[9px] font-bold text-text-muted/50 pl-2">+{items.length-4}</div>}
                       </div>
                     </div>
                   )
@@ -342,8 +345,8 @@ export default function RemindersView() {
                 <div className="flex-1 grid grid-cols-7">
                   {weekData.map((d, i) => (
                     <div key={i} className="py-3 text-center border-r border-border/5 flex flex-col items-center">
-                      <span className="text-[9px] font-bold uppercase text-accent/40 mb-1">{formatDate(d, { weekday: 'short' }).replace('.', '')}</span>
-                      <span className={`text-lg font-bold w-8 h-8 flex items-center justify-center rounded-full ${isSameDay(d, new Date()) ? 'bg-accent text-black' : ''}`}>
+                      <span className="text-[10px] font-bold uppercase text-accent/40 mb-1">{formatDate(d, { weekday: 'short' }).replace('.', '')}</span>
+                      <span className={`text-xl font-bold w-9 h-9 flex items-center justify-center rounded-full ${isSameDay(d, new Date()) ? 'bg-accent text-black' : ''}`}>
                         {d.getDate()}
                       </span>
                     </div>
@@ -355,45 +358,53 @@ export default function RemindersView() {
                 <div className="flex h-[1440px]"> {/* 24h * 60px */}
                   <div className="w-14 shrink-0 border-r border-border/5 bg-sidebar/50 z-10 sticky left-0">
                     {hours.map(h => (
-                      <div key={h} className="h-[60px] text-[9px] text-right pr-2 pt-0.5 text-text-muted font-bold opacity-30">
+                      <div key={h} className="h-[60px] text-[10px] text-right pr-2 pt-0.5 text-text-muted font-bold opacity-50">
                         {h}:00
                       </div>
                     ))}
                   </div>
-                  <div className="flex-1 grid grid-cols-7 relative">
+                  <div className="flex-1 grid grid-cols-7 relative border-l border-white/5">
                     {weekData.map((day, dIdx) => {
                       const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`
                       const items = remindersMap.get(key) || []
                       return (
-                        <div key={dIdx} className="relative h-full border-r border-border/5 group hover:bg-accent/5 transition-colors"
+                        <div key={dIdx} className="relative h-full border-r border-white/5 group hover:bg-accent/5 transition-colors"
                              onClick={() => handleOpenCreate(day)}>
                            {/* Horizontal Guideline */}
                            {hours.map(h => (
-                             <div key={h} className="absolute w-full h-px bg-border/5 pointer-events-none" style={{ top: h * 60 }}></div>
+                             <div key={h} className="absolute w-full h-px bg-white/5 pointer-events-none" style={{ top: h * 60 }}></div>
                            ))}
                            
+                           {/* Current time indicator */}
+                           {isSameDay(day, new Date()) && (
+                             <div 
+                               className="absolute w-full h-0.5 bg-red-500 z-30 pointer-events-none"
+                               style={{ top: new Date().getHours() * 60 + new Date().getMinutes() }}
+                             />
+                           )}
+                           
                            {/* Reminders as small cards */}
-                           {items.map(r => {
-                             const now = new Date()
-                             const occurrence = getOccurrenceForDate(r, day, now)
-                             if (!occurrence) return null
-                             const top = occurrence.getHours() * 60 + occurrence.getMinutes()
-                             const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday'
-                             return (
+                            {items.map(r => {
+                              const now = new Date()
+                              const occurrence = getOccurrenceForDate(r, day, now)
+                              if (!occurrence) return null
+                              const top = occurrence.getHours() * 60 + occurrence.getMinutes()
+                              const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday'
+                              return (
                                 <div key={r.id} onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }}
-                                  className={`absolute left-1 right-1 p-1 rounded-r shadow-lg cursor-pointer overflow-hidden group hover:brightness-125 transition-all z-20 border-l-2 ${
+                                  className={`absolute left-1 right-1 p-1.5 rounded-r shadow-lg cursor-pointer overflow-hidden group hover:brightness-125 transition-all z-20 border-l-2 ${
                                     isIntraday 
                                       ? 'bg-emerald-500/20 border-emerald-500' 
                                       : 'bg-accent/20 border-accent'
                                   }`}
-                                  style={{ top, height: 40 }}>
-                                    <div className={`text-[9px] font-black uppercase leading-none mb-0.5 opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent'}`}>
+                                  style={{ top, height: 44 }}>
+                                    <div className={`text-[10px] font-black uppercase leading-none mb-0.5 opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent'}`}>
                                       {formatTime(occurrence, { hour: '2-digit', minute: '2-digit' })}
                                     </div>
-                                    <div className={`text-[10px] font-bold truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}>{r.title}</div>
+                                    <div className={`text-[11px] font-bold truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}>{r.title}</div>
                                 </div>
-                             )
-                           })}
+                              )
+                            })}
                         </div>
                       )
                     })}
@@ -413,37 +424,49 @@ export default function RemindersView() {
             onSubmit={handleSubmit}
             className="relative w-full max-w-sm bg-card border border-border/10 rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
           >
-            <div className="px-4 py-3 bg-accent/5 border-b border-border/10 flex justify-between items-center">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+            <div className="px-5 py-4 bg-accent/5 border-b border-border/10 flex justify-between items-center">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-text-muted">
                 {formData.id ? 'Editar Lembrete' : 'Novo Lembrete'}
               </h3>
             </div>
 
-            <div className="p-4 space-y-3">
+            <div className="p-5 space-y-4">
               <input required autoFocus type="text" placeholder="Título do evento" 
-                className="w-full bg-input border border-border/10 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all text-text placeholder:text-text-muted/30"
+                className="w-full bg-input border border-border/10 rounded-lg px-4 py-3 text-sm font-medium outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all text-text placeholder:text-text-muted/30"
                 value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
-              <textarea rows={2} placeholder="Descrição (opcional)"
-                className="w-full bg-input border border-border/10 rounded-lg px-3 py-2 text-[11px] outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all resize-none text-text placeholder:text-text-muted/30"
+              <textarea rows={3} placeholder="Descrição (opcional)"
+                className="w-full bg-input border border-border/10 rounded-lg px-4 py-3 text-[12px] outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all resize-none text-text placeholder:text-text-muted/30"
                 value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} />
               
-              <div className="grid grid-cols-2 gap-2">
-                <input required type="datetime-local" className="bg-input border border-border/10 rounded-lg px-2 py-1.5 text-[10px] font-bold text-text outline-none focus:border-accent/50"
+              <div className="space-y-3">
+                <input required type="datetime-local" className="w-full bg-input border border-border/10 rounded-lg px-3 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
                   value={formData.scheduled_time} onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })} />
-                <select className="bg-input border border-border/10 rounded-lg px-2 py-1.5 text-[10px] font-bold text-text outline-none focus:border-accent/50"
-                  value={formData.repeat_interval || ''} onChange={(e) => setFormData({ ...formData, repeat_interval: (e.target.value || null) as any })}>
-                    <option value="">Não repetir</option>
-                    <option value="minutes">Minutos</option>
-                    <option value="hours">Horas</option>
-                    <option value="days">Dias</option>
-                    <option value="weeks">Semanas</option>
-                </select>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <select className="col-span-2 bg-input border border-border/10 rounded-lg px-3 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
+                    value={formData.repeat_interval || ''} onChange={(e) => setFormData({ ...formData, repeat_interval: (e.target.value || null) as any, repeat_value: e.target.value ? (formData.repeat_value || 1) : 1 })}>
+                      <option value="">Não repetir</option>
+                      <option value="minutes">Minutos</option>
+                      <option value="hours">Horas</option>
+                      <option value="days">Dias</option>
+                      <option value="weeks">Semanas</option>
+                      <option value="months">Meses</option>
+                  </select>
+                  {formData.repeat_interval && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-text-muted">a cada</span>
+                      <input type="number" min="1" max="99" 
+                        className="w-full bg-input border border-border/10 rounded-lg px-2 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
+                        value={formData.repeat_value} onChange={(e) => setFormData({ ...formData, repeat_value: Math.max(1, parseInt(e.target.value) || 1) })} />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 p-3 bg-card/50 border-t border-border/10">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="px-3 py-1.5 text-[10px] font-bold text-text-muted hover:text-text uppercase transition-colors">Cancelar</button>
-              <button type="submit" className="px-4 py-1.5 bg-accent text-white rounded-lg text-[10px] font-bold uppercase hover:brightness-110 shadow-lg shadow-accent/20 transition-all">Salvar</button>
+            <div className="flex justify-end gap-3 p-4 bg-card/50 border-t border-border/10">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-bold text-text-muted hover:text-text uppercase transition-colors">Cancelar</button>
+              <button type="submit" className="px-5 py-2 bg-accent text-white rounded-lg text-xs font-bold uppercase hover:brightness-110 shadow-lg shadow-accent/20 transition-all">Salvar</button>
             </div>
           </form>
         </div>
