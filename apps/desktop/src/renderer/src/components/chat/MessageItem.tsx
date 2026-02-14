@@ -1,4 +1,4 @@
-import { JSX, memo, useEffect, useState } from 'react'
+import { JSX, memo, useEffect, useState, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Message } from '../../services/api'
@@ -27,6 +27,8 @@ const MessageItem = memo(function MessageItem({
   const [showToolDetails, setShowToolDetails] = useState(false)
   const [openToolIndex, setOpenToolIndex] = useState<number | null>(null)
   const [hideStopButton, setHideStopButton] = useState(false)
+  const [elapsedSeconds, setElapsedSeconds] = useState<Record<number, number>>({})
+  const startTimesRef = useRef<Record<number, number>>({})
 
   const handleStopVoiceClick = () => {
     if (!onStopVoice) return
@@ -85,6 +87,40 @@ const MessageItem = memo(function MessageItem({
   const errorSteps = toolSteps.filter((s) => s.status === 'error').length
   const runningSteps = toolSteps.filter((s) => s.status === 'running').length
 
+  // Track start time for running steps
+  useEffect(() => {
+    const newStartTimes: Record<number, number> = {}
+    toolSteps.forEach((step, idx) => {
+      if (step.status === 'running') {
+        if (!startTimesRef.current[idx]) {
+          newStartTimes[idx] = Date.now()
+        } else {
+          newStartTimes[idx] = startTimesRef.current[idx]
+        }
+      }
+    })
+    if (Object.keys(newStartTimes).length > 0) {
+      startTimesRef.current = { ...startTimesRef.current, ...newStartTimes }
+    }
+  }, [toolSteps])
+
+  // Update elapsed seconds every second
+  useEffect(() => {
+    if (runningSteps === 0) return
+    const interval = setInterval(() => {
+      const newElapsed: Record<number, number> = {}
+      toolSteps.forEach((step, idx) => {
+        if (step.status === 'running' && startTimesRef.current[idx]) {
+          newElapsed[idx] = Math.floor((Date.now() - startTimesRef.current[idx]) / 1000)
+        }
+      })
+      if (Object.keys(newElapsed).length > 0) {
+        setElapsedSeconds((prev) => ({ ...prev, ...newElapsed }))
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [toolSteps, runningSteps])
+
   const minimizeText = (value: unknown, max = 180) => {
     if (value === null || value === undefined) return ''
     const text = String(value).replace(/\s+/g, ' ').trim()
@@ -133,8 +169,16 @@ const MessageItem = memo(function MessageItem({
     return latestActivityText
   })()
 
+  // Auto-show trace when there are running steps or loading
   useEffect(() => {
     if (isLoading && hasStageData) {
+      setShowTrace(true)
+      setShowToolDetails(true)
+      return
+    }
+
+    // Keep trace visible when there are running steps
+    if (runningSteps > 0) {
       setShowTrace(true)
       setShowToolDetails(true)
       return
@@ -149,7 +193,7 @@ const MessageItem = memo(function MessageItem({
       return () => clearTimeout(timer)
     }
     return undefined
-  }, [isLoading, hasStageData])
+  }, [isLoading, hasStageData, runningSteps])
 
   if (isSystemModelChange) {
     const modelName =
@@ -281,9 +325,21 @@ const MessageItem = memo(function MessageItem({
             <div 
               className={`transition-all duration-300 ease-out origin-top ${showTrace && hasStageData ? 'max-h-[800px] opacity-100 mb-1' : 'max-h-0 opacity-0 pointer-events-none'}`}
             >
-              <div className="flex flex-col gap-1 pt-0.5">
+                  <div className="flex flex-col gap-1 pt-0.5">
                 <div className="relative flex flex-col gap-1">
                   <div className="absolute left-[9px] top-0 bottom-0 w-[1px] bg-border/10" />
+
+                  {/* Show "Gerando resposta" when loading and no activities */}
+                  {isLoading && filteredActivities.length === 0 && (
+                    <div key="generating-response" className="relative flex items-center gap-2 z-10 animate-pulse">
+                      <div className="flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-accent/40 animate-pulse" />
+                      </div>
+                      <span className="text-[9px] font-medium text-accent/60">
+                        Gerando resposta...
+                      </span>
+                    </div>
+                  )}
 
                   {filteredActivities.map((activity, idx) => {
                     const normalizedActivity = humanizeActivity(activity)
@@ -303,9 +359,9 @@ const MessageItem = memo(function MessageItem({
                           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h6z"></path>
                         </svg>
                       )
-                    } else if (normalizedActivity.toLowerCase().includes('gerando')) {
+                    } else if (normalizedActivity.toLowerCase().includes('gerando') || normalizedActivity.toLowerCase().includes('resposta')) {
                       iconInfo = (
-                        <svg className="w-2.5 h-2.5 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <svg className="w-2.5 h-2.5 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                           <path d="M12 20h9"></path>
                           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                         </svg>
@@ -371,10 +427,14 @@ const MessageItem = memo(function MessageItem({
                     const isExpanded = openToolIndex === idx || (isLoading && step.status === 'running')
 
                     return (
-                      <div key={`tool-${idx}`} className="relative flex flex-col gap-0.5 z-10">
+                      <div key={`tool-${idx}`} className={`relative flex flex-col gap-0.5 z-10 ${step.status === 'running' ? 'bg-gray-500/10 -mx-2 px-2 rounded' : ''}`}>
                         <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center bg-card">
-                            {toolIcon}
+                          <div className={`flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center bg-card ${step.status === 'running' ? 'animate-pulse' : ''}`}>
+                            {step.status === 'running' ? (
+                              <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+                            ) : (
+                              toolIcon
+                            )}
                           </div>
                           <button
                             type="button"
@@ -386,9 +446,14 @@ const MessageItem = memo(function MessageItem({
                             </span>
                             <div className="flex items-center gap-1.5">
                               {step.status === 'running' && (
-                                <span className="text-[7px] font-black uppercase text-accent/60 animate-pulse">
-                                  executando
-                                </span>
+                                <div className="flex items-center gap-1.5 bg-gray-500/20 px-1.5 py-0.5 rounded animate-pulse">
+                                  <span className="text-[7px] font-black uppercase text-gray-300">
+                                    executando
+                                  </span>
+                                  <span className="text-[7px] font-mono text-gray-400">
+                                    {elapsedSeconds[idx] || 0}s
+                                  </span>
+                                </div>
                               )}
                               <svg
                                 width="7"

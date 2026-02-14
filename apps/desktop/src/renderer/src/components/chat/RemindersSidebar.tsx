@@ -1,4 +1,4 @@
-import { BellSlashIcon, CalendarIcon } from '@heroicons/react/24/outline'
+import { BellSlashIcon, ArrowRightIcon, CalendarIcon } from '@heroicons/react/24/outline'
 import { useActiveReminders } from '../../hooks/useActiveReminders'
 import { useI18n } from '../../i18n'
 import { getNextOccurrence, getOccurrenceForDate } from '../../utils/reminders'
