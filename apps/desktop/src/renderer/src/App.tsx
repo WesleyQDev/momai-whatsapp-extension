@@ -251,7 +251,7 @@ function App(): React.JSX.Element {
                   </div>
 
                   <div className="flex-1 rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative flex flex-col">
-                    <RemindersSidebar />
+                    <RemindersSidebar onNavigate={() => navigate('/extensions/com.momai.builtin.scheduler')} />
                   </div>
                 </div>
               )}

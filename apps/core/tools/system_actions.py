@@ -42,6 +42,7 @@ def _get_min_interface_chars() -> int:
 
     try:
         from database.models import SessionLocal, Settings
+
         db = SessionLocal()
         try:
             settings = db.query(Settings).first()
@@ -55,7 +56,9 @@ def _get_min_interface_chars() -> int:
     return MIN_INTERFACE_CHARS
 
 
-def _should_offer_extension_store(content: str, options: list[str] | None, ui_schema: dict | None) -> bool:
+def _should_offer_extension_store(
+    content: str, options: list[str] | None, ui_schema: dict | None
+) -> bool:
     if options or ui_schema:
         return False
     if not content:
@@ -64,7 +67,9 @@ def _should_offer_extension_store(content: str, options: list[str] | None, ui_sc
     return any(re.search(pat, lowered) for pat in _MISSING_CAPABILITY_UI_PATTERNS)
 
 
-def _should_use_side_panel(content: str, options: list[str] | None, ui_schema: dict | None) -> bool:
+def _should_use_side_panel(
+    content: str, options: list[str] | None, ui_schema: dict | None
+) -> bool:
     if ui_schema or (options and len(options) > 0):
         return True
     if not content:
@@ -85,80 +90,124 @@ def _should_use_side_panel(content: str, options: list[str] | None, ui_schema: d
     return False
 
 
-
 class ShowInterfaceInput(BaseModel):
-    view: Literal['side'] = Field(default='side', description="The view type. Currently only 'side' is supported.")
+    view: Literal["side"] = Field(
+        default="side", description="The view type. Currently only 'side' is supported."
+    )
     content: str = Field(description="Markdown content to display.")
     options: List[str] = Field(default=[], description="Action buttons for the user.")
-    ui_schema: Dict[str, Any] = Field(default=None, description="Dynamic UI JSON schema.")
-    bypass_wake_word: bool = Field(default=False, description="Whether to activate mic immediately.")
+    ui_schema: Dict[str, Any] = Field(
+        default=None, description="Dynamic UI JSON schema."
+    )
+    bypass_wake_word: bool = Field(
+        default=False, description="Whether to activate mic immediately."
+    )
+
 
 class ShowChatCardInput(BaseModel):
     content: str = Field(description="Markdown content to display.")
     options: List[str] = Field(default=[], description="Action buttons for the user.")
-    options_map: Dict[str, str] = Field(default=None, description="Optional label map for options.")
-    ui_schema: Dict[str, Any] = Field(default=None, description="Dynamic UI JSON schema.")
+    options_map: Dict[str, str] = Field(
+        default=None, description="Optional label map for options."
+    )
+    ui_schema: Dict[str, Any] = Field(
+        default=None, description="Dynamic UI JSON schema."
+    )
+
 
 @tool(args_schema=ShowInterfaceInput)
-def show_interface(content: str, view: Literal['side'] = 'side', options: list[str] = None, ui_schema: dict = None, bypass_wake_word: bool = False):
+def show_interface(
+    content: str,
+    view: Literal["side"] = "side",
+    options: list[str] = None,
+    ui_schema: dict = None,
+    bypass_wake_word: bool = False,
+):
     """
     Displays a graphical side interface (UI) to the user.
     MANDATORY Usage: Use this whenever the user asks to "show", "list", or "open interface", OR when displaying lists, markdown tables, or long content.
     """
-    if options is None: options = []
+    if options is None:
+        options = []
     # Force view to be 'side' just in case
-    view = 'side'
+    view = "side"
 
     if _should_offer_extension_store(content, options, ui_schema):
         locale = get_locale()
-        return show_chat_card.invoke({
-            "content": t("missing_capability_card_content", locale=locale),
-            "options": ["open_extensions_store"],
-            "options_map": {"open_extensions_store": t("missing_capability_card_cta", locale=locale)}
-        })
+        return show_chat_card.invoke(
+            {
+                "content": t("missing_capability_card_content", locale=locale),
+                "options": ["open_extensions_store"],
+                "options_map": {
+                    "open_extensions_store": t(
+                        "missing_capability_card_cta", locale=locale
+                    )
+                },
+            }
+        )
 
     if not _should_use_side_panel(content, options, ui_schema):
-        return show_chat_card.invoke({
-            "content": content,
-            "options": options,
-            "ui_schema": ui_schema
-        })
+        return show_chat_card.invoke(
+            {"content": content, "options": options, "ui_schema": ui_schema}
+        )
     app_state.set_graph_state(view, bypass_wake_word)
-    
+
     graph_data = {
-        "view": view, "content": content, "options": options,
-        "ui_schema": ui_schema, "bypass_wake_word": bypass_wake_word
+        "view": view,
+        "content": content,
+        "options": options,
+        "ui_schema": ui_schema,
+        "bypass_wake_word": bypass_wake_word,
     }
-    
+
     # Register for persistence (will be saved with the message)
     # Get thread_id from current context if available, otherwise use default
     import threading
-    thread_id = getattr(threading.current_thread(), '_momai_thread_id', 'default')
+
+    thread_id = getattr(threading.current_thread(), "_momai_thread_id", "default")
     app_state.set_pending_graph_data(thread_id, graph_data)
-    
+
     payload = {"type": "graph_open", "data": graph_data}
     if app_state.main_loop:
-        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
+        asyncio.run_coroutine_threadsafe(
+            app_state.broadcast_to_sockets(payload), app_state.main_loop
+        )
     return f"Interface '{view}' opened."
 
+
 @tool(args_schema=ShowChatCardInput)
-def show_chat_card(content: str, options: list[str] = None, options_map: dict = None, ui_schema: dict = None):
+def show_chat_card(
+    content: str,
+    options: list[str] = None,
+    options_map: dict = None,
+    ui_schema: dict = None,
+):
     """Displays a chat-only card without opening side or center panels."""
-    if options is None: options = []
-    if options_map is None: options_map = {}
+    if options is None:
+        options = []
+    if options_map is None:
+        options_map = {}
     graph_data = {
-        "view": "chat", "content": content, "options": options,
-        "options_map": options_map, "ui_schema": ui_schema, "bypass_wake_word": False
+        "view": "chat",
+        "content": content,
+        "options": options,
+        "options_map": options_map,
+        "ui_schema": ui_schema,
+        "bypass_wake_word": False,
     }
 
     import threading
-    thread_id = getattr(threading.current_thread(), '_momai_thread_id', 'default')
+
+    thread_id = getattr(threading.current_thread(), "_momai_thread_id", "default")
     app_state.set_pending_graph_data(thread_id, graph_data)
 
     payload = {"type": "graph_open", "data": graph_data}
     if app_state.main_loop:
-        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
+        asyncio.run_coroutine_threadsafe(
+            app_state.broadcast_to_sockets(payload), app_state.main_loop
+        )
     return "Chat card opened."
+
 
 @tool
 def close_interface():
@@ -166,49 +215,69 @@ def close_interface():
     app_state.set_graph_state(None, False)
     payload = {"type": "graph_close"}
     if app_state.main_loop:
-        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
+        asyncio.run_coroutine_threadsafe(
+            app_state.broadcast_to_sockets(payload), app_state.main_loop
+        )
     return "Interface closed."
+
 
 @tool
 def ask_confirmation(message: str, options: list[str] = None):
     """Shows a confirmation dialog in the UI."""
-    if options is None: options = ["Yes", "No"]
-    return show_interface.invoke({
-        "view": "side", "content": f"### Confirmation Required\n\n{message}",
-        "options": options, "bypass_wake_word": True
-    })
+    if options is None:
+        options = ["Yes", "No"]
+    return show_interface.invoke(
+        {
+            "view": "side",
+            "content": f"### Confirmation Required\n\n{message}",
+            "options": options,
+            "bypass_wake_word": True,
+        }
+    )
+
 
 @tool
 def open_model_selector():
     """Opens the AI model selector."""
-    return show_interface.invoke({
-        "view": "side",
-        "content": "### Modelo Local\n\nNo momento o MomAI opera exclusivamente de forma local e privada.",
-        "options": ["Local"],
-        "bypass_wake_word": True
-    })
+    return show_interface.invoke(
+        {
+            "view": "side",
+            "content": "### Modelo Local\n\nNo momento o MomAI opera exclusivamente de forma local e privada.",
+            "options": ["Local"],
+            "bypass_wake_word": True,
+        }
+    )
+
 
 @tool
-def switch_ai_model(mode: Literal['local']):
+def switch_ai_model(mode: Literal["local"]):
     """Switches the current AI model provider. Only 'local' is supported."""
     import ai.orchestrator as orchestrator
+
     try:
         orchestrator.initialize_llm("local")
         return f"OK: Switching to local"
     except Exception as e:
         return f"Error: {str(e)}"
 
+
 @tool
 def open_extension_store():
     """Opens the Extension Store in the main interface."""
-    return _broadcast_ui_event("navigate", {"path": "/extensions", "state": {"tab": "store"}})
+    return _broadcast_ui_event(
+        "navigate", {"path": "/extensions", "state": {"tab": "store"}}
+    )
+
 
 def _broadcast_ui_event(event_type: str, data: dict) -> str:
     payload = {"type": event_type, "data": data}
     if app_state.main_loop:
-        asyncio.run_coroutine_threadsafe(app_state.broadcast_to_sockets(payload), app_state.main_loop)
+        asyncio.run_coroutine_threadsafe(
+            app_state.broadcast_to_sockets(payload), app_state.main_loop
+        )
         return "OK"
     return "Error: Main loop not ready."
+
 
 def _apply_settings(
     tts_voice: str | None = None,
@@ -216,6 +285,7 @@ def _apply_settings(
     wake_word_enabled: bool | None = None,
 ) -> str:
     from database.models import SessionLocal, Settings
+
     db = SessionLocal()
     try:
         settings = db.query(Settings).first()
@@ -250,6 +320,7 @@ def _apply_settings(
     finally:
         db.close()
 
+
 @tool
 def set_theme(theme: Literal["dark", "light"]):
     """Changes the application theme."""
@@ -257,10 +328,14 @@ def set_theme(theme: Literal["dark", "light"]):
         return "Error: invalid theme"
     return _broadcast_ui_event("set_theme", {"theme": theme})
 
+
 @tool
-def open_settings_panel(tab: Literal["general", "brain", "voice", "economy", "updates"] = "general"):
+def open_settings_panel(
+    tab: Literal["general", "brain", "voice", "economy", "updates"] = "general",
+):
     """Opens the settings panel at a specific tab."""
     return _broadcast_ui_event("open_settings", {"tab": tab})
+
 
 @tool
 def open_sidebar_tab(
@@ -285,6 +360,7 @@ def open_sidebar_tab(
     elif tab == "agenda":
         try:
             from services.extensions.manager import extension_manager
+
             manifest = extension_manager.get_agent_manifest("scheduler")
             if manifest:
                 path = f"/extensions/{manifest.id}"
@@ -296,6 +372,7 @@ def open_sidebar_tab(
         if not extension_id and agent_name:
             try:
                 from services.extensions.manager import extension_manager
+
                 manifest = extension_manager.get_agent_manifest(agent_name)
                 if manifest:
                     extension_id = manifest.id
@@ -307,15 +384,18 @@ def open_sidebar_tab(
 
     return _broadcast_ui_event("navigate", {"path": path, "state": state})
 
+
 @tool
 def set_tts_enabled(enabled: bool):
     """Enables or disables TTS."""
     return _apply_settings(tts_enabled=enabled)
 
+
 @tool
 def set_wake_word_enabled(enabled: bool):
     """Enables or disables the wake word detector."""
     return _apply_settings(wake_word_enabled=enabled)
+
 
 @tool
 def set_tts_voice(voice: str):
@@ -323,6 +403,7 @@ def set_tts_voice(voice: str):
     if not voice:
         return "Error: voice is required"
     return _apply_settings(tts_voice=voice)
+
 
 @tool
 def get_tts_voice_catalog():
@@ -335,6 +416,7 @@ def get_tts_voice_catalog():
         "it": ["if_sara", "im_nicola"],
     }
 
+
 @tool
 def add_fortscript_app(name: str, executable: str):
     """Adds a program to FortScript monitoring (economy mode)."""
@@ -342,6 +424,7 @@ def add_fortscript_app(name: str, executable: str):
         return "Error: name and executable are required"
 
     from database.models import SessionLocal, GamingApp
+
     exe_norm = executable.strip().lower()
     db = SessionLocal()
     try:
@@ -357,6 +440,7 @@ def add_fortscript_app(name: str, executable: str):
 
     try:
         from services.system.resource_manager import resource_manager
+
         if resource_manager.thread and resource_manager.thread.is_alive():
             return "OK: app added (restart required to reload monitoring list)"
         resource_manager.start()
@@ -365,25 +449,30 @@ def add_fortscript_app(name: str, executable: str):
 
     return "OK"
 
+
 @tool
 def stop_generation():
     """Stops the current AI response generation."""
     try:
         import ai.orchestrator as orchestrator
+
         orchestrator.request_cancel_generation()
         return "OK"
     except Exception as e:
         return f"Error: {str(e)}"
+
 
 @tool
 def stop_voice():
     """Stops any ongoing TTS playback."""
     try:
         import services.voice.tts as tts
+
         tts.stop_all()
         return "OK"
     except Exception as e:
         return f"Error: {str(e)}"
+
 
 # System Resource Helper (needed for core)
 def get_momai_resources():
@@ -395,6 +484,7 @@ def get_momai_resources():
     def _get_context_total():
         try:
             from ai.providers import local_llama
+
             return int(getattr(local_llama, "CTX_SIZE", 8192))
         except Exception:
             return int(os.getenv("MOMAI_CTX_SIZE", "8192"))
@@ -405,12 +495,9 @@ def get_momai_resources():
 
         endpoints = [
             "http://127.0.0.1:8080/tokenize",
-            "http://127.0.0.1:8080/v1/tokenize"
+            "http://127.0.0.1:8080/v1/tokenize",
         ]
-        payloads = [
-            {"content": text},
-            {"text": text}
-        ]
+        payloads = [{"content": text}, {"text": text}]
 
         for url in endpoints:
             for payload in payloads:
@@ -462,11 +549,11 @@ def get_momai_resources():
                 [
                     "nvidia-smi",
                     "--query-compute-apps=pid,used_memory",
-                    "--format=csv,noheader,nounits"
+                    "--format=csv,noheader,nounits",
                 ],
                 capture_output=True,
                 text=True,
-                timeout=1
+                timeout=1,
             )
             used_mb = 0
             if result.returncode == 0:
@@ -483,11 +570,11 @@ def get_momai_resources():
                 [
                     "nvidia-smi",
                     "--query-gpu=memory.total",
-                    "--format=csv,noheader,nounits"
+                    "--format=csv,noheader,nounits",
                 ],
                 capture_output=True,
                 text=True,
-                timeout=1
+                timeout=1,
             )
             total_mb = 0
             if total_result.returncode == 0:
@@ -499,25 +586,20 @@ def get_momai_resources():
         except Exception:
             pass
 
-        if os.name == 'nt':
+        if os.name == "nt":
             try:
                 # Use GPUProcessMemory for per-process dedicated VRAM (works with AMD/NVIDIA/Intel)
                 ps_command = (
-                    'Get-CimInstance -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory '
-                    '| Where-Object { $_.DedicatedUsage -gt 0 } '
-                    '| Select-Object Name,DedicatedUsage '
-                    '| ConvertTo-Json -Compress'
+                    "Get-CimInstance -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory "
+                    "| Where-Object { $_.DedicatedUsage -gt 0 } "
+                    "| Select-Object Name,DedicatedUsage "
+                    "| ConvertTo-Json -Compress"
                 )
                 result = subprocess.run(
-                    [
-                        "powershell",
-                        "-NoProfile",
-                        "-Command",
-                        ps_command
-                    ],
+                    ["powershell", "-NoProfile", "-Command", ps_command],
                     capture_output=True,
                     text=True,
-                    timeout=5
+                    timeout=5,
                 )
 
                 used_bytes = 0
@@ -540,15 +622,17 @@ def get_momai_resources():
                 total_bytes = 0
                 try:
                     reg_command = (
-                        '(Get-ItemProperty -Path '
+                        "(Get-ItemProperty -Path "
                         '"HKLM:\\SYSTEM\\ControlSet001\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0*" '
                         '-Name "HardwareInformation.qwMemorySize" -ErrorAction SilentlyContinue).'
                         '"HardwareInformation.qwMemorySize" | Measure-Object -Maximum '
-                        '| Select-Object -ExpandProperty Maximum'
+                        "| Select-Object -ExpandProperty Maximum"
                     )
                     reg_result = subprocess.run(
                         ["powershell", "-NoProfile", "-Command", reg_command],
-                        capture_output=True, text=True, timeout=5
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
                     )
                     if reg_result.returncode == 0 and reg_result.stdout.strip():
                         total_bytes = float(reg_result.stdout.strip())
@@ -567,7 +651,7 @@ def get_momai_resources():
                 ["rocm-smi", "--showmemuse", "--json"],
                 capture_output=True,
                 text=True,
-                timeout=2
+                timeout=2,
             )
             if result.returncode == 0 and result.stdout.strip():
                 data = json.loads(result.stdout)
@@ -605,11 +689,13 @@ def get_momai_resources():
     try:
         total_ram = 0
         momai_pids: set[int] = set()
-        for p in psutil.process_iter(['pid', 'name']):
+        for p in psutil.process_iter(["pid", "name"]):
             try:
-                name = (p.info.get('name') or '').lower()
-                if any(x in name for x in ["momai", "electron", "llama-server", "python"]):
-                    momai_pids.add(p.info['pid'])
+                name = (p.info.get("name") or "").lower()
+                if any(
+                    x in name for x in ["momai", "electron", "llama-server", "python"]
+                ):
+                    momai_pids.add(p.info["pid"])
                     total_ram += p.memory_info().rss
             except Exception:
                 continue
@@ -623,7 +709,7 @@ def get_momai_resources():
             "vram_used_mb": vram_used_mb,
             "vram_total_mb": vram_total_mb,
             "context_used_tokens": ctx_used,
-            "context_total_tokens": ctx_total
+            "context_total_tokens": ctx_total,
         }
     except Exception:
         return {
@@ -631,15 +717,16 @@ def get_momai_resources():
             "vram_used_mb": 0,
             "vram_total_mb": 0,
             "context_used_tokens": 0,
-            "context_total_tokens": 0
+            "context_total_tokens": 0,
         }
+
 
 @tool
 def get_momai_resources_tool():
     """Displays resource consumption."""
     data = get_momai_resources()
-    ctx_used = data.get('context_used_tokens', 0)
-    ctx_total = data.get('context_total_tokens', 0)
+    ctx_used = data.get("context_used_tokens", 0)
+    ctx_total = data.get("context_total_tokens", 0)
     ctx_free = max(ctx_total - ctx_used, 0)
     return (
         "### MomAI Status\n\n"
@@ -649,26 +736,44 @@ def get_momai_resources_tool():
     )
 
 
-
 class CreateReminderInput(BaseModel):
     title: str = Field(description="Short title for the reminder.")
     content: str = Field(default=None, description="Optional extra detail.")
-    scheduled_time: str = Field(description="Date and time for the FIRST trigger in ISO format (YYYY-MM-DD HH:MM:SS). For recurring reminders, set this to NOW or NOW + interval.")
-    repeat_interval: Literal['minutes', 'hours', 'days', 'weeks', 'months'] = Field(default=None, description="Interval unit for repetition (e.g., 'minutes' for every N minutes).")
-    repeat_value: int = Field(default=None, description="Value for interval (e.g., 25 for 'every 25 minutes').")
+    scheduled_time: str = Field(
+        description="Date and time for the FIRST trigger in ISO format (YYYY-MM-DD HH:MM:SS). For recurring reminders, set this to NOW or NOW + interval."
+    )
+    repeat_interval: Literal["minutes", "hours", "days", "weeks", "months"] = Field(
+        default=None,
+        description="Interval unit for repetition (e.g., 'minutes' for every N minutes).",
+    )
+    repeat_value: int = Field(
+        default=None,
+        description="Value for interval (e.g., 25 for 'every 25 minutes').",
+    )
+
 
 @tool(args_schema=CreateReminderInput)
-def create_reminder_tool(title: str, scheduled_time: str, content: str = None, repeat_interval: str = None, repeat_value: int = None):
+def create_reminder_tool(
+    title: str,
+    scheduled_time: str,
+    content: str = None,
+    repeat_interval: str = None,
+    repeat_value: int = None,
+):
     """Schedules a new reminder or alarm. For RECURRING reminders, set scheduled_time to NOW (or NOW + interval) and provide repeat_interval + repeat_value."""
     from datetime import datetime
+
     try:
         dt = datetime.fromisoformat(scheduled_time)
         if not app_state.reminder_manager:
             return "Error: Reminder manager not ready."
-        app_state.reminder_manager.add_reminder(title, content, dt, repeat_interval, repeat_value)
+        app_state.reminder_manager.add_reminder(
+            title, content, dt, repeat_interval, repeat_value
+        )
         return f"OK: Reminder '{title}' scheduled for {scheduled_time}."
     except Exception as e:
         return f"Error scheduling: {str(e)}"
+
 
 @tool
 def list_reminders_tool():
@@ -678,12 +783,13 @@ def list_reminders_tool():
     reminders = app_state.reminder_manager.list_reminders()
     if not reminders:
         return "You have no active reminders."
-    
+
     res = "### Current Reminders:\n\n"
     for r in reminders:
         status = "Active" if r.is_active else "Off"
         res += f"- **ID {r.id}:** {r.title} (Scheduled: {r.scheduled_time}) - Status: {status}\n"
     return res
+
 
 @tool
 def delete_reminder_tool(reminder_id: int):
@@ -693,6 +799,7 @@ def delete_reminder_tool(reminder_id: int):
     app_state.reminder_manager.delete_reminder(reminder_id)
     return f"Reminder {reminder_id} deleted."
 
+
 @tool
 def get_capabilities():
     """
@@ -700,23 +807,28 @@ def get_capabilities():
     RETURNS the raw list. YOU (The AI) must then format this list into Markdown and use 'show_interface' to display it to the user.
     """
     from services.extensions.manager import extension_manager
-    
+
     # 1. Native Tools
     report = "System Native Tools:\n"
     hidden_tools = [
-        "switch_ai_model", "open_model_selector", "get_momai_resources_tool",
-        "get_capabilities", "show_chat_card", "open_extension_store"
+        "switch_ai_model",
+        "open_model_selector",
+        "get_momai_resources_tool",
+        "get_capabilities",
+        "show_chat_card",
+        "open_extension_store",
     ]
 
     for t in TOOLS:
-        if t.name in hidden_tools: continue
-        
+        if t.name in hidden_tools:
+            continue
+
         # Custom overrides for better display
         if t.name == "duckduckgo_search":
-            desc = "Search the internet for real-time information"
+            desc = "Search the internet for real-time information. IMPORTANT: If the user asks about multiple different topics or locations, make SEPARATE calls for EACH one. For example, if they ask about weather in São Paulo AND Rio de Janeiro, call this tool twice - once for each location. Never combine multiple queries in a single call."
             name = "Internet Search"
         else:
-            desc = t.description.split('\n')[0] if t.description else "No description"
+            desc = t.description.split("\n")[0] if t.description else "No description"
             name = t.name
 
         report += f"- {name}: {desc}\n"
@@ -726,19 +838,24 @@ def get_capabilities():
     if ext_tools:
         report += "\nInstalled Extensions:\n"
         for t in ext_tools:
-             desc = t.description.split('\n')[0] if t.description else "No description"
-             report += f"- {t.name}: {desc}\n"
+            desc = t.description.split("\n")[0] if t.description else "No description"
+            report += f"- {t.name}: {desc}\n"
     else:
         report += "\nExtensions: None installed.\n"
-        
+
     return report
+
 
 # Core Tools
 search.name = "duckduckgo_search"
+search.description = "Search the internet for real-time information. IMPORTANT: If the user asks about multiple different topics or locations, make SEPARATE calls for EACH one. For example, if they ask about weather in São Paulo AND Rio de Janeiro, call this tool twice - once for each location. Never combine multiple queries in a single call."
 
 TOOLS = [
     search,
-    show_interface, show_chat_card, close_interface, ask_confirmation,
+    show_interface,
+    show_chat_card,
+    close_interface,
+    ask_confirmation,
     open_extension_store,
     set_theme,
     open_settings_panel,
@@ -751,8 +868,10 @@ TOOLS = [
     stop_generation,
     stop_voice,
     get_momai_resources_tool,
-    create_reminder_tool, list_reminders_tool, delete_reminder_tool,
-    get_capabilities
+    create_reminder_tool,
+    list_reminders_tool,
+    delete_reminder_tool,
+    get_capabilities,
 ]
 
 AVAILABLE_TOOLS = {t.name: t for t in TOOLS}
@@ -760,10 +879,10 @@ AVAILABLE_TOOLS = {t.name: t for t in TOOLS}
 # Explicit Safe List for Native Tools (avoids Pydantic attribute errors)
 SAFE_TOOLS_NAMES = {
     "duckduckgo_search",
-    "show_interface", 
-    "show_chat_card", 
-    "close_interface", 
-    "ask_confirmation", 
+    "show_interface",
+    "show_chat_card",
+    "close_interface",
+    "ask_confirmation",
     "open_extension_store",
     "set_theme",
     "open_settings_panel",
@@ -776,18 +895,17 @@ SAFE_TOOLS_NAMES = {
     "stop_generation",
     "stop_voice",
     "get_momai_resources_tool",
-    "create_reminder_tool", 
-    "list_reminders_tool", 
-    "get_capabilities"
+    "create_reminder_tool",
+    "list_reminders_tool",
+    "get_capabilities",
 }
 
-_TOOL_REGISTRY_CACHE: dict[str, Any] = {
-    "registry": None
-}
+_TOOL_REGISTRY_CACHE: dict[str, Any] = {"registry": None}
 
 
 def invalidate_tools_registry_cache() -> None:
     _TOOL_REGISTRY_CACHE["registry"] = None
+
 
 def get_all_tools_registry(force_refresh: bool = False):
     """Returns a unified dictionary of all tools (native + extensions)."""
@@ -796,9 +914,9 @@ def get_all_tools_registry(force_refresh: bool = False):
 
     if not force_refresh and _TOOL_REGISTRY_CACHE["registry"] is not None:
         return _TOOL_REGISTRY_CACHE["registry"].copy()
-    
+
     registry = AVAILABLE_TOOLS.copy()
-    
+
     ext_tools = extension_manager.get_tools()
     for t in ext_tools:
         # Don't re-wrap tools that are already SafeExtensionTool
@@ -809,6 +927,7 @@ def get_all_tools_registry(force_refresh: bool = False):
 
     _TOOL_REGISTRY_CACHE["registry"] = registry
     return registry.copy()
+
 
 def get_all_tools_list():
     """Returns a list of all tools (native + extensions)."""

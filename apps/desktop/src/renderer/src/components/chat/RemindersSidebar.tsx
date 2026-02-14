@@ -1,7 +1,11 @@
-import { BellSlashIcon } from '@heroicons/react/24/outline'
+import { BellSlashIcon, CalendarIcon } from '@heroicons/react/24/outline'
 import { useActiveReminders } from '../../hooks/useActiveReminders'
 import { useI18n } from '../../i18n'
-import { getNextOccurrence } from '../../utils/reminders'
+import { getNextOccurrence, getOccurrenceForDate } from '../../utils/reminders'
+
+interface RemindersSidebarProps {
+  onNavigate?: () => void
+}
 
 /**
  * Returns a human-readable recurrence badge label and a "category" color.
@@ -50,43 +54,41 @@ function getRecurrenceMeta(
   }
 }
 
-export default function RemindersSidebar() {
+export default function RemindersSidebar({ onNavigate }: RemindersSidebarProps) {
   const { reminders } = useActiveReminders()
-  const { t, formatDate, formatTime } = useI18n()
+  const { t, formatTime } = useI18n()
+
+  const today = new Date()
+  const todayReminders = reminders
+    .filter(r => {
+      const occurrence = getOccurrenceForDate(r, today, today)
+      return occurrence !== null
+    })
+    .slice(0, 4)
 
   return (
     <div className="w-full h-full flex flex-col bg-bg/30" id="tutorial-agenda">
       {/* Header */}
       <div className="p-3 mb-1 flex items-center justify-between sticky top-0 z-10">
         <span className="text-xs font-bold text-text/50 uppercase tracking-widest pl-1">
-          {t('remindersSidebar.title')}
+          {t('remindersSidebar.today')}
         </span>
-        {reminders.length > 0 && (
+        {todayReminders.length > 0 && (
           <span className="text-[10px] font-bold px-1.5 rounded-full bg-border/20 text-text/40">
-            {reminders.length}
+            {todayReminders.length}
           </span>
         )}
       </div>
 
-      {reminders.length === 0 ? (
+      {todayReminders.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center opacity-30">
           <BellSlashIcon className="w-8 h-8 text-text mb-2" />
           <p className="text-xs font-medium text-text">{t('remindersSidebar.empty')}</p>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-0.5 pb-2">
-          {reminders.map((r) => {
-            const time = getNextOccurrence(r)
-            const now = new Date()
-            const isToday = now.toDateString() === time.toDateString()
-            const isTomorrow =
-              new Date(new Date().setDate(now.getDate() + 1)).toDateString() ===
-              time.toDateString()
-
-            let dateLabel = formatDate(time, { day: '2-digit', month: '2-digit' })
-            if (isToday) dateLabel = t('remindersSidebar.today')
-            if (isTomorrow) dateLabel = t('remindersSidebar.tomorrow')
-
+          {todayReminders.map((r) => {
+            const time = getOccurrenceForDate(r, today, today) || getNextOccurrence(r)
             const recurrence = getRecurrenceMeta(t, r.repeat_interval, r.repeat_value)
 
             return (
@@ -97,7 +99,7 @@ export default function RemindersSidebar() {
                 <span className="text-xs text-text/90 leading-snug font-medium">{r.title}</span>
 
                 <div className="flex items-center justify-between text-[10px] text-text-muted mt-0.5">
-                  <span className="opacity-50">{dateLabel}</span>
+                  <span className="opacity-50">Hoje</span>
                   <span className="font-mono opacity-60 group-hover:text-accent group-hover:opacity-100 transition-colors">
                     {formatTime(time, { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -141,6 +143,18 @@ export default function RemindersSidebar() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {todayReminders.length > 0 && onNavigate && (
+        <div className="p-3 border-t border-border/10">
+          <button 
+            onClick={onNavigate}
+            className="w-full py-2 flex items-center justify-center gap-2 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+          >
+            <CalendarIcon className="w-4 h-4" />
+            Ver Agenda
+          </button>
         </div>
       )}
     </div>
