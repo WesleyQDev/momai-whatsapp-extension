@@ -23,8 +23,8 @@ const MessageItem = memo(function MessageItem({
   onStopVoice,
   onStopGeneration
 }: MessageItemProps): JSX.Element {
-  const [showTrace, setShowTrace] = useState(false)
-  const [showToolDetails, setShowToolDetails] = useState(false)
+  const [showTrace, setShowTrace] = useState(true)
+  const [showToolDetails, setShowToolDetails] = useState(true)
   const [openToolIndex, setOpenToolIndex] = useState<number | null>(null)
   const [hideStopButton, setHideStopButton] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState<Record<number, number>>({})
@@ -80,12 +80,20 @@ const MessageItem = memo(function MessageItem({
   const filteredActivities = (message.activities || []).filter(
     (a) => !a.toLowerCase().includes('running capability')
   )
-  const totalStagesCount = filteredActivities.length + toolSteps.length
+  
+  const displayActivities = filteredActivities
+  const totalStagesCount = displayActivities.length + toolSteps.length
   const hasStageData = totalStagesCount > 0
 
   const completedSteps = toolSteps.filter((s) => s.status === 'done').length
   const errorSteps = toolSteps.filter((s) => s.status === 'error').length
   const runningSteps = toolSteps.filter((s) => s.status === 'running').length
+  
+  // "Gerando resposta" phase: loading but no running steps (tools finished, generating final response)
+  const isGeneratingResponse = isLoading && runningSteps === 0 && toolSteps.length > 0
+  
+  // Compute if trace should be visible - show when loading and has stages, or when explicitly shown
+  const shouldShowTrace = (isLoading && hasStageData) || showTrace
 
   // Track start time for running steps
   useEffect(() => {
@@ -169,31 +177,36 @@ const MessageItem = memo(function MessageItem({
     return latestActivityText
   })()
 
-  // Auto-show trace when there are running steps or loading
+  // Close trace when loading finishes (first token arrives)
   useEffect(() => {
-    if (isLoading && hasStageData) {
-      setShowTrace(true)
-      setShowToolDetails(true)
-      return
-    }
-
-    // Keep trace visible when there are running steps
-    if (runningSteps > 0) {
-      setShowTrace(true)
-      setShowToolDetails(true)
-      return
-    }
-
     if (!isLoading && hasStageData) {
       const timer = setTimeout(() => {
         setShowTrace(false)
-        setShowToolDetails(false)
         setOpenToolIndex(null)
       }, 800)
       return () => clearTimeout(timer)
     }
     return undefined
-  }, [isLoading, hasStageData, runningSteps])
+  }, [isLoading, hasStageData])
+
+  // Don't auto-show if we're in the "Gerando resposta" phase
+  useEffect(() => {
+    if (isGeneratingResponse) {
+      return
+    }
+
+    if (isLoading) {
+      setShowTrace(true)
+      setShowToolDetails(true)
+      return
+    }
+
+    if (runningSteps > 0) {
+      setShowTrace(true)
+      setShowToolDetails(true)
+      return
+    }
+  }, [isLoading, runningSteps, isGeneratingResponse])
 
   if (isSystemModelChange) {
     const modelName =
@@ -295,11 +308,17 @@ const MessageItem = memo(function MessageItem({
                   className="text-[10px] text-text-muted hover:text-accent transition-colors"
                   title="Ver etapas da resposta"
                 >
-                  {showTrace
-                    ? 'Ocultar etapas'
-                    : isLoading
-                      ? liveStageText
-                      : `Ver etapas da resposta (${totalStagesCount})`}
+                  {isGeneratingResponse ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 animate-pulse">Gerando resposta...</span>
+                    </div>
+                  ) : shouldShowTrace ? (
+                    'Ocultar etapas'
+                  ) : isLoading ? (
+                    liveStageText
+                  ) : (
+                    `Ver etapas da resposta (${totalStagesCount})`
+                  )}
                 </button>
               )}
 
@@ -323,25 +342,13 @@ const MessageItem = memo(function MessageItem({
         <div className="flex flex-col gap-0 transition-all duration-300 overflow-hidden">
           {message.role === 'assistant' && (
             <div 
-              className={`transition-all duration-300 ease-out origin-top ${showTrace && hasStageData ? 'max-h-[800px] opacity-100 mb-1' : 'max-h-0 opacity-0 pointer-events-none'}`}
+              className={`transition-all duration-300 ease-out origin-top border-l border-white/5 ml-1 pl-2 ${shouldShowTrace && (hasStageData || isLoading) ? 'max-h-[800px] opacity-100 mb-2 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}
             >
                   <div className="flex flex-col gap-1 pt-0.5">
                 <div className="relative flex flex-col gap-1">
                   <div className="absolute left-[9px] top-0 bottom-0 w-[1px] bg-border/10" />
 
-                  {/* Show "Gerando resposta" when loading and no activities */}
-                  {isLoading && filteredActivities.length === 0 && (
-                    <div key="generating-response" className="relative flex items-center gap-2 z-10 animate-pulse">
-                      <div className="flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-accent/40 animate-pulse" />
-                      </div>
-                      <span className="text-[9px] font-medium text-accent/60">
-                        Gerando resposta...
-                      </span>
-                    </div>
-                  )}
-
-                  {filteredActivities.map((activity, idx) => {
+                  {displayActivities.map((activity, idx) => {
                     const normalizedActivity = humanizeActivity(activity)
                     let iconInfo = <div className="w-1 h-1 rounded-full bg-border/20" />
 
@@ -427,13 +434,13 @@ const MessageItem = memo(function MessageItem({
                     const isExpanded = openToolIndex === idx || (isLoading && step.status === 'running')
 
                     return (
-                      <div key={`tool-${idx}`} className={`relative flex flex-col gap-0.5 z-10 ${step.status === 'running' ? 'bg-gray-500/10 -mx-2 px-2 rounded' : ''}`}>
+                      <div key={`tool-${idx}`} className={`relative flex flex-col gap-0.5 z-10 transition-colors ${step.status === 'running' ? 'bg-white/5 -mx-2 px-2 py-1 rounded-lg border border-white/5' : ''}`}>
                         <div className="flex items-center gap-2">
-                          <div className={`flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center bg-card ${step.status === 'running' ? 'animate-pulse' : ''}`}>
+                          <div className={`flex-shrink-0 w-[18px] h-4 flex items-center justify-center`}>
                             {step.status === 'running' ? (
-                              <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+                              <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse shadow-[0_0_8px_rgba(156,163,175,0.5)]" />
                             ) : (
-                              toolIcon
+                              <div className="bg-card w-full h-full flex items-center justify-center">{toolIcon}</div>
                             )}
                           </div>
                           <button
