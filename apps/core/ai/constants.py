@@ -1,3 +1,4 @@
+
 # Global Tools available to all agents by default (SAFE LIST)
 # Tools NOT in this list will trigger the "Human Approval" flow if called.
 CORE_GLOBAL_TOOLS = [
@@ -6,12 +7,11 @@ CORE_GLOBAL_TOOLS = [
     "get_capabilities",
     "ask_confirmation",
     "duckduckgo_search",
-    "duckduckgo_news",
     "create_reminder_tool",
     "list_reminders_tool",
     "delete_reminder_tool",
     "get_momai_resources_tool",
-    "open_extension_store",
+    "open_extension_store"
 ]
 
 # Prompt Templates
@@ -54,7 +54,6 @@ NOTICE: No native tools were found to perform this specific action directly.
 CRITICAL INSTRUCTION: Do NOT call `show_interface` or `show_chat_card`.
 Instead, reply with ONE short sentence: "{t("no_tools_short_reply")}".
 """
-
 
 def get_language_instruction(locale: str | None = None) -> str:
     lang = normalize_locale(locale or get_locale())

@@ -3,6 +3,16 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Message } from '../../services/api'
 import icon from '../../assets/icon.png'
+import {
+  MagnifyingGlassIcon,
+  DocumentTextIcon,
+  SparklesIcon,
+  GlobeAltIcon,
+  BellIcon,
+  ComputerDesktopIcon,
+  CpuChipIcon,
+  ArrowsRightLeftIcon
+} from '@heroicons/react/24/outline'
 
 interface MessageItemProps {
   message: Message
@@ -352,26 +362,21 @@ const MessageItem = memo(function MessageItem({
                     const normalizedActivity = humanizeActivity(activity)
                     let iconInfo = <div className="w-1 h-1 rounded-full bg-border/20" />
 
-                    if (normalizedActivity.toLowerCase().includes('analisando')) {
+                    if (normalizedActivity.toLowerCase().includes('decidindo') || normalizedActivity.toLowerCase().includes('abordagem')) {
                       iconInfo = (
-                        <svg className="w-2.5 h-2.5 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <circle cx="11" cy="11" r="8"></circle>
-                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
+                        <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-gray-400" />
+                      )
+                    } else if (normalizedActivity.toLowerCase().includes('analisando')) {
+                      iconInfo = (
+                        <MagnifyingGlassIcon className="w-3.5 h-3.5 text-gray-400" />
                       )
                     } else if (normalizedActivity.toLowerCase().includes('planejando')) {
                       iconInfo = (
-                        <svg className="w-2.5 h-2.5 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h6z"></path>
-                        </svg>
+                        <DocumentTextIcon className="w-3.5 h-3.5 text-gray-400" />
                       )
                     } else if (normalizedActivity.toLowerCase().includes('gerando') || normalizedActivity.toLowerCase().includes('resposta')) {
                       iconInfo = (
-                        <svg className="w-2.5 h-2.5 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M12 20h9"></path>
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
+                        <SparklesIcon className="w-3.5 h-3.5 text-gray-400" />
                       )
                     }
 
@@ -401,33 +406,20 @@ const MessageItem = memo(function MessageItem({
                   {toolSteps.map((step, idx) => {
                     const toolName = String(step.name || 'tool')
                     let toolIcon = (
-                      <svg className="w-2 h-2 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                      </svg>
+                      <CpuChipIcon className="w-3 h-3 text-gray-400" />
                     )
 
                     if (toolName.includes('duckduckgo') || toolName.includes('search')) {
                       toolIcon = (
-                        <svg className="w-2 h-2 opacity-25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <line x1="2" y1="12" x2="22" y2="12"></line>
-                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                        </svg>
+                        <GlobeAltIcon className="w-3 h-3 text-gray-400" />
                       )
                     } else if (toolName.includes('reminder')) {
                       toolIcon = (
-                        <svg className="w-2 h-2 opacity-25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
+                        <BellIcon className="w-3 h-3 text-gray-400" />
                       )
                     } else if (toolName.includes('interface')) {
                       toolIcon = (
-                        <svg className="w-2 h-2 opacity-25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                          <line x1="3" y1="9" x2="21" y2="9"></line>
-                          <line x1="9" y1="21" x2="9" y2="9"></line>
-                        </svg>
+                        <ComputerDesktopIcon className="w-3 h-3 text-gray-400" />
                       )
                     }
 
@@ -478,24 +470,37 @@ const MessageItem = memo(function MessageItem({
                         </div>
 
                         {isExpanded && (
-                          <div className="ml-5 mr-1 my-0.5 flex flex-col gap-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                          <div className="ml-5 mr-1 my-1 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
                             {step.query && (
-                              <div className="border-l border-border/10 pl-2 py-0.5">
-                                <p className="text-[8px] text-text-muted/40 leading-tight break-words font-mono italic">
+                              <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg px-2.5 py-1.5">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-400/60">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                  </svg>
+                                  <span className="text-[9px] font-bold text-blue-400/70 uppercase tracking-wider">Consulta</span>
+                                </div>
+                                <p className="text-[10px] text-text-muted/80 leading-relaxed break-words">
                                   {minimizeText(step.query, 100)}
                                 </p>
                               </div>
                             )}
                             {step.result && (
-                              <div className="border-l border-border/10 pl-2 py-0.5">
-                                <p className="text-[8px] text-text-muted/40 leading-tight break-words font-mono opacity-60">
+                              <div className="bg-green-500/5 border border-green-500/10 rounded-lg px-2.5 py-1.5">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-400/60">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                  </svg>
+                                  <span className="text-[9px] font-bold text-green-400/70 uppercase tracking-wider">Resultado</span>
+                                </div>
+                                <p className="text-[10px] text-text-muted/70 leading-relaxed break-words">
                                   {minimizeText(step.result, 200)}
                                 </p>
                               </div>
                             )}
                             {step.error && (
-                              <div className="border-l border-red-500/10 pl-2 py-0.5">
-                                <p className="text-[8px] text-red-400/40 leading-tight break-words font-mono">
+                              <div className="border-l border-red-500/20 pl-2 py-1">
+                                <p className="text-[10px] text-red-400/60 leading-tight break-words font-mono">
                                   {String(step.error)}
                                 </p>
                               </div>
