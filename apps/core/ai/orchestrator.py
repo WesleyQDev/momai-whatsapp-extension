@@ -800,18 +800,13 @@ async def generate(message: ChatMessage):
 
             # Status for UI - Only use on_node_start to avoid duplicates
             if kind == "on_node_start":
-                if node_name == "semantic_router":
-                    status = "Router: Analyzing intent..."
+                if node_name == "router":
+                    status = "Discovery: Seeking competencies..."
                     if add_activity(status, "router"):
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
-                elif node_name == "mom_orchestrator":
-                    status = "Orchestrator: Planning action..."
-                    if add_activity(status, "orchestrator"):
-                        yield f"data: {json.dumps({'status': status})}\n\n"
-
-                elif node_name == "specialist_node":
-                    status = "Agent: Processing request..."
+                elif node_name == "momai_agent":
+                    status = "Assembler: Configuring agent brain..."
                     if add_activity(status, "agent"):
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
@@ -841,7 +836,7 @@ async def generate(message: ChatMessage):
                 node = metadata.get("langgraph_node", "")
 
                 # Bloqueio total de nós técnicos (Roteador e Orquestrador)
-                if node in ["semantic_router", "mom_orchestrator", "router"]:
+                if node in ["router"]:
                     continue
 
                 content = event["data"]["chunk"].content
@@ -942,7 +937,7 @@ async def generate(message: ChatMessage):
                 node = metadata.get("langgraph_node", "")
 
                 # Só processa fallback se for um nó de comunicação com o humano
-                if node in ["specialist_node", "responder"]:
+                if node in ["momai_agent", "responder"]:
                     output = event["data"].get("output")
                     if output and hasattr(output, "content") and output.content:
                         if not full_content:
@@ -960,31 +955,32 @@ async def generate(message: ChatMessage):
                                     await speak_and_notify(clean_sent)
 
             elif kind == "on_chain_end":
-                if name == "semantic_router":
+                if name == "router":
                     output = event["data"].get("output")
                     if output and isinstance(output, dict):
-                        next_agent = output.get("next")
-                        if next_agent:
-                            current_agent = next_agent
-                            status = f"Router Decision: {next_agent}"
-                            activities_trace.append(status)
-                            yield f"data: {json.dumps({'status': status})}\n\n"
+                        active_skills = output.get("active_skills", [])
+                        if active_skills:
+                            status = f"Skills activated: {', '.join(active_skills)}"
+                        else:
+                            status = "General conversation mode."
+                        
+                        if output.get("memory_context"):
+                            status += " (Memory Hit!)"
+                            
+                        activities_trace.append(status)
+                        yield f"data: {json.dumps({'status': status})}\n\n"
 
-                elif name == "mom_orchestrator":
+                elif name == "momai_agent":
                     output = event["data"].get("output")
                     if output and isinstance(output, dict):
-                        next_agent = output.get("next")
-                        if next_agent and next_agent != "responder":
-                            current_agent = next_agent
-                            print(f"[AI_core] Routing to: {next_agent}")
-                            status = f"Orchestrator Strategy: Consult {next_agent}"
-                            activities_trace.append(status)
-                            yield f"data: {json.dumps({'status': status})}\n\n"
-
-                elif name == "specialist_node":
-                    output = event["data"].get("output")
-                    if output and isinstance(output, dict) and "no_tools" in output:
-                        no_tools_available = bool(output.get("no_tools"))
+                        if "no_tools" in output:
+                            no_tools_available = bool(output.get("no_tools"))
+                        
+                        # We can't easily get the selected_tools here from the node output 
+                        # as it's not returned in the state. But we can show that we are ready.
+                        status = "Agent: Brain ready. Generating response..."
+                        activities_trace.append(status)
+                        yield f"data: {json.dumps({'status': status})}\n\n"
 
     except Exception as e:
         import traceback

@@ -1,24 +1,16 @@
 {
   "id": "com.momai.builtin.scheduler",
-  "name": "SchedulerAgent",
+  "name": "Scheduler",
   "author": "MomAI Core",
   "version": "1.0.0",
-  "description": "Task and reminder management system.",
+  "description": "Manage user agenda, schedule meetings, create reminders, set alarms, and list pending tasks.",
   "icon": "Calendar",
   "entry": "plugin.py",
-  "system_prompt": "You are the SchedulerAgent, the user's agenda secretary. CRITICAL: You MUST use the `list_reminders_tool` to check the actual reminders in the database. NEVER invent or hallucinate reminders that are not explicitly returned by the tools. Use tools to create, list, or delete reminders and alarms.",
-"intents": [
-    "Remind me to drink water in 10 minutes",
-    "Schedule a meeting for tomorrow at 2 PM",
-    "What are my reminders?",
-    "Cancel the 8 AM alarm",
-    "Remind me to call Mom",
-    "What do I have to do today?"
-  ],
+  "system_prompt": "You are the Scheduler skill. Use tools to create, list, or delete reminders. CRITICAL: Always use 'list_reminders_tool' to check existing data. Never hallucinate tasks.",
   "features": {
     "sidebar": true,
     "agent_name": "scheduler",
     "ui_view": "RemindersDashboard",
-    "tools": ["show_graph", "close_graph", "create_reminder_tool", "list_reminders_tool", "delete_reminder_tool"]
+    "tools": ["create_reminder_tool", "list_reminders_tool", "delete_reminder_tool"]
   }
 }

@@ -6,6 +6,7 @@ import pluggy
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from domain.manifest import Manifest
+from domain.skill import Skill
 from .hooks import ExtensionSpec
 
 class PluginRegistry:
@@ -203,6 +204,32 @@ class PluginRegistry:
             if p["enabled"] and p["manifest"] and p["manifest"].features.agent_name == agent_name:
                 return p["manifest"]
         return None
+
+    def get_skill(self, skill_id: str) -> Optional[Skill]:
+        """Retrieves a lazy-loaded Skill object by ID."""
+        # Try to find by agent_name or extension ID
+        target_path = None
+        plugin_id = skill_id
+        
+        # 1. Resolve Path
+        for p_id, p_info in self.plugins.items():
+            if p_info["enabled"] and p_info["manifest"] and (p_info["manifest"].features.agent_name == skill_id or p_id == skill_id):
+                potential_skill_path = p_info["path"] / "skill.md"
+                if potential_skill_path.exists():
+                    target_path = potential_skill_path
+                    plugin_id = p_id
+                    break
+        
+        if not target_path:
+            return None
+            
+        # 2. Create Skill Object (Metadata Only)
+        try:
+            skill = Skill.from_file(plugin_id, str(target_path))
+            return skill
+        except Exception as e:
+            print(f"[Registry] Error loading skill {skill_id}: {e}")
+            return None
 
 
     def get_agent_init_prompts(self, agent_name: str) -> List[str]:
@@ -491,9 +518,10 @@ class PluginRegistry:
         return {"status": "error", "message": "Extension does not support UI actions"}
 
     async def sync_indexes(self, db):
-        """Syncs all enabled tools and agents to the Vector DB using the optimized indexer."""
-        from utils.indexer import index_all_system_tools, index_initial_intents
+        """Syncs all enabled tools, skills and intents to the Vector DB."""
+        from utils.indexer import index_all_system_tools, index_initial_intents, index_all_skills
         await index_all_system_tools()
+        await index_all_skills()
         await index_initial_intents()
 # Singleton instance
 extension_manager = PluginRegistry()

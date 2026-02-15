@@ -1,9 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 import icon from '../assets/icon.png'
 
-interface TitleBarProps {}
+interface TitleBarProps {
+  onClearHistory?: () => void
+  activeRoute?: string
+}
 
 export default function TitleBar({}: TitleBarProps) {
+  const [showAbout, setShowAbout] = useState(false)
+
   const handleMinimize = () => {
     window.api.minimize()
   }
@@ -31,6 +36,17 @@ export default function TitleBar({}: TitleBarProps) {
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
         <button
+          onClick={() => setShowAbout(true)}
+          className="h-full w-11 flex items-center justify-center text-text-muted hover:bg-white/5 hover:text-text transition-colors border-none bg-transparent cursor-pointer"
+          title="Sobre"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </button>
+        <button
           onClick={handleMinimize}
           className="h-full w-11 flex items-center justify-center text-text-muted hover:bg-white/5 hover:text-text transition-colors border-none bg-transparent cursor-pointer"
         >
@@ -55,6 +71,30 @@ export default function TitleBar({}: TitleBarProps) {
           </svg>
         </button>
       </div>
+
+      {showAbout && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowAbout(false)}>
+          <div className="w-full max-w-sm bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-zoom-in relative" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setShowAbout(false)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-text-muted hover:bg-white/5 hover:text-text transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="flex flex-col items-center p-6 text-center">
+              <h2 className="text-lg font-black text-text uppercase tracking-wider">MomAI</h2>
+              <p className="text-xs text-text-muted mt-1">v0.1-alpha</p>
+              <p className="text-sm text-text-muted mt-4">Assistente pessoal inteligente</p>
+              <p className="text-xs text-text-muted mt-4">Desenvolvido por</p>
+              <p className="text-sm font-bold text-accent">WesleyQDev</p>
+              <p className="text-[10px] text-text-muted mt-1">wesleyqdev@momai.app</p>
+              <p className="text-[10px] text-text-muted/50 mt-4">© 2025-2026 MomAI. Todos os direitos reservados.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

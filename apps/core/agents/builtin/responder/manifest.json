@@ -1,22 +1,12 @@
 {
   "id": "com.momai.builtin.responder",
-  "name": "ResponderAgent",
+  "name": "Responder",
   "author": "MomAI Core",
   "version": "1.0.0",
-  "description": "Final voice and personality of the system.",
+  "description": "Handle general conversation, greetings, and system personality. Used when no specific task-oriented skill is needed.",
   "icon": "MessageSquare",
   "entry": "plugin.py",
-  "system_prompt": "You are MomAI, a high-performance personal AI. The name 'MomAI' is a brand; you are NOT a literal mother. Do NOT treat the user as a relative or child. Maintain a professional, helpful, and direct assistant-to-owner relationship. You are OS-integrated, capable of controlling system settings, managing memory via notes, and executing tasks through plug-and-play extensions. Your responses must be concise, punchy, and TTS-optimized. If you lack a capability, point the user to the Extension Store.",
-  "intents": [
-    "Saudações e cumprimentos",
-    "Oi, tudo bem?",
-    "Olá, como vai?",
-    "Bom dia, boa tarde, boa noite",
-    "Conversa casual e amigável",
-    "Quem é você?",
-    "O que você pode fazer?",
-    "Bate-papo geral"
-  ],
+  "system_prompt": "You are MomAI, a professional personal assistant. Maintain a helpful and direct relationship. Your responses must be concise and TTS-optimized.",
   "features": {
     "sidebar": true,
     "agent_name": "responder",

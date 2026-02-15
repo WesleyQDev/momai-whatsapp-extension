@@ -67,9 +67,63 @@ class VectorDB:
         """Searches for the closest intent in the database."""
         return await self._safe_search("intents", query, limit)
 
+    async def search_skills(self, query: str, limit: int = 3):
+        """Searches for the most relevant skills by their functional description."""
+        return await self._safe_search("skills", query, limit)
+
     async def search_tools(self, query: str, limit: int = 5):
         """Searches for the most relevant tools in the database."""
         return await self._safe_search("tools", query, limit)
+
+    async def add_skills(self, skills_data: list[dict]):
+        """
+        Adds agent/skill descriptions to the vector database for functional routing.
+        Expected: [{'id': '...', 'name': '...', 'description': '...'}]
+        """
+        if not skills_data:
+            return
+
+        # Get first embedding to determine dimension
+        sample_text = skills_data[0].get("description") or skills_data[0].get("name") or "skill"
+        first_vector = await embeddings.embed_text(sample_text)
+        dim = len(first_vector)
+        
+        schema = pa.schema([
+            pa.field("vector", pa.list_(pa.float32(), dim)),
+            pa.field("id", pa.string()),
+            pa.field("name", pa.string()),
+            pa.field("description", pa.string())
+        ])
+        
+        try:
+            table = self.get_table("skills", schema=schema)
+            if "vector" in table.schema.names:
+                v_type = table.schema.field("vector").type
+                current_dim = getattr(v_type, "list_size", None)
+                if current_dim and current_dim != dim:
+                    self.connect().drop_table("skills")
+                    table = self.get_table("skills", schema=schema)
+        except Exception as e:
+            logger.error(f"[VectorDB] Error preparing table 'skills': {e}")
+            return
+
+        data_with_vectors = []
+        for item in skills_data:
+            desc = item.get("description") or item.get("name") or "skill"
+            vec = await embeddings.embed_text(desc)
+            if len(vec) == dim:
+                data_with_vectors.append({
+                    "vector": vec,
+                    "id": item.get("id", "unknown"),
+                    "name": item.get("name", "unknown"),
+                    "description": desc
+                })
+        
+        if data_with_vectors:
+            try:
+                table.add(data_with_vectors)
+            except Exception as e:
+                logger.error(f"[VectorDB] Error adding skills to LanceDB: {e}")
 
     async def add_intents(self, intents_data: list[dict]):
         """
