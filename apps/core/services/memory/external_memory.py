@@ -553,8 +553,8 @@ async def search_memory(query: str, limit: int = DEFAULT_MAX_SNIPPETS) -> list[d
     merged = _merge_scores(keyword_hits, vector_hits, limit=limit)
     
     # Threshold filtering: Only keep results that actually match the topic
-    # 0.3 is a safe balanced threshold for hybrid search scores
-    threshold = float(os.getenv("MOMAI_MEMORY_THRESHOLD", "0.3"))
+    # 0.2 is a safer threshold for hybrid search scores
+    threshold = float(os.getenv("MOMAI_MEMORY_THRESHOLD", "0.2"))
     return [hit for hit in merged if hit.get("score", 0.0) >= threshold]
 
 

@@ -761,8 +761,8 @@ async def generate(message: ChatMessage):
                 if node_type in shown_node_types:
                     return False
                 shown_node_types.add(node_type)
-            # For tool calls, always add (they're unique)
-            if not activities_trace or activities_trace[-1] != status:
+            # For tool calls and status, avoid duplicates anywhere in trace
+            if status not in activities_trace:
                 activities_trace.append(status)
             return True
 
@@ -862,18 +862,32 @@ async def generate(message: ChatMessage):
             if kind == "on_chain_end" and node_name == "router":
                 output = event["data"].get("output")
                 if output and isinstance(output, dict):
-                    skills = output.get("discovered_skills", [])
-                    if skills:
-                        skill_names = [s["name"] for s in skills]
-                        status = f"Discovery: Skills found: {', '.join(skill_names)}"
-                    else:
-                        status = "Discovery: No specialized skills needed."
+                    mem_ctx = output.get("memory_context")
+                    mem_notes = output.get("memory_notes")
+                    
+                    if mem_ctx:
+                        # Yield memory as it's a direct user value
+                        count = 0
+                        memory_sources = []
+                        if mem_notes:
+                            seen_ids = set()
+                            for note in mem_notes:
+                                nid = note.get('note_id', 'unknown')
+                                if nid not in seen_ids:
+                                    seen_ids.add(nid)
+                                    memory_sources.append({
+                                        "url": f"momai://note/{nid}",
+                                        "title": f"Nota: {note.get('title', 'Sem título')}",
+                                        "snippet": note.get("text", "")[:200]
+                                    })
+                            count = len(memory_sources)
 
-                    if output.get("memory_context"):
-                        status += " (Memory Context loaded!)"
-
-                    add_activity(status)
-                    yield f"data: {json.dumps({'status': status})}\n\n"
+                        status = f"Memória: {count} nota{'s' if count != 1 else ''} relevante{'s' if count != 1 else ''}"
+                        yield f"data: {json.dumps({'status': status})}\n\n"
+                        add_activity(status)
+                        
+                        if memory_sources:
+                            yield f"data: {json.dumps({'sources': memory_sources})}\n\n"
                 continue
 
             # Handle manager - show delegation or tool call
@@ -889,7 +903,7 @@ async def generate(message: ChatMessage):
                         else:
                             status = f"Manager: Chamando ferramenta {tc['name']}..."
                     else:
-                        status = "Manager: Finalizando resposta..."
+                        status = "Finalizando resposta..."
 
                     add_activity(status)
                     yield f"data: {json.dumps({'status': status})}\n\n"
@@ -954,6 +968,12 @@ async def generate(message: ChatMessage):
                         # Pequeno delay para garantir que a UI processe as fontes antes de minimizar
                         await asyncio.sleep(0.3)
                         yield f"data: {json.dumps({'status': 'Finalizando resposta...'})}\n\n"
+                        
+                        # Garante que a resposta final fique ABAIXO das fontes e status
+                        if "__MOMAI_ACTIONS__" not in full_content:
+                            marker = "\n\n__MOMAI_ACTIONS__\n\n"
+                            full_content += marker
+                            yield f"data: {json.dumps({'token': marker})}\n\n"
 
                     # Se for o início da resposta, limpa prefixos
                     if not full_content:

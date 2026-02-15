@@ -280,28 +280,43 @@ const MessageItem = memo(function MessageItem({
               {/* Skills, Tools e Sources - todos inline juntos */}
               {(displayActivities.filter(a => {
                 const lower = a.toLowerCase()
-                return lower.includes('especialista: executando') || lower.includes('manager: chamando ferramenta')
+                return lower.includes('especialista: executando') || 
+                       lower.includes('manager: chamando ferramenta') ||
+                       lower.includes('memória:')
               }).length > 0 || (message.sources && message.sources.length > 0)) && (
                 <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center animate-in slide-in-from-left-2 fade-in duration-300">
                   
                   {/* Skills/Tools inline */}
                   {displayActivities.filter(a => {
                     const lower = a.toLowerCase()
-                    return lower.includes('especialista: executando') || lower.includes('manager: chamando ferramenta')
+                    return lower.includes('especialista: executando') || 
+                           lower.includes('manager: chamando ferramenta') ||
+                           lower.includes('memória:')
                   }).map((activity, idx) => {
                     const lower = activity.toLowerCase()
                     const isSkill = lower.includes('especialista: executando')
-                    const name = isSkill 
-                      ? activity.replace(/especialista: executando/i, '').replace(/\.\.\.$/, '').trim()
-                      : activity.replace(/manager: chamando ferramenta/i, '').replace(/\.\.\.$/, '').trim()
+                    const isMemory = lower.includes('memória:')
+                    
+                    let name = ''
+                    let prefix = 'Tool: '
+                    
+                    if (isSkill) {
+                      name = activity.replace(/especialista: executando/i, '').replace(/\.\.\.$/, '').trim()
+                      prefix = 'Skill: '
+                    } else if (isMemory) {
+                      name = activity.replace(/memória:/i, '').replace(/\.\.\.$/, '').trim()
+                      prefix = 'Memória: '
+                    } else {
+                      name = activity.replace(/manager: chamando ferramenta/i, '').replace(/\.\.\.$/, '').trim()
+                    }
                     
                     return (
                       <span 
-                        key={`skill-${idx}`}
+                        key={`activity-${idx}`}
                         className="inline-flex items-center gap-1 text-[12px] font-medium text-zinc-500"
                       >
-                        <DocumentTextIcon className="w-3 h-3 text-blue-500" />
-                        {isSkill ? 'Skill: ' : 'Tool: '}{name}
+                        <DocumentTextIcon className={`w-3 h-3 ${isMemory ? 'text-purple-500' : 'text-blue-500'}`} />
+                        {prefix}{name}
                       </span>
                     )
                   })}
@@ -339,8 +354,12 @@ const MessageItem = memo(function MessageItem({
                 <div className="mt-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
                   {message.sources.map((source, idx) => {
                     const isRevealed = idx < revealedSources
-                    const urlObj = (() => { try { return new URL(source.url) } catch { return null } })()
-                    const domain = urlObj ? urlObj.hostname.replace('www.', '') : source.url
+                    const isNote = source.url.startsWith('momai://note/')
+                    const urlObj = (() => { 
+                      if (isNote) return null
+                      try { return new URL(source.url) } catch { return null } 
+                    })()
+                    const domain = isNote ? 'Memória Local' : (urlObj ? urlObj.hostname.replace('www.', '') : source.url)
                     const hasValidTitle = source.title && source.title.length > 3 && source.title !== domain
                     const displayTitle = hasValidTitle ? source.title : domain
                     
@@ -350,7 +369,7 @@ const MessageItem = memo(function MessageItem({
                       
                       return (
                         <div key={`placeholder-${idx}`} className="flex items-start gap-2 animate-pulse">
-                          <div className="w-4 h-4 rounded-full bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 mt-0.5" />
+                          <div className={`w-4 h-4 rounded-full ${isNote ? 'bg-purple-200 dark:bg-purple-900/30' : 'bg-zinc-200 dark:bg-zinc-800'} flex-shrink-0 mt-0.5`} />
                           <div className="flex flex-col min-w-0 gap-1.5 flex-1">
                             <div className="h-3 w-1/3 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
                             <div className="h-2 w-2/3 bg-zinc-100 dark:bg-zinc-900 rounded-full" />
@@ -362,17 +381,27 @@ const MessageItem = memo(function MessageItem({
                     return (
                       <a
                         key={`${source.url}-${idx}`}
-                        href={source.url}
-                        target="_blank"
+                        href={isNote ? '#' : source.url}
+                        target={isNote ? '_self' : "_blank"}
                         rel="noopener noreferrer"
                         className="group flex items-start gap-3 p-2 -ml-2 rounded-xl hover:bg-accent/5 transition-all duration-300 animate-in fade-in slide-in-from-left-4 zoom-in-95"
                         style={{ animationDelay: `${idx * 0.08}s`, animationFillMode: 'both' }}
+                        onClick={(e) => {
+                          if (isNote) e.preventDefault()
+                        }}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-accent/10 transition-all duration-300">
-                          <svg className="w-4 h-4 text-zinc-400 group-hover:text-accent transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="m21 21-4.35-4.35" />
-                          </svg>
+                        <div className={`w-8 h-8 rounded-lg ${isNote ? 'bg-purple-500/10' : 'bg-zinc-100 dark:bg-white/5'} flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-accent/10 transition-all duration-300`}>
+                          {isNote ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-purple-500 group-hover:text-accent transition-colors">
+                              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-zinc-400 group-hover:text-accent transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <circle cx="11" cy="11" r="8" />
+                              <path d="m21 21-4.35-4.35" />
+                            </svg>
+                          )}
                         </div>
                         <div className="flex flex-col min-w-0 flex-1">
                           <span className="text-[14px] font-semibold text-text group-hover:text-accent transition-colors truncate">
