@@ -72,6 +72,7 @@ def save_message_to_db(
     content: str,
     activities: list = None,
     graph_data: dict = None,
+    sources: list = None,
 ):
     """
     Saves a message to the SQLite database.
@@ -82,6 +83,7 @@ def save_message_to_db(
         content (str): Message content.
         activities (list, optional): List of activity strings (Thinking Trace).
         graph_data (dict, optional): Generated interface data.
+        sources (list, optional): List of source URLs with titles/snippets.
     """
     from database.models import SessionLocal, Message
 
@@ -89,12 +91,14 @@ def save_message_to_db(
     try:
         activities_json = json.dumps(activities) if activities else None
         graph_data_json = json.dumps(graph_data) if graph_data else None
+        sources_json = json.dumps(sources) if sources else None
         msg = Message(
             thread_id=thread_id,
             role=role,
             content=content,
             activities=activities_json,
             graph_data=graph_data_json,
+            sources=sources_json,
         )
         db.add(msg)
         db.commit()
@@ -814,6 +818,80 @@ async def generate(message: ChatMessage):
                                 break
                 continue
 
+            # Handle Sources extraction
+            if kind == "on_chain_end" and node_name == "extract_sources":
+                output = event["data"].get("output")
+                if output and isinstance(output, dict):
+                    sources = output.get("sources")
+                    if sources:
+                        logger.info(
+                            f">>> [Sources] Streaming {len(sources)} sources to frontend"
+                        )
+                        yield f"data: {json.dumps({'sources': sources})}\n\n"
+                continue
+
+            # Handle specialist_worker - show which skill is running
+            if kind == "on_chain_start" and node_name == "specialist_worker":
+                # For on_chain_start, skill_id is in input, not output
+                event_data = event.get("data", {})
+                input_data = event_data.get("input", {})
+                skill_id = None
+                if isinstance(input_data, dict):
+                    skill_id = input_data.get("skill_id")
+                    # If skill_id not in input, try to extract from messages (tool_calls)
+                    if not skill_id:
+                        msgs = input_data.get("messages", [])
+                        for msg in reversed(msgs):
+                            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                                for tc in msg.tool_calls:
+                                    if tc.get("name") == "activate_skill":
+                                        skill_id = tc.get("args", {}).get("skill_id")
+                                        break
+                                if skill_id:
+                                    break
+                if skill_id:
+                    status = f"Especialista: Executando {skill_id.split('.')[-1]}..."
+                    add_activity(status)
+                    yield f"data: {json.dumps({'status': status})}\n\n"
+                continue
+
+            # Handle router - show discovered skills
+            if kind == "on_chain_end" and node_name == "router":
+                output = event["data"].get("output")
+                if output and isinstance(output, dict):
+                    skills = output.get("discovered_skills", [])
+                    if skills:
+                        skill_names = [s["name"] for s in skills]
+                        status = f"Discovery: Skills found: {', '.join(skill_names)}"
+                    else:
+                        status = "Discovery: No specialized skills needed."
+
+                    if output.get("memory_context"):
+                        status += " (Memory Context loaded!)"
+
+                    add_activity(status)
+                    yield f"data: {json.dumps({'status': status})}\n\n"
+                continue
+
+            # Handle manager - show delegation or tool call
+            if kind == "on_chain_end" and node_name == "momai_agent":
+                output = event["data"].get("output")
+                if output and isinstance(output, dict):
+                    msgs = output.get("messages", [])
+                    if msgs and hasattr(msgs[-1], "tool_calls") and msgs[-1].tool_calls:
+                        tc = msgs[-1].tool_calls[0]
+                        if tc["name"] == "activate_skill":
+                            skill_arg = tc["args"].get("skill_id", "unknown")
+                            status = f"Manager: Delegando para Especialista ({skill_arg.split('.')[-1]})..."
+                        else:
+                            status = f"Manager: Chamando ferramenta {tc['name']}..."
+                    else:
+                        status = "Manager: Finalizando resposta..."
+
+                    add_activity(status)
+                    yield f"data: {json.dumps({'status': status})}\n\n"
+                continue
+
             if kind == "on_tool_start":
                 logger.info(f"[AI_core] Executing tool: {name}")
                 had_tool_call = True
@@ -969,46 +1047,6 @@ async def generate(message: ChatMessage):
                                 if clean_sent:
                                     await speak_and_notify(clean_sent)
 
-            elif kind == "on_chain_end":
-                if name == "router":
-                    output = event["data"].get("output")
-                    if output and isinstance(output, dict):
-                        skills = output.get("discovered_skills", [])
-                        if skills:
-                            skill_names = [s["name"] for s in skills]
-                            status = (
-                                f"Discovery: Skills found: {', '.join(skill_names)}"
-                            )
-                        else:
-                            status = "Discovery: No specialized skills needed."
-
-                        if output.get("memory_context"):
-                            status += " (Memory Context loaded!)"
-
-                        add_activity(status)
-                        yield f"data: {json.dumps({'status': status})}\n\n"
-
-                elif name == "momai_agent":
-                    output = event["data"].get("output")
-                    if output and isinstance(output, dict):
-                        # Se houver tool_calls no último AgentMessage
-                        msgs = output.get("messages", [])
-                        if (
-                            msgs
-                            and hasattr(msgs[-1], "tool_calls")
-                            and msgs[-1].tool_calls
-                        ):
-                            tc = msgs[-1].tool_calls[0]
-                            if tc["name"] == "activate_skill":
-                                status = f"Manager: Delegating to Specialist ({tc['args'].get('skill_id')})..."
-                            else:
-                                status = f"Manager: Calling tool {tc['name']}..."
-                        else:
-                            status = "Manager: Finalizing response..."
-
-                        add_activity(status)
-                        yield f"data: {json.dumps({'status': status})}\n\n"
-
     except Exception as e:
         import traceback
 
@@ -1028,11 +1066,13 @@ async def generate(message: ChatMessage):
     finally:
         clear_cancel_generation()
 
-        # Check search_count from final state and update activity
+        # Check search_count and sources from final state
+        final_sources = None
         try:
             final_state = await momai_graph.aget_state(config)
             if final_state and final_state.values:
                 search_count = final_state.values.get("search_count", 0)
+                final_sources = final_state.values.get("sources")
                 if search_count > 0 and activities_trace:
                     for i in range(len(activities_trace) - 1, -1, -1):
                         if activities_trace[i].startswith("Buscando"):
@@ -1078,6 +1118,7 @@ async def generate(message: ChatMessage):
                 final_reply,
                 activities=activities_trace if activities_trace else None,
                 graph_data=pending_graph,
+                sources=final_sources,
             )
 
         if tts_buffer.strip():

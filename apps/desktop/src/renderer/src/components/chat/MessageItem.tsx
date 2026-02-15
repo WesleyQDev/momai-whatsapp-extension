@@ -3,16 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Message } from '../../services/api'
 import icon from '../../assets/icon.png'
-import {
-  MagnifyingGlassIcon,
-  DocumentTextIcon,
-  SparklesIcon,
-  GlobeAltIcon,
-  BellIcon,
-  ComputerDesktopIcon,
-  CpuChipIcon,
-  ArrowsRightLeftIcon
-} from '@heroicons/react/24/outline'
+import { DocumentTextIcon } from '@heroicons/react/24/outline'
 
 interface MessageItemProps {
   message: Message
@@ -38,6 +29,7 @@ const MessageItem = memo(function MessageItem({
   const [openToolIndex, setOpenToolIndex] = useState<number | null>(null)
   const [hideStopButton, setHideStopButton] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState<Record<number, number>>({})
+  const [openSources, setOpenSources] = useState(false)
   const startTimesRef = useRef<Record<number, number>>({})
 
   const handleStopVoiceClick = () => {
@@ -157,6 +149,21 @@ const MessageItem = memo(function MessageItem({
 
   const humanizeActivity = (activity: string) => {
     const lower = activity.toLowerCase()
+    if (lower.includes('especialista: executando')) {
+      return activity.replace(/especialista: executando/i, '').trim()
+    }
+    if (lower.includes('manager: delegando')) {
+      return activity.replace(/manager: delegando para especialista/i, '').replace(/[()]/g, '').trim()
+    }
+    if (lower.includes('manager: chamando ferramenta')) {
+      return activity.replace(/manager: chamando ferramenta/i, '').trim()
+    }
+    if (lower.includes('manager: finalizando')) {
+      return activity.replace(/manager: finalizando resposta/i, '').trim()
+    }
+    if (lower.includes('discovery:')) {
+      return activity.replace(/discovery:/i, '').trim()
+    }
     if (lower.includes('usando skill:')) {
       return activity.replace(/usando skill:/i, '').trim()
     }
@@ -238,59 +245,133 @@ const MessageItem = memo(function MessageItem({
         <div className="flex flex-col gap-0 transition-all duration-300 overflow-hidden">
           {/* 1. Aviso Inicial */}
           {introText && (
-            <div className={`transition-all duration-500 ${(hasStageData || isLoading) ? 'mb-4' : ''} animate-in fade-in`}>
+            <div className={`transition-all duration-500 ${(hasStageData || isLoading) ? 'mb-2' : ''} animate-in fade-in`}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{introText}</ReactMarkdown>
             </div>
           )}
 
-          {/* 2. Área de Ações (Otimizada) */}
+          {/* Área de Ações - Skills, Tools e Sources integrados */}
           {message.role === 'assistant' && (hasStageData || isLoading) && (
-            <div className={`flex flex-col gap-3 mb-4 transition-all duration-700 ${!isLoading && !isRunningSteps ? 'opacity-30 grayscale-[0.9] scale-[0.98] origin-left' : 'opacity-100'}`}>
-              
-              {/* Etapas de Pensamento (Breadcrumbs) */}
-              <div className="flex items-center gap-2 px-1">
-                {displayActivities.filter(a => humanizeActivity(a) !== '').map((activity, idx) => {
-                  const normalizedActivity = humanizeActivity(activity)
-                  const isLast = idx === displayActivities.length - 1 && isLoading && !isRunningSteps
-                  return (
-                    <div key={`act-${idx}`} className="flex items-center gap-2">
-                      {idx > 0 && <div className="w-0.5 h-0.5 rounded-full bg-zinc-300 dark:bg-white/10" />}
-                      <div className="flex items-center gap-1.5 py-0.5">
-                        {isLast && <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />}
-                        <span className={`text-[9px] font-bold tracking-[0.1em] uppercase ${isLast ? 'text-blue-500' : 'text-zinc-400 dark:text-zinc-600'}`}>
-                          {normalizedActivity}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+            <div className="flex flex-col gap-1 mb-2">
 
-              {/* Cards de Ferramentas */}
+              {/* Skills, Tools e Sources - todos inline juntos */}
+              {(displayActivities.filter(a => {
+                const lower = a.toLowerCase()
+                return lower.includes('especialista: executando') || lower.includes('manager: chamando ferramenta')
+              }).length > 0 || (message.sources && message.sources.length > 0)) && (
+                <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center animate-in slide-in-from-left-2 fade-in duration-300">
+                  
+                  {/* Skills/Tools inline */}
+                  {displayActivities.filter(a => {
+                    const lower = a.toLowerCase()
+                    return lower.includes('especialista: executando') || lower.includes('manager: chamando ferramenta')
+                  }).map((activity, idx) => {
+                    const lower = activity.toLowerCase()
+                    const isSkill = lower.includes('especialista: executando')
+                    const name = isSkill 
+                      ? activity.replace(/especialista: executando/i, '').replace(/\.\.\.$/, '').trim()
+                      : activity.replace(/manager: chamando ferramenta/i, '').replace(/\.\.\.$/, '').trim()
+                    
+                    return (
+                      <span 
+                        key={`skill-${idx}`}
+                        className="inline-flex items-center gap-1 text-[12px] font-medium text-zinc-500"
+                      >
+                        <DocumentTextIcon className="w-3 h-3 text-blue-500" />
+                        {isSkill ? 'Skill: ' : 'Tool: '}{name}
+                      </span>
+                    )
+                  })}
+
+                  {/* Fontes inline */}
+                  {message.sources && message.sources.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenSources(!openSources)}
+                      className="inline-flex items-center gap-1 text-[12px] font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                      </svg>
+                      <span>Fontes ({message.sources.length})</span>
+                      <svg 
+                        width="8" 
+                        height="8" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="3" 
+                        className={`text-zinc-400 transition-transform duration-200 ${openSources ? 'rotate-180' : ''}`}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Sources expandidas */}
+              {message.sources && message.sources.length > 0 && openSources && (
+                <div className="mt-1 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  
+                  {openSources && (
+                    <div className="mt-1 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {message.sources.map((source, idx) => (
+                        <a
+                          key={idx}
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group flex flex-col gap-0.5 p-2 rounded-md border border-zinc-200 dark:border-white/5 bg-white dark:bg-white/5 hover:border-blue-400/30 hover:bg-blue-50/50 dark:hover:bg-blue-500/10 transition-all"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-500 flex-shrink-0">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                            <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 truncate group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                              {source.title || source.url}
+                            </span>
+                          </div>
+                          {source.snippet && (
+                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 line-clamp-2 ml-3.5">
+                              {source.snippet}
+                            </span>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cards de Ferramentas - mais compactos */}
               {toolSteps.length > 0 && (
-                <div className="flex flex-col gap-2.5">
+                <div className="flex flex-col gap-1 mt-0.5">
                   {toolSteps.map((step, idx) => {
                     const toolName = String(step.name || 'tool')
                     const isRunning = step.status === 'running'
                     const isExpanded = openToolIndex === idx || isRunning
                     return (
-                      <div key={`tool-${idx}`} className={`flex flex-col rounded-xl border transition-all duration-500 ${isRunning ? 'border-blue-500/30 bg-blue-500/[0.03]' : 'border-zinc-200 dark:border-white/5 bg-zinc-500/[0.01]'}`}>
-                        <button type="button" onClick={() => setOpenToolIndex(openToolIndex === idx ? null : idx)} className="flex items-center justify-between px-3.5 py-2.5 text-left group">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className={`flex-shrink-0 w-5 h-5 rounded flex items-center justify-center border transition-all duration-300 ${isRunning ? 'bg-blue-500 border-blue-400 text-white shadow-[0_0_12px_rgba(59,130,246,0.3)]' : 'bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-400'}`}>
+                      <div key={`tool-${idx}`} className={`flex flex-col rounded-lg border transition-all duration-500 ${isRunning ? 'border-blue-500/30 bg-blue-500/[0.03]' : 'border-zinc-200 dark:border-white/5 bg-zinc-500/[0.01]'}`}>
+                        <button type="button" onClick={() => setOpenToolIndex(openToolIndex === idx ? null : idx)} className="flex items-center justify-between px-2.5 py-2 text-left group">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`flex-shrink-0 w-4 h-4 rounded flex items-center justify-center border transition-all duration-300 ${isRunning ? 'bg-blue-500 border-blue-400 text-white shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-400'}`}>
                               {isRunning ? (
-                                <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
+                                <svg className="w-2 h-2 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
                                   <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
                                 </svg>
                               ) : (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                   <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                               )}
                             </div>
                             <div className="flex flex-col min-w-0">
-                              <span className={`text-[10px] font-black uppercase tracking-wider ${isRunning ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'}`}>{humanizeToolName(toolName)}</span>
-                              {isRunning && <span className="text-[8px] text-blue-500/60 font-bold animate-pulse">{elapsedSeconds[idx] || 0}s</span>}
+                              <span className={`text-[9px] font-bold uppercase tracking-wider ${isRunning ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'}`}>{humanizeToolName(toolName)}</span>
+                              {isRunning && <span className="text-[7px] text-blue-500/60 font-bold animate-pulse">{elapsedSeconds[idx] || 0}s</span>}
                             </div>
                           </div>
                           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" className={`text-zinc-300 dark:text-white/10 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`}>
@@ -298,17 +379,17 @@ const MessageItem = memo(function MessageItem({
                           </svg>
                         </button>
                         {isExpanded && (
-                          <div className="px-3.5 pb-3.5 pt-1 flex flex-col gap-3 animate-in fade-in duration-300">
+                          <div className="px-2.5 pb-2 pt-0.5 flex flex-col gap-2 animate-in fade-in duration-300">
                             {step.query && (
-                              <div className="flex flex-col gap-1 ml-9">
-                                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-zinc-400/40">Input</span>
-                                <div className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-mono border-l border-zinc-200 dark:border-white/10 pl-3 break-words">{step.query}</div>
+                              <div className="flex flex-col gap-0.5 ml-7">
+                                <span className="text-[6px] font-black uppercase tracking-[0.2em] text-zinc-400/40">Input</span>
+                                <div className="text-[9px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-mono border-l border-zinc-200 dark:border-white/10 pl-2 break-words">{step.query}</div>
                               </div>
                             )}
                             {step.result && (
-                              <div className="flex flex-col gap-1 ml-9">
-                                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-zinc-400/40">Output</span>
-                                <div className="text-[10px] text-zinc-400/70 dark:text-zinc-500 leading-relaxed font-mono border-l border-zinc-200 dark:border-white/10 pl-3 break-words">{minimizeText(step.result, 300)}</div>
+                              <div className="flex flex-col gap-0.5 ml-7">
+                                <span className="text-[6px] font-black uppercase tracking-[0.2em] text-zinc-400/40">Output</span>
+                                <div className="text-[9px] text-zinc-400/70 dark:text-zinc-500 leading-relaxed font-mono border-l border-zinc-200 dark:border-white/10 pl-2 break-words">{minimizeText(step.result, 300)}</div>
                               </div>
                             )}
                           </div>

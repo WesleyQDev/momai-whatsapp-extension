@@ -224,9 +224,11 @@ export function useChat() {
           })
         },
         onStatus: (status) => {
+          console.log('[DEBUG] onStatus received:', status)
           setMessages((prev) => {
             const updated = [...prev]
             const lastIdx = updated.length - 1
+            console.log('[DEBUG] onStatus - lastIdx:', lastIdx, 'role:', updated[lastIdx]?.role)
             if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
               const currentActivities = updated[lastIdx].activities || []
               // Check if this is an update to an existing "Buscando" entry
@@ -244,6 +246,19 @@ export function useChat() {
                   ...updated[lastIdx],
                   activities: [...currentActivities, status]
                 }
+              }
+            }
+            return updated
+          })
+        },
+        onSources: (sources) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                sources
               }
             }
             return updated
@@ -945,6 +960,19 @@ export function useChat() {
               const lastIdx = findLastAssistantIndex(updated)
               if (lastIdx >= 0) {
                 updated[lastIdx].content = `Erro: ${error}`
+              }
+              return updated
+            })
+          },
+          onSources: (sources) => {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const lastIdx = findLastAssistantIndex(updated)
+              if (lastIdx >= 0) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  sources
+                }
               }
               return updated
             })

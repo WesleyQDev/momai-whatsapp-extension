@@ -9,7 +9,7 @@ interface SettingsCardProps {
   initialTab?: Tab
 }
 
-type Tab = 'general' | 'brain' | 'updates' | 'economy'
+type Tab = 'general' | 'brain' | 'updates' | 'economy' | 'voice'
 type Theme = 'dark' | 'light'
 
 export default function SettingsCard({ onClose, initialTab = 'general' }: SettingsCardProps) {

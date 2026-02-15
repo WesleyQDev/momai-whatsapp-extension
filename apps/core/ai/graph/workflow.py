@@ -44,6 +44,7 @@ class AgentState(TypedDict):
     task: str | None
     next_step: str | None
     tool_call_id: str | None
+    sources: list[dict] | None
 
 
 def _compute_history_budget(
@@ -324,12 +325,84 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             logger.info(f">>> [SearchCount] {tool_count}")
         return {"search_count": tool_count}
 
+    def extract_sources_node(state: AgentState):
+        """Extract URLs and titles from search tool results - only from most recent search tool calls."""
+        import json
+        import re
+        from langchain_core.messages import ToolMessage
+
+        SEARCH_TOOLS = {"duckduckgo_search", "duckduckgo_news"}
+
+        # Get the tool_call_ids from the most recent message with tool_calls (before tool execution)
+        recent_tool_call_ids = set()
+        recent_tool_names = set()
+        for msg in reversed(state["messages"]):
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                for tc in msg.tool_calls:
+                    recent_tool_call_ids.add(tc["id"])
+                    recent_tool_names.add(tc["name"])
+                break
+
+        # Only proceed if any of the recent tools are search tools
+        if not recent_tool_call_ids or not (recent_tool_names & SEARCH_TOOLS):
+            return {"sources": None}
+
+        sources = []
+        seen_urls = set()
+
+        for msg in state["messages"]:
+            if (
+                isinstance(msg, ToolMessage)
+                and msg.tool_call_id in recent_tool_call_ids
+            ):
+                content = msg.content
+                # Try to parse as JSON list
+                try:
+                    results = json.loads(content)
+                    if isinstance(results, list):
+                        for item in results:
+                            if isinstance(item, dict):
+                                url = (
+                                    item.get("href")
+                                    or item.get("link")
+                                    or item.get("url")
+                                )
+                                title = item.get("title", "")
+                                snippet = item.get("body", "") or item.get(
+                                    "snippet", ""
+                                )
+                                if url and url not in seen_urls:
+                                    seen_urls.add(url)
+                                    sources.append(
+                                        {
+                                            "url": url,
+                                            "title": title,
+                                            "snippet": snippet[:200] if snippet else "",
+                                        }
+                                    )
+                except (json.JSONDecodeError, TypeError):
+                    # Try to extract URLs from plain text
+                    url_pattern = r"https?://[^\s\]\)]+"
+                    urls = re.findall(url_pattern, content)
+                    for url in urls:
+                        if url not in seen_urls:
+                            seen_urls.add(url)
+                            sources.append({"url": url, "title": "", "snippet": ""})
+
+        if sources:
+            print(f">>> [Sources] Found {len(sources)} sources from recent search")
+            logger.info(
+                f">>> [Sources] Found {len(sources)} sources from recent search"
+            )
+
+        return {"sources": sources if sources else None}
+
     def route_specialist(state: AgentState):
-        """Route specialist output: if tool_calls, go to tools; else end."""
+        """Route specialist output: if tool_calls, go to tools; else go to search_counter."""
         last_msg = state["messages"][-1]
         if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
             return "tools"
-        return END
+        return "search_counter"
 
     def prepare_tool_results(state: AgentState):
         """Convert ToolMessage results to format for specialist."""
@@ -345,6 +418,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
     workflow.add_node("specialist_worker", specialist_node)
     workflow.add_node("prepare_tool_results", prepare_tool_results)
     workflow.add_node("search_counter", search_counter_node)
+    workflow.add_node("extract_sources", extract_sources_node)
     workflow.add_node("tools", dynamic_tools_node)
 
     workflow.set_entry_point("router")
@@ -355,9 +429,9 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
 
         last_msg = state["messages"][-1]
 
-        # Se a última mensagem for ToolMessage (resultado do specialist), termina
+        # Se a última mensagem for ToolMessage (resultado do tools), extrai fontes
         if isinstance(last_msg, ToolMessage):
-            return END
+            return "extract_sources"
 
         if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
             return (
@@ -375,7 +449,8 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         return state.get("next_step", "momai_agent")
 
     workflow.add_conditional_edges("tools", route_tools)
-    workflow.add_edge("prepare_tool_results", "specialist_worker")
+    workflow.add_edge("prepare_tool_results", "extract_sources")
+    workflow.add_edge("extract_sources", "specialist_worker")
     workflow.add_edge("specialist_worker", "search_counter")
     workflow.add_edge("search_counter", END)
 

@@ -20,6 +20,7 @@ export interface Message {
     uiSchema?: any
   }
   activities?: string[]
+  sources?: Source[]
 }
 
 export interface StatusData {
@@ -39,6 +40,13 @@ export interface ChatStreamCallbacks {
   onStatus: (status: string) => void
   onError: (error: string) => void
   onDone: () => void
+  onSources?: (sources: Source[]) => void
+}
+
+export interface Source {
+  url: string
+  title: string
+  snippet: string
 }
 
 export async function sendChatMessage(
@@ -86,6 +94,10 @@ export async function sendChatMessage(
 
         if (data.status) {
           callbacks.onStatus(data.status)
+        }
+
+        if (data.sources && callbacks.onSources) {
+          callbacks.onSources(data.sources)
         }
 
         if (data.error) {
