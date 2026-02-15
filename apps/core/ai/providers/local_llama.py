@@ -16,39 +16,45 @@ server_process = None
 CTX_SIZE = int(os.getenv("MOMAI_CTX_SIZE", "8192"))
 
 # --- Windows Job Object Support ---
-# This ensures that if the Python process dies (crash/kill), 
+# This ensures that if the Python process dies (crash/kill),
 # Windows automatically kills the llama-server.
-if os.name == 'nt':
+if os.name == "nt":
     try:
         job_handle = ctypes.windll.kernel32.CreateJobObjectW(None, None)
 
         # JOBOBJECT_EXTENDED_LIMIT_INFORMATION
         class IO_COUNTERS(ctypes.Structure):
-            _fields_ = [('ReadOperationCount', ctypes.c_ulonglong),
-                        ('WriteOperationCount', ctypes.c_ulonglong),
-                        ('OtherOperationCount', ctypes.c_ulonglong),
-                        ('ReadTransferCount', ctypes.c_ulonglong),
-                        ('WriteTransferCount', ctypes.c_ulonglong),
-                        ('OtherTransferCount', ctypes.c_ulonglong)]
+            _fields_ = [
+                ("ReadOperationCount", ctypes.c_ulonglong),
+                ("WriteOperationCount", ctypes.c_ulonglong),
+                ("OtherOperationCount", ctypes.c_ulonglong),
+                ("ReadTransferCount", ctypes.c_ulonglong),
+                ("WriteTransferCount", ctypes.c_ulonglong),
+                ("OtherTransferCount", ctypes.c_ulonglong),
+            ]
 
         class JOBOBJECT_BASIC_LIMIT_INFORMATION(ctypes.Structure):
-            _fields_ = [('PerProcessUserTimeLimit', ctypes.c_longlong),
-                        ('PerJobUserTimeLimit', ctypes.c_longlong),
-                        ('LimitFlags', ctypes.c_ulong),
-                        ('MinimumWorkingSetSize', ctypes.c_size_t),
-                        ('MaximumWorkingSetSize', ctypes.c_size_t),
-                        ('ActiveProcessLimit', ctypes.c_ulong),
-                        ('Affinity', ctypes.c_size_t),
-                        ('PriorityClass', ctypes.c_ulong),
-                        ('SchedulingClass', ctypes.c_ulong)]
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_longlong),
+                ("PerJobUserTimeLimit", ctypes.c_longlong),
+                ("LimitFlags", ctypes.c_ulong),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", ctypes.c_ulong),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", ctypes.c_ulong),
+                ("SchedulingClass", ctypes.c_ulong),
+            ]
 
         class JOBOBJECT_EXTENDED_LIMIT_INFORMATION(ctypes.Structure):
-            _fields_ = [('BasicLimitInformation', JOBOBJECT_BASIC_LIMIT_INFORMATION),
-                        ('IoInfo', IO_COUNTERS),
-                        ('ProcessMemoryLimit', ctypes.c_size_t),
-                        ('JobMemoryLimit', ctypes.c_size_t),
-                        ('PeakProcessMemoryUsed', ctypes.c_size_t),
-                        ('PeakJobMemoryUsed', ctypes.c_size_t)]
+            _fields_ = [
+                ("BasicLimitInformation", JOBOBJECT_BASIC_LIMIT_INFORMATION),
+                ("IoInfo", IO_COUNTERS),
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
 
         # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
         info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
@@ -58,11 +64,12 @@ if os.name == 'nt':
             job_handle,
             9,  # JobObjectExtendedLimitInformation
             ctypes.byref(info),
-            ctypes.sizeof(info)
+            ctypes.sizeof(info),
         )
         if not ret:
             logger.warning(
-                "[local_model] Failed to configure Job Object (SetInformationJobObject)")
+                "[local_model] Failed to configure Job Object (SetInformationJobObject)"
+            )
 
     except Exception as e:
         logger.warning(f"[local_model] Error creating Job Object: {e}")
@@ -74,6 +81,7 @@ else:
 import utils.downloader as downloader
 from database.models import SessionLocal, Settings
 
+
 def get_paths():
     """
     Returns the paths for binaries and models based on the installed backend.
@@ -83,15 +91,15 @@ def get_paths():
     """
     # Aponta para apps/core (dois níveis acima de ai/providers/)
     base_dir = Path(__file__).parent.parent.parent
-    
+
     # Fetch user preference from database
     db = SessionLocal()
     settings = db.query(Settings).first()
     preferred_backend = settings.local_backend if settings else "auto"
     db.close()
-    
-    backend = "cpu" # Default fallback
-    
+
+    backend = "cpu"  # Default fallback
+
     if preferred_backend != "auto":
         # If user chose a specific one, try to use it
         if downloader.check_engine_installed(preferred_backend):
@@ -104,9 +112,9 @@ def get_paths():
         # Auto mode: find info on the best installed build
         install_info = downloader.get_installed_info()
         backend = install_info.get("backend", "cpu")
-    
+
     exe_path = base_dir / "bin" / backend / "llama-server.exe"
-    
+
     # Fallback if manifest points to a non-existent physical path
     if not exe_path.exists():
         for b in ["cuda", "vulkan", "cpu"]:
@@ -116,11 +124,7 @@ def get_paths():
                 backend = b
                 break
 
-    return {
-        "exe": exe_path,
-        "models": base_dir / "models",
-        "backend": backend
-    }
+    return {"exe": exe_path, "models": base_dir / "models", "backend": backend}
 
 
 def stop_server():
@@ -170,7 +174,7 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
 
     try:
         paths = get_paths()
-        local_model_path = paths['models'] / filename
+        local_model_path = paths["models"] / filename
 
         if local_model_path.exists():
             model_path = str(local_model_path)
@@ -178,38 +182,56 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
         else:
             report(f"Model not found locally, attempting to download {filename}...")
             model_path = hf_hub_download(
-                repo_id=repo_id,
-                filename=filename,
-                local_dir=paths['models']
+                repo_id=repo_id, filename=filename, local_dir=paths["models"]
             )
-        
-        abs_model_path = str(Path(model_path).resolve())
-        abs_exe_path = str(paths['exe'].resolve())
 
-        if not paths['exe'].exists():
+        abs_model_path = str(Path(model_path).resolve())
+        abs_exe_path = str(paths["exe"].resolve())
+
+        if not paths["exe"].exists():
             report("ERROR: llama-server.exe not found!")
-            raise FileNotFoundError("Local engine (llama-server) not found. Please install it in settings.")
+            raise FileNotFoundError(
+                "Local engine (llama-server) not found. Please install it in settings."
+            )
 
         import psutil
+
         physical_cores = psutil.cpu_count(logical=False) or 4
 
         cmd = [
             abs_exe_path,
-            "-m", abs_model_path,
-            "--port", "8080",
-            "-c", str(CTX_SIZE),
-            "-t", str(physical_cores),
-            "-ngl", "99",
-            "--parallel", "1",
-            "--flash-attn", "on",
+            "-m",
+            abs_model_path,
+            "--port",
+            "8080",
+            "-c",
+            str(CTX_SIZE),
+            "-t",
+            str(physical_cores),
+            "-ngl",
+            "99",
+            "--parallel",
+            "1",
+            "--flash-attn",
+            "on",
             "--cache-prompt",
-            "-b", "2048",
-            "-ub", "512",
-            "--no-mmap" if paths['backend'] == 'cpu' else "--mmap"
+            "-b",
+            "2048",
+            "-ub",
+            "512",
+            "--no-mmap" if paths["backend"] == "cpu" else "--mmap",
+            "--min-p",
+            "0.00",
+            "--top-p",
+            "0.80",
+            "--top-k",
+            "20",
+            "--presence-penalty",
+            "0.0",
         ]
 
         report("Starting server process...")
-        
+
         # Log llama-server output for debugging
         llama_log_path = Path(__file__).parent / "llama_server.log"
         llama_log_file = open(llama_log_path, "w", encoding="utf-8")
@@ -220,15 +242,14 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
             stderr=llama_log_file,
             encoding="utf-8",
             errors="replace",
-            creationflags=0
+            creationflags=0,
         )
 
         # Assign to Job Object (Windows Magic)
         if job_handle and server_process:
             try:
                 perm = ctypes.windll.kernel32.AssignProcessToJobObject(
-                    job_handle,
-                    ctypes.c_void_p(server_process._handle)
+                    job_handle, ctypes.c_void_p(server_process._handle)
                 )
                 if not perm:
                     logger.warning("[local_model] Failed AssignProcessToJobObject")
@@ -237,7 +258,7 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
 
         # Healthcheck Loop
         report("Waiting for network initialization (Healthcheck)...")
-        for i in range(120): # 120 * 0.5 = 60s
+        for i in range(120):  # 120 * 0.5 = 60s
             # Safety check: server_process might be killed by ResourceManager
             if server_process is None:
                 report("Startup aborted: server process was closed.")
@@ -247,26 +268,31 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
                 # Server died, check log
                 try:
                     with open(llama_log_path, "r", encoding="utf-8") as f:
-                        log_content = f.read()[-500:] 
+                        log_content = f.read()[-500:]
                     report(f"Server died unexpectedly! Log:\n{log_content}")
                 except:
                     report("Server died unexpectedly and log could not be read.")
                 return None
             try:
-                if requests.get("http://127.0.0.1:8080/health", timeout=0.5).status_code == 200:
+                if (
+                    requests.get(
+                        "http://127.0.0.1:8080/health", timeout=0.5
+                    ).status_code
+                    == 200
+                ):
                     report("Local server ready and connected!")
                     return ChatOpenAI(
                         base_url="http://127.0.0.1:8080/v1",
                         api_key="sk-none",
                         model="gpt-4o",
                         temperature=0.7,
-                        streaming=True
+                        streaming=True,
                     )
             except:
                 pass
 
             if i % 10 == 0 and i > 0:
-                report(f"Loading... ({i//2}s elapsed)")
+                report(f"Loading... ({i // 2}s elapsed)")
             time.sleep(0.5)
 
         report("Startup timeout reached.")
@@ -277,4 +303,3 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
         report(f"Critical error: {str(e)}")
         stop_server()
         return None
-
