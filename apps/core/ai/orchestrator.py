@@ -798,37 +798,41 @@ async def generate(message: ChatMessage):
             metadata = event.get("metadata", {})
             node_name = metadata.get("langgraph_node", "")
 
-            # Status for UI - Only use on_node_start to avoid duplicates
+            # Status for UI - Mais amigáveis e menos técnicos
             if kind == "on_node_start":
                 if node_name == "router":
-                    status = "Discovery: Analyzing request and seeking skills..."
+                    status = "Analisando pedido..."
                     if add_activity(status, "router"):
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
                 elif node_name == "momai_agent":
-                    status = "Assembler: Orchestrating the best response..."
-                    if add_activity(status, "agent"):
-                        yield f"data: {json.dumps({'status': status})}\n\n"
+                    # Só mostra "Preparando..." se não houver ferramentas rodando
+                    if not had_tool_call:
+                        status = "Preparando resposta..."
+                        if add_activity(status, "agent"):
+                            yield f"data: {json.dumps({'status': status})}\n\n"
                 
                 elif node_name == "specialist_worker":
-                    status = "Specialist: Executing specific task..."
+                    status = "Consultando especialista..."
                     if add_activity(status, "specialist"):
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
             if kind == "on_tool_start":
                 logger.info(f"[AI_core] Executing tool: {name}")
                 had_tool_call = True
-                tool_input = event["data"].get("input")
-                args_str = ""
-                if isinstance(tool_input, dict):
-                    # Take the first argument value for brevity
-                    vals = list(tool_input.values())
-                    if vals:
-                        args_str = f": {str(vals[0])[:30]}..."
-                elif isinstance(tool_input, str):
-                    args_str = f": {tool_input[:30]}..."
+                
+                if not stream_decided and prebuffer:
+                    stream_decided = True
+                    yield f"data: {json.dumps({'token': prebuffer})}\n\n"
+                    tts_buffer += prebuffer
+                    prebuffer = ""
 
-                display_status = f"Running capability: {name}{args_str}"
+                if "__MOMAI_ACTIONS__" not in full_content:
+                    marker = "\n\n__MOMAI_ACTIONS__\n\n"
+                    full_content += marker
+                    yield f"data: {json.dumps({'token': marker})}\n\n"
+                
+                display_status = f"Usando: {name}"
                 add_activity(display_status)
                 yield f"data: {json.dumps({'status': display_status})}\n\n"
 

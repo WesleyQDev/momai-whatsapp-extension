@@ -120,8 +120,9 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
 
         system_prompt += (
             "\n# EXECUTION PROTOCOL\n"
-            "1. To use a skill, you MUST call 'activate_skill(skill_id, task_description)'.\n"
-            "2. NEVER invent personal data. If no skill matches, say you don't have access."
+            "1. FIRST, briefly acknowledge the user's request or state your intent (e.g., 'Vou verificar isso...', 'Searching for...').\n"
+            "2. THEN, call 'activate_skill(skill_id, task_description)' or other tools.\n"
+            "3. NEVER invent personal data. If no skill matches, say you don't have access."
         )
 
         from langchain_core.tools import tool
