@@ -68,11 +68,17 @@ async def index_all_skills(force=False):
     skills_to_index = []
     from domain.skill import Skill
     
-    print(f"[Indexer] Scanning {len(extension_manager.plugins)} plugins for skill.md")
+    print(f"[Indexer] Scanning {len(extension_manager.plugins)} plugins for SKILL.md")
     
     for p_id, p_info in extension_manager.plugins.items():
-        skill_path = os.path.join(p_info["path"], "skill.md")
-        if os.path.exists(skill_path):
+        skill_path = None
+        for filename in ["SKILL.md", "skill.md"]:
+            path = os.path.join(p_info["path"], filename)
+            if os.path.exists(path):
+                skill_path = path
+                break
+        
+        if skill_path:
             try:
                 skill = Skill.from_file(p_id, skill_path)
                 skills_to_index.append({
@@ -84,7 +90,7 @@ async def index_all_skills(force=False):
             except Exception as e:
                 print(f"[Indexer] Error parsing {skill_path}: {e}")
         else:
-            print(f"[Indexer] No skill.md found in {p_info['path']}")
+            print(f"[Indexer] No SKILL.md found in {p_info['path']}")
     
     if skills_to_index:
         await vector_db.add_skills(skills_to_index)

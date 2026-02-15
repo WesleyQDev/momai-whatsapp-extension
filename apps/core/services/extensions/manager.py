@@ -214,10 +214,14 @@ class PluginRegistry:
         # 1. Resolve Path
         for p_id, p_info in self.plugins.items():
             if p_info["enabled"] and p_info["manifest"] and (p_info["manifest"].features.agent_name == skill_id or p_id == skill_id):
-                potential_skill_path = p_info["path"] / "skill.md"
-                if potential_skill_path.exists():
-                    target_path = potential_skill_path
-                    plugin_id = p_id
+                # Search for SKILL.md (standard) or skill.md (legacy)
+                for filename in ["SKILL.md", "skill.md"]:
+                    potential_skill_path = p_info["path"] / filename
+                    if potential_skill_path.exists():
+                        target_path = potential_skill_path
+                        plugin_id = p_id
+                        break
+                if target_path:
                     break
         
         if not target_path:

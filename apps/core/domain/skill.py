@@ -12,6 +12,7 @@ class Skill(BaseModel):
     file_path: str
     name: str
     description: str
+    license: Optional[str] = None
     allowed_tools: List[str] = []
     metadata: Dict[str, Any] = {}
     
@@ -43,6 +44,7 @@ class Skill(BaseModel):
             file_path=path,
             name=header.get("name", skill_id),
             description=header.get("description", ""),
+            license=header.get("license"),
             allowed_tools=header.get("allowed-tools", "").split(", ") if isinstance(header.get("allowed-tools"), str) else header.get("allowed-tools", []),
             metadata=header.get("metadata", {})
         )

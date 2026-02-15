@@ -162,6 +162,30 @@ const MessageItem = memo(function MessageItem({
       const toolName = match?.[1] || raw
       return humanizeToolName(toolName)
     }
+    
+    // Novas traduções e mapeamentos para transparência
+    if (lower.includes('discovery:')) {
+      return activity.replace(/discovery:/i, 'Descoberta:')
+        .replace('analyzing request and seeking skills', 'Analisando pedido e buscando habilidades')
+        .replace('skills found', 'Habilidades encontradas')
+        .replace('no specialized skills needed', 'Nenhuma habilidade específica necessária')
+        .replace('memory context loaded', 'Contexto de memória carregado')
+    }
+    if (lower.includes('assembler:') || lower.includes('orchestrating')) {
+      return activity.replace(/assembler:/i, 'Montador:')
+        .replace('orchestrating the best response', 'Orquestrando a melhor resposta')
+    }
+    if (lower.includes('manager:')) {
+      return activity.replace(/manager:/i, 'Gerente:')
+        .replace('delegating to specialist', 'Delegando para especialista')
+        .replace('calling tool', 'Chamando ferramenta')
+        .replace('finalizing response', 'Finalizando resposta')
+    }
+    if (lower.includes('specialist:')) {
+      return activity.replace(/specialist:/i, 'Especialista:')
+        .replace('executing specific task', 'Executando tarefa específica')
+    }
+
     if (lower.includes('router decision')) return 'Decidindo abordagem'
     if (lower.includes('router')) return 'Analisando pedido'
     if (lower.includes('orchestrator')) return 'Planejando'
@@ -337,165 +361,95 @@ const MessageItem = memo(function MessageItem({
         <div className="flex flex-col gap-0 transition-all duration-300 overflow-hidden">
           {message.role === 'assistant' && (
             <div 
-              className={`transition-all duration-300 ease-out origin-top border-l border-white/5 ml-1 pl-2 ${shouldShowTrace && (hasStageData || isLoading) ? 'max-h-[800px] opacity-100 mb-2 mt-1' : 'max-h-0 opacity-0 pointer-events-none'}`}
+              className={`transition-all duration-300 ease-out origin-top border-l-2 border-zinc-200 dark:border-white/10 ml-1.5 ${shouldShowTrace && (hasStageData || isLoading) ? 'max-h-[800px] opacity-100 mb-6 mt-3' : 'max-h-0 opacity-0 pointer-events-none'}`}
             >
-                  <div className="flex flex-col gap-1 pt-0.5">
-                <div className="relative flex flex-col gap-1">
-                  <div className="absolute left-[9px] top-0 bottom-0 w-[1px] bg-border/10" />
+              <div className="flex flex-col gap-0.5">
+                {displayActivities.map((activity, idx) => {
+                  const normalizedActivity = humanizeActivity(activity)
+                  const parts = normalizedActivity.split(':')
+                  const label = parts.length > 1 ? parts[0] : null
+                  const value = parts.length > 1 ? parts.slice(1).join(':') : normalizedActivity
 
-                  {displayActivities.map((activity, idx) => {
-                    const normalizedActivity = humanizeActivity(activity)
-                    let iconInfo = <div className="w-1 h-1 rounded-full bg-border/20" />
-
-                    if (normalizedActivity.toLowerCase().includes('decidindo') || normalizedActivity.toLowerCase().includes('abordagem')) {
-                      iconInfo = (
-                        <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-gray-400" />
-                      )
-                    } else if (normalizedActivity.toLowerCase().includes('analisando')) {
-                      iconInfo = (
-                        <MagnifyingGlassIcon className="w-3.5 h-3.5 text-gray-400" />
-                      )
-                    } else if (normalizedActivity.toLowerCase().includes('planejando')) {
-                      iconInfo = (
-                        <DocumentTextIcon className="w-3.5 h-3.5 text-gray-400" />
-                      )
-                    } else if (normalizedActivity.toLowerCase().includes('gerando') || normalizedActivity.toLowerCase().includes('resposta')) {
-                      iconInfo = (
-                        <SparklesIcon className="w-3.5 h-3.5 text-gray-400" />
-                      )
-                    }
-
-                    const parts = normalizedActivity.split(':')
-                    const label = parts.length > 1 ? parts[0] : null
-                    const value = parts.length > 1 ? parts.slice(1).join(':') : normalizedActivity
-
-                    return (
-                      <div key={`act-${idx}`} className="relative flex items-center gap-2 z-10">
-                        <div className="flex-shrink-0 w-[18px] h-3.5 flex items-center justify-center bg-card">
-                          {iconInfo}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-medium text-text-muted/40 leading-tight">
-                            {label && (
-                              <span className="font-black opacity-40 uppercase text-[6px] mr-1.5 tracking-tighter">
-                                {label}
-                              </span>
-                            )}
-                            {value}
+                  return (
+                    <div key={`act-${idx}`} className="flex items-center gap-3 px-4 py-1 hover:bg-zinc-500/5 transition-colors group/row">
+                      <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-white/20" />
+                      
+                      <div className="flex items-baseline gap-2 min-w-0">
+                        {label && (
+                          <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest shrink-0">
+                            {label}
                           </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-
-                  {toolSteps.map((step, idx) => {
-                    const toolName = String(step.name || 'tool')
-                    let toolIcon = (
-                      <CpuChipIcon className="w-3 h-3 text-gray-400" />
-                    )
-
-                    if (toolName.includes('duckduckgo') || toolName.includes('search')) {
-                      toolIcon = (
-                        <GlobeAltIcon className="w-3 h-3 text-gray-400" />
-                      )
-                    } else if (toolName.includes('reminder')) {
-                      toolIcon = (
-                        <BellIcon className="w-3 h-3 text-gray-400" />
-                      )
-                    } else if (toolName.includes('interface')) {
-                      toolIcon = (
-                        <ComputerDesktopIcon className="w-3 h-3 text-gray-400" />
-                      )
-                    }
-
-                    const isExpanded = openToolIndex === idx || (isLoading && step.status === 'running')
-
-                    return (
-                      <div key={`tool-${idx}`} className={`relative flex flex-col gap-0.5 z-10 transition-colors ${step.status === 'running' ? 'bg-white/5 -mx-2 px-2 py-1 rounded-lg border border-white/5' : ''}`}>
-                        <div className="flex items-center gap-2">
-                          <div className={`flex-shrink-0 w-[18px] h-4 flex items-center justify-center`}>
-                            {step.status === 'running' ? (
-                              <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse shadow-[0_0_8px_rgba(156,163,175,0.5)]" />
-                            ) : (
-                              <div className="bg-card w-full h-full flex items-center justify-center">{toolIcon}</div>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setOpenToolIndex(openToolIndex === idx ? null : idx)}
-                            className="flex-1 flex items-center justify-between group/btn text-left"
-                          >
-                            <span className="text-[9px] font-bold text-text-muted/50 group-hover/btn:text-accent transition-colors">
-                              {humanizeToolName(toolName)}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              {step.status === 'running' && (
-                                <div className="flex items-center gap-1.5 bg-gray-500/20 px-1.5 py-0.5 rounded animate-pulse">
-                                  <span className="text-[7px] font-black uppercase text-gray-300">
-                                    executando
-                                  </span>
-                                  <span className="text-[7px] font-mono text-gray-400">
-                                    {elapsedSeconds[idx] || 0}s
-                                  </span>
-                                </div>
-                              )}
-                              <svg
-                                width="7"
-                                height="7"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                                className={`text-text-muted/10 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-accent/40' : ''}`}
-                              >
-                                <polyline points="9 6 15 12 9 18"></polyline>
-                              </svg>
-                            </div>
-                          </button>
-                        </div>
-
-                        {isExpanded && (
-                          <div className="ml-5 mr-1 my-1 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                            {step.query && (
-                              <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg px-2.5 py-1.5">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-400/60">
-                                    <circle cx="11" cy="11" r="8"></circle>
-                                    <path d="m21 21-4.35-4.35"></path>
-                                  </svg>
-                                  <span className="text-[9px] font-bold text-blue-400/70 uppercase tracking-wider">Consulta</span>
-                                </div>
-                                <p className="text-[10px] text-text-muted/80 leading-relaxed break-words">
-                                  {minimizeText(step.query, 100)}
-                                </p>
-                              </div>
-                            )}
-                            {step.result && (
-                              <div className="bg-green-500/5 border border-green-500/10 rounded-lg px-2.5 py-1.5">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-400/60">
-                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                  </svg>
-                                  <span className="text-[9px] font-bold text-green-400/70 uppercase tracking-wider">Resultado</span>
-                                </div>
-                                <p className="text-[10px] text-text-muted/70 leading-relaxed break-words">
-                                  {minimizeText(step.result, 200)}
-                                </p>
-                              </div>
-                            )}
-                            {step.error && (
-                              <div className="border-l border-red-500/20 pl-2 py-1">
-                                <p className="text-[10px] text-red-400/60 leading-tight break-words font-mono">
-                                  {String(step.error)}
-                                </p>
-                              </div>
-                            )}
-                          </div>
                         )}
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium truncate">
+                          {value}
+                        </span>
                       </div>
-                    )
-                  })}
-                </div>
+                    </div>
+                  )
+                })}
+
+                {toolSteps.map((step, idx) => {
+                  const toolName = String(step.name || 'tool')
+                  const isExpanded = openToolIndex === idx || (isLoading && step.status === 'running')
+                  const isRunning = step.status === 'running'
+
+                  return (
+                    <div key={`tool-${idx}`} className="flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() => setOpenToolIndex(openToolIndex === idx ? null : idx)}
+                        className={`flex items-center gap-3 px-4 py-1.5 hover:bg-zinc-500/5 transition-colors text-left group/tool ${isExpanded ? 'bg-zinc-500/5' : ''}`}
+                      >
+                        <div className="flex-shrink-0 w-1.5 h-1.5 flex items-center justify-center">
+                          {isRunning ? (
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          ) : (
+                            <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-white/20" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 flex items-baseline justify-between gap-4 min-w-0">
+                          <span className={`text-[11px] font-bold tracking-tight ${isRunning ? 'text-blue-500 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-200'}`}>
+                            {humanizeToolName(toolName)}
+                          </span>
+                          
+                          <div className="flex items-center gap-2">
+                            {isRunning ? (
+                              <span className="text-[9px] text-blue-500/60 dark:text-blue-400/60 font-mono italic">
+                                {elapsedSeconds[idx] || 0}s
+                              </span>
+                            ) : (
+                              <svg className={`w-2.5 h-2.5 text-zinc-300 dark:text-white/10 transition-transform ${isExpanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
+                                <polyline points="9 6 15 12 9 18" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="flex flex-col gap-3 px-8 py-3 animate-in fade-in slide-in-from-left-1 duration-200">
+                          {step.query && (
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400/40">Input</span>
+                              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-mono border-l border-zinc-200 dark:border-white/5 pl-3 break-words">
+                                {step.query}
+                              </div>
+                            </div>
+                          )}
+                          {step.result && (
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400/40">Output</span>
+                              <div className="text-[11px] text-zinc-400/70 dark:text-zinc-500 leading-relaxed font-mono border-l border-zinc-200 dark:border-white/5 pl-3 break-words">
+                                {minimizeText(step.result, 300)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

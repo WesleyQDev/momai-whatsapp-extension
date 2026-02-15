@@ -801,13 +801,18 @@ async def generate(message: ChatMessage):
             # Status for UI - Only use on_node_start to avoid duplicates
             if kind == "on_node_start":
                 if node_name == "router":
-                    status = "Discovery: Seeking competencies..."
+                    status = "Discovery: Analyzing request and seeking skills..."
                     if add_activity(status, "router"):
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
                 elif node_name == "momai_agent":
-                    status = "Assembler: Configuring agent brain..."
+                    status = "Assembler: Orchestrating the best response..."
                     if add_activity(status, "agent"):
+                        yield f"data: {json.dumps({'status': status})}\n\n"
+                
+                elif node_name == "specialist_worker":
+                    status = "Specialist: Executing specific task..."
+                    if add_activity(status, "specialist"):
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
             if kind == "on_tool_start":
@@ -958,29 +963,36 @@ async def generate(message: ChatMessage):
                 if name == "router":
                     output = event["data"].get("output")
                     if output and isinstance(output, dict):
-                        active_skills = output.get("active_skills", [])
-                        if active_skills:
-                            status = f"Skills activated: {', '.join(active_skills)}"
+                        skills = output.get("discovered_skills", [])
+                        if skills:
+                            skill_names = [s["name"] for s in skills]
+                            status = f"Discovery: Skills found: {', '.join(skill_names)}"
                         else:
-                            status = "General conversation mode."
+                            status = "Discovery: No specialized skills needed."
                         
                         if output.get("memory_context"):
-                            status += " (Memory Hit!)"
+                            status += " (Memory Context loaded!)"
                             
-                        activities_trace.append(status)
+                        add_activity(status)
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
                 elif name == "momai_agent":
                     output = event["data"].get("output")
                     if output and isinstance(output, dict):
-                        if "no_tools" in output:
-                            no_tools_available = bool(output.get("no_tools"))
-                        
-                        # We can't easily get the selected_tools here from the node output 
-                        # as it's not returned in the state. But we can show that we are ready.
-                        status = "Agent: Brain ready. Generating response..."
-                        activities_trace.append(status)
+                        # Se houver tool_calls no último AgentMessage
+                        msgs = output.get("messages", [])
+                        if msgs and hasattr(msgs[-1], "tool_calls") and msgs[-1].tool_calls:
+                            tc = msgs[-1].tool_calls[0]
+                            if tc["name"] == "activate_skill":
+                                status = f"Manager: Delegating to Specialist ({tc['args'].get('skill_id')})..."
+                            else:
+                                status = f"Manager: Calling tool {tc['name']}..."
+                        else:
+                            status = "Manager: Finalizing response..."
+                            
+                        add_activity(status)
                         yield f"data: {json.dumps({'status': status})}\n\n"
+
 
     except Exception as e:
         import traceback
