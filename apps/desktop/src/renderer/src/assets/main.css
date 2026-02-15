@@ -147,3 +147,20 @@
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
 }
+
+@keyframes pulse-source {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    background-color: rgba(139, 92, 246, 0.1);
+  }
+  100% {
+    background-color: transparent;
+  }
+}

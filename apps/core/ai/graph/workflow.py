@@ -326,74 +326,111 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         return {"search_count": tool_count}
 
     def extract_sources_node(state: AgentState):
-        """Extract URLs and titles from search tool results - only from most recent search tool calls."""
+        """Extract URLs and titles from ALL search tool results - accumulates from all searches."""
         import json
         import re
         from langchain_core.messages import ToolMessage
 
         SEARCH_TOOLS = {"duckduckgo_search", "duckduckgo_news"}
 
-        # Get the tool_call_ids from the most recent message with tool_calls (before tool execution)
-        recent_tool_call_ids = set()
-        recent_tool_names = set()
-        for msg in reversed(state["messages"]):
+        # Get ALL tool_call_ids from ALL messages with tool_calls (accumulate from all searches)
+        all_tool_call_ids = set()
+        all_tool_names = set()
+        for msg in state["messages"]:
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 for tc in msg.tool_calls:
-                    recent_tool_call_ids.add(tc["id"])
-                    recent_tool_names.add(tc["name"])
-                break
+                    if tc["name"] in SEARCH_TOOLS:
+                        all_tool_call_ids.add(tc["id"])
+                        all_tool_names.add(tc["name"])
 
-        # Only proceed if any of the recent tools are search tools
-        if not recent_tool_call_ids or not (recent_tool_names & SEARCH_TOOLS):
+        # Only proceed if any of the tools are search tools
+        if not all_tool_call_ids or not (all_tool_names & SEARCH_TOOLS):
             return {"sources": None}
 
         sources = []
         seen_urls = set()
 
         for msg in state["messages"]:
-            if (
-                isinstance(msg, ToolMessage)
-                and msg.tool_call_id in recent_tool_call_ids
-            ):
+            if isinstance(msg, ToolMessage) and msg.tool_call_id in all_tool_call_ids:
                 content = msg.content
-                # Try to parse as JSON list
+                results = None
+
+                # Try to parse using ast.literal_eval (handles Python dict strings)
                 try:
-                    results = json.loads(content)
-                    if isinstance(results, list):
-                        for item in results:
-                            if isinstance(item, dict):
-                                url = (
-                                    item.get("href")
-                                    or item.get("link")
-                                    or item.get("url")
+                    import ast
+
+                    parsed = (
+                        ast.literal_eval(content)
+                        if isinstance(content, str)
+                        else content
+                    )
+                    if isinstance(parsed, list):
+                        results = parsed
+                    elif isinstance(parsed, dict):
+                        results = [parsed]
+                except Exception:
+                    # Fallback to json
+                    try:
+                        results = (
+                            json.loads(content) if isinstance(content, str) else content
+                        )
+                    except:
+                        results = None
+
+                # Process results
+                if isinstance(results, list):
+                    for item in results:
+                        if isinstance(item, dict):
+                            url = (
+                                item.get("link")
+                                or item.get("href")
+                                or item.get("url", "")
+                            )
+                            # Clean URL - remove trailing characters like '},
+                            url = re.sub(r"['\"]*,?}$", "", url).strip()
+                            title = item.get("title", "") or item.get("name", "")
+                            snippet = (
+                                item.get("snippet", "")
+                                or item.get("body", "")
+                                or item.get("text", "")
+                                or item.get("description", "")
+                            )
+                            if url and url not in seen_urls:
+                                seen_urls.add(url)
+                                sources.append(
+                                    {
+                                        "url": url,
+                                        "title": title,
+                                        "snippet": snippet[:200] if snippet else "",
+                                    }
                                 )
-                                title = item.get("title", "")
-                                snippet = item.get("body", "") or item.get(
-                                    "snippet", ""
-                                )
-                                if url and url not in seen_urls:
-                                    seen_urls.add(url)
-                                    sources.append(
-                                        {
-                                            "url": url,
-                                            "title": title,
-                                            "snippet": snippet[:200] if snippet else "",
-                                        }
-                                    )
-                except (json.JSONDecodeError, TypeError):
-                    # Try to extract URLs from plain text
-                    url_pattern = r"https?://[^\s\]\)]+"
-                    urls = re.findall(url_pattern, content)
-                    for url in urls:
-                        if url not in seen_urls:
-                            seen_urls.add(url)
-                            sources.append({"url": url, "title": "", "snippet": ""})
+                elif isinstance(results, dict):
+                    url = (
+                        results.get("link")
+                        or results.get("href")
+                        or results.get("url", "")
+                    )
+                    url = re.sub(r"['\"]*,?}$", "", url).strip()
+                    title = results.get("title", "") or results.get("name", "")
+                    snippet = (
+                        results.get("snippet", "")
+                        or results.get("body", "")
+                        or results.get("text", "")
+                        or results.get("description", "")
+                    )
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        sources.append(
+                            {
+                                "url": url,
+                                "title": title,
+                                "snippet": snippet[:200] if snippet else "",
+                            }
+                        )
 
         if sources:
-            print(f">>> [Sources] Found {len(sources)} sources from recent search")
-            logger.info(
-                f">>> [Sources] Found {len(sources)} sources from recent search"
-            )
+            print(f">>> [Sources] Found {len(sources)} sources from ALL searches")
+            logger.info(f">>> [Sources] Found {len(sources)} sources from ALL searches")
 
         return {"sources": sources if sources else None}
 

@@ -1,6 +1,19 @@
 from fastapi import APIRouter
 
-from api.routes import chat, extensions, gaming, hardware, init_status, memory, mode, reminders, settings, setup, status, ws
+from api.routes import (
+    chat,
+    extensions,
+    gaming,
+    hardware,
+    init_status,
+    memory,
+    mode,
+    reminders,
+    settings,
+    setup,
+    status,
+    ws,
+)
 
 api_router = APIRouter()
 

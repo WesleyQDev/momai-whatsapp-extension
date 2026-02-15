@@ -30,6 +30,7 @@ const MessageItem = memo(function MessageItem({
   const [hideStopButton, setHideStopButton] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState<Record<number, number>>({})
   const [openSources, setOpenSources] = useState(false)
+  const [revealedSources, setRevealedSources] = useState<number>(0)
   const startTimesRef = useRef<Record<number, number>>({})
 
   const handleStopVoiceClick = () => {
@@ -87,14 +88,34 @@ const MessageItem = memo(function MessageItem({
   const totalStagesCount = displayActivities.length + toolSteps.length
   const hasStageData = totalStagesCount > 0
 
-  const completedSteps = toolSteps.filter((s) => s.status === 'done').length
-  const errorSteps = toolSteps.filter((s) => s.status === 'error').length
-  const runningSteps = toolSteps.filter((s) => s.status === 'running').length
-  const isRunningSteps = runningSteps > 0
+  // Check if tools have finished based on activities
+  const isFinalizing = displayActivities.some(a => a.toLowerCase().includes('finalizando resposta'))
+  const hasActualContent = message.content !== '...' && message.content.length > 0 && !isToolTrace
+  const toolsFinished = isFinalizing || hasActualContent
   
-  // "Gerando resposta" phase: loading but no running steps (tools finished, generating final response)
-  const isGeneratingResponse = isLoading && runningSteps === 0 && toolSteps.length > 0
-  
+  // Efeito para gerenciar a abertura/fechamento automático das fontes
+  useEffect(() => {
+    if (message.sources && message.sources.length > 0) {
+      // 1. Abrir fontes se elas acabaram de chegar e ainda não estamos finalizando a resposta
+      if (isLoading && !isFinalizing) {
+        setOpenSources(true)
+        if (message.sources.length <= revealedSources) {
+          setRevealedSources(0)
+        }
+      } 
+      // 2. Minimizar fontes se a resposta começou a ser finalizada ou o carregamento parou
+      else if (isFinalizing || !isLoading) {
+        setOpenSources(false)
+      }
+    }
+  }, [message.sources?.length, isLoading, isFinalizing])
+
+  useEffect(() => {
+    if (isLoading && message.sources && message.sources.length > 0) {
+      setRevealedSources(message.sources.length)
+    }
+  }, [message.sources, isLoading])
+
   // Compute if trace should be visible - show when loading and has stages, or when explicitly shown
   const shouldShowTrace = (isLoading && hasStageData) || showTrace
 
@@ -115,9 +136,11 @@ const MessageItem = memo(function MessageItem({
     }
   }, [toolSteps])
 
-  // Update elapsed seconds every second
+  // Update elapsed seconds every second (only works if toolSteps were populated, which they're not currently)
   useEffect(() => {
-    if (runningSteps === 0) return
+    if (toolSteps.length === 0) return
+    const hasRunningStep = toolSteps.some((s) => s.status === 'running')
+    if (!hasRunningStep) return
     const interval = setInterval(() => {
       const newElapsed: Record<number, number> = {}
       toolSteps.forEach((step, idx) => {
@@ -130,7 +153,7 @@ const MessageItem = memo(function MessageItem({
       }
     }, 1000)
     return () => clearInterval(interval)
-  }, [toolSteps, runningSteps])
+  }, [toolSteps])
 
   const minimizeText = (value: unknown, max = 180) => {
     if (value === null || value === undefined) return ''
@@ -311,44 +334,64 @@ const MessageItem = memo(function MessageItem({
                 </div>
               )}
 
-              {/* Sources expandidas */}
+              {/* Sources com ícone de lupa - uma por uma */}
               {message.sources && message.sources.length > 0 && openSources && (
-                <div className="mt-1 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                  
-                  {openSources && (
-                    <div className="mt-1 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                      {message.sources.map((source, idx) => (
-                        <a
-                          key={idx}
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group flex flex-col gap-0.5 p-2 rounded-md border border-zinc-200 dark:border-white/5 bg-white dark:bg-white/5 hover:border-blue-400/30 hover:bg-blue-50/50 dark:hover:bg-blue-500/10 transition-all"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-500 flex-shrink-0">
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                              <polyline points="15 3 21 3 21 9" />
-                              <line x1="10" y1="14" x2="21" y2="3" />
-                            </svg>
-                            <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 truncate group-hover:text-blue-700 dark:group-hover:text-blue-300">
-                              {source.title || source.url}
-                            </span>
+                <div className="mt-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
+                  {message.sources.map((source, idx) => {
+                    const isRevealed = idx < revealedSources
+                    const urlObj = (() => { try { return new URL(source.url) } catch { return null } })()
+                    const domain = urlObj ? urlObj.hostname.replace('www.', '') : source.url
+                    const hasValidTitle = source.title && source.title.length > 3 && source.title !== domain
+                    const displayTitle = hasValidTitle ? source.title : domain
+                    
+                    if (!isRevealed) {
+                      const isNextToLoad = idx === revealedSources
+                      if (isLoading && !isNextToLoad) return null
+                      
+                      return (
+                        <div key={`placeholder-${idx}`} className="flex items-start gap-2 animate-pulse">
+                          <div className="w-4 h-4 rounded-full bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 mt-0.5" />
+                          <div className="flex flex-col min-w-0 gap-1.5 flex-1">
+                            <div className="h-3 w-1/3 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
+                            <div className="h-2 w-2/3 bg-zinc-100 dark:bg-zinc-900 rounded-full" />
                           </div>
-                          {source.snippet && (
-                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 line-clamp-2 ml-3.5">
+                        </div>
+                      )
+                    }
+                    
+                    return (
+                      <a
+                        key={`${source.url}-${idx}`}
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-start gap-3 p-2 -ml-2 rounded-xl hover:bg-accent/5 transition-all duration-300 animate-in fade-in slide-in-from-left-4 zoom-in-95"
+                        style={{ animationDelay: `${idx * 0.08}s`, animationFillMode: 'both' }}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-accent/10 transition-all duration-300">
+                          <svg className="w-4 h-4 text-zinc-400 group-hover:text-accent transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.35-4.35" />
+                          </svg>
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[14px] font-semibold text-text group-hover:text-accent transition-colors truncate">
+                            {displayTitle}
+                          </span>
+                          {source.snippet && source.snippet.trim() && (
+                            <span className="text-[12px] text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-0.5 leading-snug">
                               {source.snippet}
                             </span>
                           )}
-                        </a>
-                      ))}
-                    </div>
-                  )}
+                        </div>
+                      </a>
+                    )
+                  })}
                 </div>
               )}
 
               {/* Status de Execução - minimalista */}
-              {isLoading && !isGeneratingResponse && toolSteps.length === 0 && (() => {
+              {isLoading && displayActivities.length > 0 && !toolsFinished && (() => {
                 const searchActivity = displayActivities.find(a => a.toLowerCase().includes('buscando'))
                 const toolActivity = displayActivities.find(a => a.toLowerCase().includes('chamando'))
                 const label = searchActivity ? 'Buscando...' : (toolActivity ? toolActivity.replace(/manager: chamando ferramenta/i, '').trim() + '...' : 'Executando...')

@@ -827,6 +827,9 @@ async def generate(message: ChatMessage):
                         logger.info(
                             f">>> [Sources] Streaming {len(sources)} sources to frontend"
                         )
+                        print(
+                            f">>> [DEBUG] Sources being streamed: {json.dumps(sources)[:300]}..."
+                        )
                         yield f"data: {json.dumps({'sources': sources})}\n\n"
                 continue
 
@@ -945,22 +948,15 @@ async def generate(message: ChatMessage):
 
                 filtered_content = "".join(c for c in content if ord(c) <= 0xFFFF)
                 if filtered_content:
+                    # Se for o início da resposta final (primeiro token após ferramentas), avisamos o frontend
+                    if not any(a == "Finalizando resposta..." for a in activities_trace):
+                        add_activity("Finalizando resposta...")
+                        # Pequeno delay para garantir que a UI processe as fontes antes de minimizar
+                        await asyncio.sleep(0.3)
+                        yield f"data: {json.dumps({'status': 'Finalizando resposta...'})}\n\n"
+
                     # Se for o início da resposta, limpa prefixos
                     if not full_content:
-                        clean_chunk = re.sub(
-                            r"^(MomAI|Assistente|Assistant|MomAgent|IA)\s*:?\s*",
-                            "",
-                            filtered_content,
-                            flags=re.IGNORECASE,
-                        )
-                        if not clean_chunk.strip() and len(filtered_content) < 15:
-                            full_content += filtered_content
-                            continue
-                        filtered_content = clean_chunk
-
-                    full_content += filtered_content
-                    if not stream_decided:
-                        # Simplificado: mostrar tudo em tempo real
                         # As buscas são rápidas e não justifica buffering complexo
                         if had_tool_call:
                             stream_decided = True
