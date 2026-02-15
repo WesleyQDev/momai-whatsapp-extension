@@ -747,6 +747,8 @@ async def generate(message: ChatMessage):
         )  # Track which node types have been shown (avoid ReAct loop duplicates)
         had_tool_call = False
         no_tools_available = None
+        pending_tool_ids = {}
+        search_count = 0  # Track search count for UI
 
         # Helper to avoid duplicate activities
         def add_activity(status: str, node_type: str = None):
@@ -777,6 +779,7 @@ async def generate(message: ChatMessage):
         input_data = {
             "messages": [HumanMessage(content=message.content)],
             "summary": summary_text,
+            "search_count": 0,
         }
 
         async for event in momai_graph.astream_events(
@@ -798,29 +801,23 @@ async def generate(message: ChatMessage):
             metadata = event.get("metadata", {})
             node_name = metadata.get("langgraph_node", "")
 
-            # Status for UI - Mais amigáveis e menos técnicos
-            if kind == "on_node_start":
-                if node_name == "router":
-                    status = "Analisando pedido..."
-                    if add_activity(status, "router"):
-                        yield f"data: {json.dumps({'status': status})}\n\n"
-
-                elif node_name == "momai_agent":
-                    # Só mostra "Preparando..." se não houver ferramentas rodando
-                    if not had_tool_call:
-                        status = "Preparando resposta..."
-                        if add_activity(status, "agent"):
-                            yield f"data: {json.dumps({'status': status})}\n\n"
-                
-                elif node_name == "specialist_worker":
-                    status = "Consultando especialista..."
-                    if add_activity(status, "specialist"):
-                        yield f"data: {json.dumps({'status': status})}\n\n"
+            # Handle SearchCount from middleware
+            if kind == "on_chain_end" and node_name == "search_counter":
+                output = event["data"].get("output")
+                if output and isinstance(output, dict):
+                    search_count = output.get("search_count", 0)
+                    if search_count > 0 and activities_trace:
+                        for i in range(len(activities_trace) - 1, -1, -1):
+                            if activities_trace[i].startswith("Buscando"):
+                                activities_trace[i] = f"Buscando ({search_count})"
+                                yield f"data: {json.dumps({'status': activities_trace[i]})}\n\n"
+                                break
+                continue
 
             if kind == "on_tool_start":
                 logger.info(f"[AI_core] Executing tool: {name}")
                 had_tool_call = True
-                
+
                 if not stream_decided and prebuffer:
                     stream_decided = True
                     yield f"data: {json.dumps({'token': prebuffer})}\n\n"
@@ -831,15 +828,24 @@ async def generate(message: ChatMessage):
                     marker = "\n\n__MOMAI_ACTIONS__\n\n"
                     full_content += marker
                     yield f"data: {json.dumps({'token': marker})}\n\n"
-                
-                display_status = f"Usando: {name}"
-                add_activity(display_status)
-                yield f"data: {json.dumps({'status': display_status})}\n\n"
+
+                # Track search count for this tool call
+                tool_call_count = had_tool_call  # This is a bool, need separate counter
+
+                if name in ["duckduckgo_search", "duckduckgo_news"]:
+                    # Only show "Buscando" once, don't create duplicates
+                    if not any("Buscando" in a for a in activities_trace):
+                        display_status = "Buscando..."
+                        add_activity(display_status)
+                        yield f"data: {json.dumps({'status': display_status})}\n\n"
+                    # Don't yield for subsequent searches - let search_counter handle it at the end
+                else:
+                    display_status = f"Usando: {name}"
+                    add_activity(display_status)
+                    yield f"data: {json.dumps({'status': display_status})}\n\n"
 
             if kind == "on_tool_end":
                 logger.info(f"[AI_core] Tool {name} finished.")
-                # yield f"data: {json.dumps({'status': None})}\n\n" # Keep last status visible for a bit
-
             if kind == "on_chat_model_stream":
                 metadata = event.get("metadata", {})
                 node = metadata.get("langgraph_node", "")
@@ -876,8 +882,8 @@ async def generate(message: ChatMessage):
 
                     full_content += filtered_content
                     if not stream_decided:
-                        # Optimization: If a tool was already called, we don't need to prebuffer
-                        # because we know we won't show the "Missing Capability" card.
+                        # Simplificado: mostrar tudo em tempo real
+                        # As buscas são rápidas e não justifica buffering complexo
                         if had_tool_call:
                             stream_decided = True
                             yield f"data: {json.dumps({'token': filtered_content})}\n\n"
@@ -970,13 +976,15 @@ async def generate(message: ChatMessage):
                         skills = output.get("discovered_skills", [])
                         if skills:
                             skill_names = [s["name"] for s in skills]
-                            status = f"Discovery: Skills found: {', '.join(skill_names)}"
+                            status = (
+                                f"Discovery: Skills found: {', '.join(skill_names)}"
+                            )
                         else:
                             status = "Discovery: No specialized skills needed."
-                        
+
                         if output.get("memory_context"):
                             status += " (Memory Context loaded!)"
-                            
+
                         add_activity(status)
                         yield f"data: {json.dumps({'status': status})}\n\n"
 
@@ -985,7 +993,11 @@ async def generate(message: ChatMessage):
                     if output and isinstance(output, dict):
                         # Se houver tool_calls no último AgentMessage
                         msgs = output.get("messages", [])
-                        if msgs and hasattr(msgs[-1], "tool_calls") and msgs[-1].tool_calls:
+                        if (
+                            msgs
+                            and hasattr(msgs[-1], "tool_calls")
+                            and msgs[-1].tool_calls
+                        ):
                             tc = msgs[-1].tool_calls[0]
                             if tc["name"] == "activate_skill":
                                 status = f"Manager: Delegating to Specialist ({tc['args'].get('skill_id')})..."
@@ -993,10 +1005,9 @@ async def generate(message: ChatMessage):
                                 status = f"Manager: Calling tool {tc['name']}..."
                         else:
                             status = "Manager: Finalizing response..."
-                            
+
                         add_activity(status)
                         yield f"data: {json.dumps({'status': status})}\n\n"
-
 
     except Exception as e:
         import traceback
@@ -1016,6 +1027,20 @@ async def generate(message: ChatMessage):
 
     finally:
         clear_cancel_generation()
+
+        # Check search_count from final state and update activity
+        try:
+            final_state = await momai_graph.aget_state(config)
+            if final_state and final_state.values:
+                search_count = final_state.values.get("search_count", 0)
+                if search_count > 0 and activities_trace:
+                    for i in range(len(activities_trace) - 1, -1, -1):
+                        if activities_trace[i].startswith("Buscando"):
+                            activities_trace[i] = f"Buscando ({search_count})"
+                            break
+        except Exception:
+            pass
+
         try:
             import app_state
 

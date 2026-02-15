@@ -229,7 +229,17 @@ export function useChat() {
             const lastIdx = updated.length - 1
             if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
               const currentActivities = updated[lastIdx].activities || []
-              if (!currentActivities.includes(status)) {
+              // Check if this is an update to an existing "Buscando" entry
+              const buscandoIdx = currentActivities.findIndex((a: string) => a.startsWith('Buscando'))
+              if (buscandoIdx !== -1 && status.startsWith('Buscando')) {
+                // Update existing Buscando entry instead of adding new one
+                const updatedActivities = [...currentActivities]
+                updatedActivities[buscandoIdx] = status
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  activities: updatedActivities
+                }
+              } else if (!currentActivities.includes(status)) {
                 updated[lastIdx] = {
                   ...updated[lastIdx],
                   activities: [...currentActivities, status]
@@ -909,7 +919,17 @@ export function useChat() {
               const lastIdx = findLastAssistantIndex(updated)
               if (lastIdx >= 0) {
                 const currentActivities = updated[lastIdx].activities || []
-                if (!currentActivities.includes(status)) {
+                // Check if this is an update to an existing "Buscando" entry
+                const buscandoIdx = currentActivities.findIndex((a: string) => a.startsWith('Buscando'))
+                if (buscandoIdx !== -1 && status.startsWith('Buscando')) {
+                  // Update existing Buscando entry instead of adding new one
+                  const updatedActivities = [...currentActivities]
+                  updatedActivities[buscandoIdx] = status
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    activities: updatedActivities
+                  }
+                } else if (!currentActivities.includes(status)) {
                   updated[lastIdx] = {
                     ...updated[lastIdx],
                     activities: [...currentActivities, status]

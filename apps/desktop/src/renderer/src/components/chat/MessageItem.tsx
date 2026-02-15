@@ -157,17 +157,16 @@ const MessageItem = memo(function MessageItem({
 
   const humanizeActivity = (activity: string) => {
     const lower = activity.toLowerCase()
-    if (lower.includes('analisando')) return 'Analisando pedido'
-    if (lower.includes('preparando')) return 'Preparando resposta'
-    if (lower.includes('consultando')) return 'Consultando especialista'
-    if (lower.includes('usando:')) return '' // Ocultar no breadcrumb pois ja tem o card
-    
-    // Fallbacks legiveis
-    if (lower.includes('discovery')) return 'Analisando'
-    if (lower.includes('manager')) return 'Planejando'
-    if (lower.includes('specialist')) return 'Executando'
-    
-    return activity
+    if (lower.includes('usando skill:')) {
+      return activity.replace(/usando skill:/i, '').trim()
+    }
+    if (lower.includes('usando ferramenta:')) {
+      return activity.replace(/usando ferramenta:/i, '').trim()
+    }
+    if (lower.includes('buscando')) {
+      return activity
+    }
+    return ''
   }
 
   if (isSystemModelChange) {
