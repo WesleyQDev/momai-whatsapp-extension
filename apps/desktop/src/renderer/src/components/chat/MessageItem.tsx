@@ -347,6 +347,18 @@ const MessageItem = memo(function MessageItem({
                 </div>
               )}
 
+              {/* Status de Execução - minimalista */}
+              {isLoading && !isGeneratingResponse && toolSteps.length === 0 && (() => {
+                const searchActivity = displayActivities.find(a => a.toLowerCase().includes('buscando'))
+                const toolActivity = displayActivities.find(a => a.toLowerCase().includes('chamando'))
+                const label = searchActivity ? 'Buscando...' : (toolActivity ? toolActivity.replace(/manager: chamando ferramenta/i, '').trim() + '...' : 'Executando...')
+                return (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-zinc-400 animate-pulse">{label}</span>
+                  </div>
+                )
+              })()}
+
               {/* Cards de Ferramentas - mais compactos */}
               {toolSteps.length > 0 && (
                 <div className="flex flex-col gap-1 mt-0.5">
