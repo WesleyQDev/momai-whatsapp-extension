@@ -369,10 +369,12 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             results_text = "\n\n".join(tool_results)
             count = len(tool_results)
             user_input = (
-                f"Search results so far ({count} searches):\n{results_text}\n\n"
-                f"Original task: {task}\n\n"
-                "If you need MORE information, call the search tool again. "
-                "Otherwise, provide your final answer."
+                f"# PREVIOUS SEARCH RESULTS ({count})\n{results_text}\n\n"
+                f"# INSTRUCTION\n"
+                f"Review the results above for the task: '{task}'.\n"
+                "If the information is SUFFICIENT, provide the final answer.\n"
+                "If NOT, call the search tool again.\n"
+                "CRITICAL: If you call a tool, your output MUST be ONLY the tool call. NO TEXT ALLOWED."
             )
         else:
             user_input = task
@@ -584,9 +586,13 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         return "extract_sources"
 
     def route_extract_sources(state: AgentState):
-        """Route after source extraction: back to specialist if in a skill, else back to manager."""
-        if state.get("skill_id"):
+        """Route after source extraction: back to specialist if they still have tools to call, else back to manager."""
+        last_msg = state["messages"][-1]
+        # If the last worker response has tool calls, we must go back to tools (via specialist)
+        if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
             return "specialist_worker"
+        
+        # If no more tool calls from specialist, go back to manager to wrap up
         return "momai_agent"
 
     def route_search_counter(state: AgentState):
@@ -619,20 +625,31 @@ async def dynamic_tools_node(state: AgentState):
     for tc in last_msg.tool_calls:
         tool_name = tc["name"]
         tool = registry.get(tool_name)
-        if tool:
-            # Increment usage count for this tool
-            tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1
-            
+        
+        # Check limits before execution (extra safety)
+        tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1
+        limit = 3 if "search" in tool_name else 10
+        
+        if tool and tool_usage[tool_name] <= limit:
             res = await tool.ainvoke(tc["args"])
-
             processed_res, extras = extract_extras(res)
-
+            
             tool_msg_kwargs = {"tool_call_id": tc["id"]}
             if extras:
                 tool_msg_kwargs["additional_kwargs"] = {"extras": extras}
-
+            
             tool_messages.append(
                 ToolMessage(content=str(processed_res), **tool_msg_kwargs)
+            )
+        else:
+            # Tool missing or limit reached - provide feedback to LLM to break loop
+            reason = "Usage limit reached" if tool else "Tool not found or access denied"
+            log_event("Guardrail", f"Blocking tool '{tool_name}': {reason}")
+            tool_messages.append(
+                ToolMessage(
+                    content=f"SYSTEM: {reason}. You MUST provide your final answer now with available data.",
+                    tool_call_id=tc["id"]
+                )
             )
 
     # Determine next step: if specialist called tools, go back to specialist; else go to manager
