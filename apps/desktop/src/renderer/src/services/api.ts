@@ -21,6 +21,8 @@ export interface Message {
   }
   activities?: string[]
   sources?: Source[]
+  snippets?: Snippet[]
+  cards?: Card[]
 }
 
 export interface StatusData {
@@ -41,12 +43,26 @@ export interface ChatStreamCallbacks {
   onError: (error: string) => void
   onDone: () => void
   onSources?: (sources: Source[]) => void
+  onSnippets?: (snippets: Snippet[]) => void
+  onCards?: (cards: Card[]) => void
 }
 
 export interface Source {
   url: string
   title: string
   snippet: string
+}
+
+export interface Snippet {
+  title: string
+  content: string
+  icon?: string
+}
+
+export interface Card {
+  type: string
+  title: string
+  [key: string]: any
 }
 
 export async function sendChatMessage(
@@ -98,6 +114,14 @@ export async function sendChatMessage(
 
         if (data.sources && callbacks.onSources) {
           callbacks.onSources(data.sources)
+        }
+
+        if (data.snippets && callbacks.onSnippets) {
+          callbacks.onSnippets(data.snippets)
+        }
+
+        if (data.cards && callbacks.onCards) {
+          callbacks.onCards(data.cards)
         }
 
         if (data.error) {
@@ -160,7 +184,14 @@ export async function updateMode(mode: string): Promise<void> {
 export async function fetchChatHistory(threadId: string = 'default'): Promise<Message[]> {
   const response = await fetch(`${API_URL}/chat/history?thread_id=${threadId}`)
   if (!response.ok) throw new Error('Erro ao buscar histórico')
-  return response.json()
+  const messages = await response.json()
+  
+  return messages.map((msg: any) => ({
+    ...msg,
+    sources: msg.sources ? JSON.parse(msg.sources) : undefined,
+    snippets: msg.snippets ? JSON.parse(msg.snippets) : undefined,
+    cards: msg.cards ? JSON.parse(msg.cards) : undefined,
+  }))
 }
 
 export async function clearChatHistory(threadId: string = 'default'): Promise<void> {
@@ -175,19 +206,9 @@ export async function clearChatHistory(threadId: string = 'default'): Promise<vo
 export interface Extension {
   id: string
   name: string
-  author: string
-  version: string
   description: string
-  icon?: string
+  category: string
   enabled: boolean
-  category: 'builtin' | 'extensions' | 'user'
-  error?: string | null
-  features: {
-    sidebar?: boolean
-    agent_name?: string
-    ui_view?: string
-    ui_schema?: any[]
-  }
 }
 
 export async function fetchExtensions(): Promise<Extension[]> {

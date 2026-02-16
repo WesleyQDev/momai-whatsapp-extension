@@ -8,7 +8,7 @@ def create_extension(name: str):
     ext_id = name.lower().replace(" ", "_")
     
     # Caminho base (assume execução na raiz do projeto ou em apps/core)
-    base_path = Path("apps/core/agents/extensions") / ext_id
+    base_path = Path("apps/core/skills_extensions") / ext_id
     
     if base_path.exists():
         print(f"Error: Extension {ext_id} already exists at {base_path}")

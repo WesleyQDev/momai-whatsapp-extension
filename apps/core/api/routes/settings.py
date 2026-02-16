@@ -36,6 +36,7 @@ def _sync_update_settings(data: SettingsUpdate):
 
         if data.local_backend is not None:
             settings.local_backend = data.local_backend
+            changes.append("local_backend")
 
         if data.api_keys is not None:
             settings.api_keys = json.dumps(data.api_keys)
@@ -120,7 +121,7 @@ async def update_settings(data: SettingsUpdate):
             else:
                 app_state.ww.stop()
 
-    if any(change in changes for change in ["persona", "user_name", "provider"]):
+    if any(change in changes for change in ["persona", "user_name", "provider", "local_backend"]):
         # Always re-initialize local LLM
         import threading
         threading.Thread(target=app_state.initialize_llm).start()

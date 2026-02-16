@@ -357,7 +357,7 @@ def open_sidebar_tab(
     agent_name: Optional[str] = None,
     extensions_tab: Optional[Literal["store", "installed", "system"]] = None,
 ):
-    """Navigates to a sidebar tab or extension view."""
+    """Navigates to a sidebar tab or skill view."""
     path = "/"
     state = None
 
@@ -371,29 +371,7 @@ def open_sidebar_tab(
         path = "/extensions"
         state = {"tab": "store"}
     elif tab == "agenda":
-        try:
-            from services.extensions.manager import extension_manager
-
-            manifest = extension_manager.get_agent_manifest("scheduler")
-            if manifest:
-                path = f"/extensions/{manifest.id}"
-            else:
-                return "Error: scheduler extension not found"
-        except Exception:
-            return "Error: scheduler extension not available"
-    elif tab == "extension":
-        if not extension_id and agent_name:
-            try:
-                from services.extensions.manager import extension_manager
-
-                manifest = extension_manager.get_agent_manifest(agent_name)
-                if manifest:
-                    extension_id = manifest.id
-            except Exception:
-                pass
-        if not extension_id:
-            return "Error: extension_id is required"
-        path = f"/extensions/{extension_id}"
+        return "A agenda de lembretes está disponível via chat."
 
     return _broadcast_ui_event("navigate", {"path": path, "state": state})
 
@@ -749,79 +727,14 @@ def get_momai_resources_tool():
     )
 
 
-class CreateReminderInput(BaseModel):
-    title: str = Field(description="Short title for the reminder.")
-    content: str = Field(default=None, description="Optional extra detail.")
-    scheduled_time: str = Field(
-        description="Date and time for the FIRST trigger in ISO format (YYYY-MM-DD HH:MM:SS). For recurring reminders, set this to NOW or NOW + interval."
-    )
-    repeat_interval: Literal["minutes", "hours", "days", "weeks", "months"] = Field(
-        default=None,
-        description="Interval unit for repetition (e.g., 'minutes' for every N minutes).",
-    )
-    repeat_value: int = Field(
-        default=None,
-        description="Value for interval (e.g., 25 for 'every 25 minutes').",
-    )
-
-
-@tool(args_schema=CreateReminderInput)
-def create_reminder_tool(
-    title: str,
-    scheduled_time: str,
-    content: str = None,
-    repeat_interval: str = None,
-    repeat_value: int = None,
-):
-    """Schedules a new reminder or alarm. For RECURRING reminders, set scheduled_time to NOW (or NOW + interval) and provide repeat_interval + repeat_value."""
-    from datetime import datetime
-
-    try:
-        dt = datetime.fromisoformat(scheduled_time)
-        if not app_state.reminder_manager:
-            return "Error: Reminder manager not ready."
-        app_state.reminder_manager.add_reminder(
-            title, content, dt, repeat_interval, repeat_value
-        )
-        return f"OK: Reminder '{title}' scheduled for {scheduled_time}."
-    except Exception as e:
-        return f"Error scheduling: {str(e)}"
-
-
-@tool
-def list_reminders_tool():
-    """Lists all active reminders and their schedules."""
-    if not app_state.reminder_manager:
-        return "Reminder system not initialized."
-    reminders = app_state.reminder_manager.list_reminders()
-    if not reminders:
-        return "You have no active reminders."
-
-    res = "### Current Reminders:\n\n"
-    for r in reminders:
-        status = "Active" if r.is_active else "Off"
-        res += f"- **ID {r.id}:** {r.title} (Scheduled: {r.scheduled_time}) - Status: {status}\n"
-    return res
-
-
-@tool
-def delete_reminder_tool(reminder_id: int):
-    """Deletes a reminder by its ID."""
-    if not app_state.reminder_manager:
-        return "Error: Reminder manager not ready."
-    app_state.reminder_manager.delete_reminder(reminder_id)
-    return f"Reminder {reminder_id} deleted."
-
-
 @tool
 def get_capabilities():
     """
-    Retrieves a list of all available system tools and extensions.
+    Retrieves a list of all available system tools and skills.
     RETURNS the raw list. YOU (The AI) must then format this list into Markdown and use 'show_interface' to display it to the user.
     """
-    from services.extensions.manager import extension_manager
+    from services.extensions.manager import skill_registry
 
-    # 1. Native Tools
     report = "System Native Tools:\n"
     hidden_tools = [
         "switch_ai_model",
@@ -836,12 +749,11 @@ def get_capabilities():
         if t.name in hidden_tools:
             continue
 
-        # Custom overrides for better display
         if t.name == "duckduckgo_search":
-            desc = "Search the internet for real-time information. IMPORTANT: If the user asks about multiple different topics or locations, make SEPARATE calls for EACH one. For example, if they ask about weather in São Paulo AND Rio de Janeiro, call this tool twice - once for each location. Never combine multiple queries in a single call."
+            desc = "Search the internet for real-time information. IMPORTANT: If the user asks about multiple different topics or locations, make SEPARATE calls for EACH one."
             name = "Internet Search"
         elif t.name == "duckduckgo_news":
-            desc = "Search for recent news and current events. Use this when the user asks about 'what happened', 'news', 'latest', or wants to know about current affairs."
+            desc = "Search for recent news and current events."
             name = "News Search"
         else:
             desc = t.description.split("\n")[0] if t.description else "No description"
@@ -849,15 +761,12 @@ def get_capabilities():
 
         report += f"- {name}: {desc}\n"
 
-    # 2. Extensions
-    ext_tools = extension_manager.get_tools()
-    if ext_tools:
-        report += "\nInstalled Extensions:\n"
-        for t in ext_tools:
-            desc = t.description.split("\n")[0] if t.description else "No description"
-            report += f"- {t.name}: {desc}\n"
-    else:
-        report += "\nExtensions: None installed.\n"
+    skills = skill_registry.get_all_skills()
+    if skills:
+        report += "\nAvailable Skills:\n"
+        for s in skills:
+            desc = s.get("description", "No description")
+            report += f"- {s['name']}: {desc}\n"
 
     return report
 
@@ -889,9 +798,6 @@ TOOLS = [
     stop_generation,
     stop_voice,
     get_momai_resources_tool,
-    create_reminder_tool,
-    list_reminders_tool,
-    delete_reminder_tool,
     get_capabilities,
 ]
 
@@ -917,8 +823,6 @@ SAFE_TOOLS_NAMES = {
     "stop_generation",
     "stop_voice",
     "get_momai_resources_tool",
-    "create_reminder_tool",
-    "list_reminders_tool",
     "get_capabilities",
 }
 
@@ -930,22 +834,17 @@ def invalidate_tools_registry_cache() -> None:
 
 
 def get_all_tools_registry(force_refresh: bool = False):
-    """Returns a unified dictionary of all tools (native + extensions)."""
-    from services.extensions.manager import extension_manager
-    from utils.safe_tools import SafeExtensionTool
+    """Returns a unified dictionary of all tools (native + extensions + skills)."""
+    from services.extensions.manager import skill_registry
 
     if not force_refresh and _TOOL_REGISTRY_CACHE["registry"] is not None:
         return _TOOL_REGISTRY_CACHE["registry"].copy()
 
     registry = AVAILABLE_TOOLS.copy()
 
-    ext_tools = extension_manager.get_tools()
-    for t in ext_tools:
-        # Don't re-wrap tools that are already SafeExtensionTool
-        if isinstance(t, SafeExtensionTool):
-            registry[t.name] = t
-        else:
-            registry[t.name] = SafeExtensionTool(original_tool=t)
+    skill_tools = skill_registry.get_tools()
+    for t in skill_tools:
+        registry[t.name] = t
 
     _TOOL_REGISTRY_CACHE["registry"] = registry
     return registry.copy()

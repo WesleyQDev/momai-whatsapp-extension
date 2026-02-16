@@ -173,18 +173,21 @@ function App(): React.JSX.Element {
 
   const currentExtension =
     location.pathname === '/'
-      ? extensions.find((e) => e.features.agent_name === 'responder')
+      ? extensions.find((e) => e.name === 'responder')
       : extensions.find((e) => location.pathname.includes(e.id))
 
-  let uiView = currentExtension?.features?.ui_view || 'ChatDashboard'
+  let uiView = 'ChatDashboard'
   if (location.pathname === '/extensions') {
     uiView = 'ExtensionsStore'
   }
   if (location.pathname === '/notes') {
     uiView = 'NotesDashboard'
   }
+  if (location.pathname === '/agenda') {
+    uiView = 'RemindersDashboard'
+  }
 
-  const isChat = uiView === 'ChatDashboard'
+  const isChat = uiView === 'ChatDashboard' || uiView === 'RemindersDashboard'
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-bg">

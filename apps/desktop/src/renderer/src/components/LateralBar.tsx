@@ -22,14 +22,9 @@ interface LateralBarProps {
 interface ExtensionItem {
   id: string
   name: string
-  icon?: string
+  description?: string
+  category?: string
   enabled: boolean
-  features: {
-    sidebar?: boolean
-    agent_name?: string
-    ui_view?: string
-    ui_schema?: any[]
-  }
 }
 
 const iconMap: Record<string, any> = {
@@ -67,7 +62,7 @@ export default function LateralBar({
         if (b.id.includes('responder')) return 1
         return 0
       })
-      setExtensions(sorted.filter((e) => e.features?.sidebar && (e as any).enabled))
+      setExtensions(sorted.filter((e) => e.enabled))
     }
     window.addEventListener('momai_extensions_sync', handleSync)
     return () => window.removeEventListener('momai_extensions_sync', handleSync)
@@ -82,16 +77,11 @@ export default function LateralBar({
       >
         {/* All items are now dynamic and reordered */}
         {(() => {
-          const chatIcon = extensions.find((e) => e.features.agent_name === 'responder')
-          const agendaIcon = extensions.find((e) => e.features.agent_name === 'scheduler')
-          const others = extensions.filter(
-            (e) =>
-              e.features.agent_name !== 'responder' && e.features.agent_name !== 'scheduler'
-          )
+          const chatIcon = extensions.find((e) => e.name === 'responder')
+          const schedulerIcon = extensions.find((e) => e.name === 'scheduler')
 
-          const renderExt = (ext: ExtensionItem) => {
-            const isChat = ext.features.agent_name === 'responder'
-            const IconComponent = isChat ? HomeIcon : (iconMap[ext.icon || ''] || PuzzlePieceIcon)
+          const renderExt = (ext: ExtensionItem, IconComponent: any = PuzzlePieceIcon) => {
+            const isChat = ext.name === 'responder'
             const route = isChat ? '/' : `/extensions/${ext.id}`
             const isActive = isChat ? activeRoute === '/' : activeRoute === `/extensions/${ext.id}`
 
@@ -133,12 +123,31 @@ export default function LateralBar({
             </button>
           )
 
+          const renderScheduler = () => {
+            const isActive = activeRoute === '/agenda'
+            return (
+              <button
+                onClick={() => onNavigate('/agenda')}
+                title={t('sidebar.agenda') || 'Agenda'}
+                className={`group relative ${isCompact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} shrink-0 bg-transparent border-none flex items-center justify-center transition-all hover:bg-accent/10 ${isActive ? 'text-accent bg-accent/5' : 'text-text-muted hover:text-text'}`}
+              >
+                {isActive && (
+                  <div
+                    className={`absolute ${isCompact ? '-left-2 h-4' : '-left-3 h-6'} w-1 bg-accent rounded-r-full animate-fade-in`}
+                  />
+                )}
+                <CalendarIcon
+                  className={`${isCompact ? 'w-4 h-4' : 'w-5 h-5'} transition-transform group-hover:scale-110`}
+                />
+              </button>
+            )
+          }
+
           return (
             <>
-              {chatIcon && renderExt(chatIcon)}
+              {chatIcon && renderExt(chatIcon, HomeIcon)}
               {renderNotes()}
-              {agendaIcon && renderExt(agendaIcon)}
-              {others.map((ext) => renderExt(ext))}
+              {schedulerIcon && renderScheduler()}
             </>
           )
         })()}

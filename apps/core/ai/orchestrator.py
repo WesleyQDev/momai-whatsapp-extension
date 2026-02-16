@@ -73,6 +73,8 @@ def save_message_to_db(
     activities: list = None,
     graph_data: dict = None,
     sources: list = None,
+    snippets: list = None,
+    cards: list = None,
 ):
     """
     Saves a message to the SQLite database.
@@ -84,6 +86,8 @@ def save_message_to_db(
         activities (list, optional): List of activity strings (Thinking Trace).
         graph_data (dict, optional): Generated interface data.
         sources (list, optional): List of source URLs with titles/snippets.
+        snippets (list, optional): List of snippet objects.
+        cards (list, optional): List of card objects.
     """
     from database.models import SessionLocal, Message
 
@@ -92,6 +96,8 @@ def save_message_to_db(
         activities_json = json.dumps(activities) if activities else None
         graph_data_json = json.dumps(graph_data) if graph_data else None
         sources_json = json.dumps(sources) if sources else None
+        snippets_json = json.dumps(snippets) if snippets else None
+        cards_json = json.dumps(cards) if cards else None
         msg = Message(
             thread_id=thread_id,
             role=role,
@@ -99,6 +105,8 @@ def save_message_to_db(
             activities=activities_json,
             graph_data=graph_data_json,
             sources=sources_json,
+            snippets=snippets_json,
+            cards=cards_json,
         )
         db.add(msg)
         db.commit()
@@ -462,7 +470,7 @@ def _initialize_llm_task(on_init_progress=None):
         report_progress("Configurando motor Llama.cpp...")
         new_llm = load_model(
             repo_id="unsloth/Qwen3-4B-Instruct-2507-GGUF",
-            filename="Qwen3-4B-Instruct-2507-UD-Q6_K_XL.gguf",
+            filename="Qwen3-4B-Instruct-2507-UD-Q4_K_XL.gguf",
             on_progress=report_progress,
         )
 
@@ -470,12 +478,12 @@ def _initialize_llm_task(on_init_progress=None):
             print(f"[AI_core] Modelo Local instanciado. Reconstruindo Grafo...")
             report_progress("Atualizando conhecimento de ferramentas...")
 
-            # Sync Vector DB with Tools/Agents
+            # Sync Vector DB with Tools/Skills
             try:
-                from database.vector_db import vector_db
-                from services.extensions.manager import extension_manager
+                from utils.indexer import index_all_system_tools, index_all_skills
 
-                asyncio.run(extension_manager.sync_indexes(vector_db))
+                asyncio.run(index_all_system_tools())
+                asyncio.run(index_all_skills())
             except Exception as sync_err:
                 print(
                     f"[AI_core] Warning: Falha na sincronização de ferramentas: {sync_err}"
@@ -577,13 +585,8 @@ def clean_text_for_tts(text: str) -> str:
 def clean_response(text: str) -> str:
     """
     Cleans residual tokens and terminal-breaking characters.
-
-    Args:
-        text (str): Raw model response.
-
-    Returns:
-        str: Cleaned response.
     """
+    # Remove any reasoning/thought tags if present
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
     text = re.sub(r"<\|.*?\|>", "", text).strip()
     text = re.sub(r"<function=.*?>.*?</function>", "", text, flags=re.DOTALL).strip()
@@ -726,7 +729,7 @@ async def generate(message: ChatMessage):
 
         config = {
             "configurable": {"thread_id": message.thread_id},
-            "recursion_limit": 50,
+            "recursion_limit": 100,
         }
 
         # Pattern to detect paragraph breaks for TTS
@@ -831,6 +834,20 @@ async def generate(message: ChatMessage):
                             f">>> [DEBUG] Sources being streamed: {json.dumps(sources)[:300]}..."
                         )
                         yield f"data: {json.dumps({'sources': sources})}\n\n"
+
+                    snippets = output.get("snippets")
+                    if snippets:
+                        logger.info(
+                            f">>> [Extras] Streaming {len(snippets)} snippets to frontend"
+                        )
+                        yield f"data: {json.dumps({'snippets': snippets})}\n\n"
+
+                    cards = output.get("cards")
+                    if cards:
+                        logger.info(
+                            f">>> [Extras] Streaming {len(cards)} cards to frontend"
+                        )
+                        yield f"data: {json.dumps({'cards': cards})}\n\n"
                 continue
 
             # Handle specialist_worker - show which skill is running
@@ -864,7 +881,7 @@ async def generate(message: ChatMessage):
                 if output and isinstance(output, dict):
                     mem_ctx = output.get("memory_context")
                     mem_notes = output.get("memory_notes")
-                    
+
                     if mem_ctx:
                         # Yield memory as it's a direct user value
                         count = 0
@@ -872,20 +889,22 @@ async def generate(message: ChatMessage):
                         if mem_notes:
                             seen_ids = set()
                             for note in mem_notes:
-                                nid = note.get('note_id', 'unknown')
+                                nid = note.get("note_id", "unknown")
                                 if nid not in seen_ids:
                                     seen_ids.add(nid)
-                                    memory_sources.append({
-                                        "url": f"momai://note/{nid}",
-                                        "title": f"Nota: {note.get('title', 'Sem título')}",
-                                        "snippet": note.get("text", "")[:200]
-                                    })
+                                    memory_sources.append(
+                                        {
+                                            "url": f"momai://note/{nid}",
+                                            "title": f"Nota: {note.get('title', 'Sem título')}",
+                                            "snippet": note.get("text", "")[:200],
+                                        }
+                                    )
                             count = len(memory_sources)
 
                         status = f"Memória: {count} nota{'s' if count != 1 else ''} relevante{'s' if count != 1 else ''}"
                         yield f"data: {json.dumps({'status': status})}\n\n"
                         add_activity(status)
-                        
+
                         if memory_sources:
                             yield f"data: {json.dumps({'sources': memory_sources})}\n\n"
                 continue
@@ -953,6 +972,11 @@ async def generate(message: ChatMessage):
                 if not content:
                     continue
 
+                # Se o modelo está gerando ferramenta (tool_call_chunks), 
+                # suprimimos o texto que venha no mesmo bloco (geralmente é narração).
+                if hasattr(event["data"]["chunk"], "tool_call_chunks") and event["data"]["chunk"].tool_call_chunks:
+                    continue
+
                 # Filtro de JSON e Chamadas de Funções Hallucinadas
                 raw_token = content.strip()
                 if raw_token.startswith("{") or raw_token.startswith("}"):
@@ -963,12 +987,14 @@ async def generate(message: ChatMessage):
                 filtered_content = "".join(c for c in content if ord(c) <= 0xFFFF)
                 if filtered_content:
                     # Se for o início da resposta final (primeiro token após ferramentas), avisamos o frontend
-                    if not any(a == "Finalizando resposta..." for a in activities_trace):
+                    if not any(
+                        a == "Finalizando resposta..." for a in activities_trace
+                    ):
                         add_activity("Finalizando resposta...")
                         # Pequeno delay para garantir que a UI processe as fontes antes de minimizar
                         await asyncio.sleep(0.3)
                         yield f"data: {json.dumps({'status': 'Finalizando resposta...'})}\n\n"
-                        
+
                         # Garante que a resposta final fique ABAIXO das fontes e status
                         if "__MOMAI_ACTIONS__" not in full_content:
                             marker = "\n\n__MOMAI_ACTIONS__\n\n"
@@ -1084,11 +1110,15 @@ async def generate(message: ChatMessage):
 
         # Check search_count and sources from final state
         final_sources = None
+        final_snippets = None
+        final_cards = None
         try:
             final_state = await momai_graph.aget_state(config)
             if final_state and final_state.values:
                 search_count = final_state.values.get("search_count", 0)
                 final_sources = final_state.values.get("sources")
+                final_snippets = final_state.values.get("snippets")
+                final_cards = final_state.values.get("cards")
                 if search_count > 0 and activities_trace:
                     for i in range(len(activities_trace) - 1, -1, -1):
                         if activities_trace[i].startswith("Buscando"):
@@ -1096,6 +1126,11 @@ async def generate(message: ChatMessage):
                             break
         except Exception:
             pass
+
+        if final_snippets and not any("snippets" in str(y) for y in [y for y in []]):
+            yield f"data: {json.dumps({'snippets': final_snippets})}\n\n"
+        if final_cards:
+            yield f"data: {json.dumps({'cards': final_cards})}\n\n"
 
         try:
             import app_state
@@ -1135,6 +1170,8 @@ async def generate(message: ChatMessage):
                 activities=activities_trace if activities_trace else None,
                 graph_data=pending_graph,
                 sources=final_sources,
+                snippets=final_snippets,
+                cards=final_cards,
             )
 
         if tts_buffer.strip():

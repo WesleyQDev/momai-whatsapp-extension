@@ -48,7 +48,7 @@ export default function MainViewRenderer({
   chat
 }: MainViewRendererProps) {
   const Component =
-    VIEW_MAP[viewName] || (extensionData?.features?.ui_schema ? DynamicDashboard : null)
+    VIEW_MAP[viewName] || (extensionData ? DynamicDashboard : null)
 
   const isChat = viewName === 'ChatDashboard'
 
@@ -66,7 +66,6 @@ export default function MainViewRenderer({
     >
       <Component
         onOpenSettings={onOpenSettings}
-        schema={extensionData?.features?.ui_schema}
         title={extensionData?.name}
         description={extensionData?.description}
         extensionId={extensionData?.id}

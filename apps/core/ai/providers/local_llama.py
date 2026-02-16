@@ -101,13 +101,9 @@ def get_paths():
     backend = "cpu"  # Default fallback
 
     if preferred_backend != "auto":
-        # If user chose a specific one, try to use it
-        if downloader.check_engine_installed(preferred_backend):
-            backend = preferred_backend
-        else:
-            # If preferred is not installed, find the best available
-            install_info = downloader.get_installed_info()
-            backend = install_info.get("backend", "cpu")
+        # Prioritize user preference even if not yet installed, 
+        # so ensure_engine_installed can detect the absence and install it.
+        backend = preferred_backend
     else:
         # Auto mode: find info on the best installed build
         install_info = downloader.get_installed_info()
@@ -115,8 +111,8 @@ def get_paths():
 
     exe_path = base_dir / "bin" / backend / "llama-server.exe"
 
-    # Fallback if manifest points to a non-existent physical path
-    if not exe_path.exists():
+    # Only apply fallback if in auto mode and nothing is found
+    if preferred_backend == "auto" and not exe_path.exists():
         for b in ["cuda", "vulkan", "cpu"]:
             p = base_dir / "bin" / b / "llama-server.exe"
             if p.exists():
@@ -181,18 +177,38 @@ def load_model(repo_id: str, filename: str, on_progress=None) -> ChatOpenAI | No
             report(f"Using cached model: {filename}")
         else:
             report(f"Model not found locally, attempting to download {filename}...")
-            model_path = hf_hub_download(
-                repo_id=repo_id, filename=filename, local_dir=paths["models"]
-            )
+            # Temporarily allow network for initial download
+            old_offline = os.environ.get("HF_HUB_OFFLINE")
+            os.environ["HF_HUB_OFFLINE"] = "0"
+            try:
+                model_path = hf_hub_download(
+                    repo_id=repo_id, filename=filename, local_dir=paths["models"]
+                )
+                report("Download successful!")
+            finally:
+                # Restore offline mode
+                if old_offline is not None:
+                    os.environ["HF_HUB_OFFLINE"] = old_offline
+                else:
+                    os.environ["HF_HUB_OFFLINE"] = "1"
 
         abs_model_path = str(Path(model_path).resolve())
         abs_exe_path = str(paths["exe"].resolve())
 
         if not paths["exe"].exists():
-            report("ERROR: llama-server.exe not found!")
-            raise FileNotFoundError(
-                "Local engine (llama-server) not found. Please install it in settings."
+            report(f"Local engine ({paths['backend']}) not found. Attempting auto-installation...")
+            success = downloader.ensure_engine_installed(
+                progress_callback=lambda p: report(f"Downloading engine: {p}%"),
+                backend=paths["backend"]
             )
+            if not success:
+                report("ERROR: Failed to install llama-server!")
+                raise FileNotFoundError(
+                    f"Local engine ({paths['backend']}) not found and auto-installation failed."
+                )
+            # Refresh paths after installation
+            paths = get_paths()
+            abs_exe_path = str(paths["exe"].resolve())
 
         import psutil
 

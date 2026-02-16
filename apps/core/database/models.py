@@ -70,6 +70,8 @@ class Message(Base):
     sources = Column(
         String, default=None
     )  # JSON array of source objects with url, title, snippet
+    snippets = Column(String, default=None)  # JSON array of snippet objects
+    cards = Column(String, default=None)  # JSON array of card objects
     created_at = Column(DateTime, default=lambda: datetime.now())
 
 
@@ -165,7 +167,16 @@ def init_db():
             conn.execute(
                 text("ALTER TABLE messages ADD COLUMN sources TEXT DEFAULT NULL")
             )
-            conn.commit()
+        if "snippets" not in msg_cols:
+            conn.execute(
+                text("ALTER TABLE messages ADD COLUMN snippets TEXT DEFAULT NULL")
+            )
+        if "cards" not in msg_cols:
+            conn.execute(
+                text("ALTER TABLE messages ADD COLUMN cards TEXT DEFAULT NULL")
+            )
+        conn.commit()
+
         if "tutorial_completed" not in cols:
             conn.execute(
                 text(

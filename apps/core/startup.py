@@ -40,21 +40,21 @@ async def init_system_task() -> None:
         # Inicia o motor de IA em paralelo
         app_state.orchestrator.initialize_llm(on_brain_init)
 
-        # 2. Continue with other initializations in parallel
+        # 2. Carrega skills
         app_state.extension_manager.load_all()
-        ext_count = len(app_state.extension_manager.get_active_manifests())
+        skill_count = len(app_state.extension_manager.get_all_skills())
         await app_state.send_init_event(
-            "extensions", f"{ext_count} extensions loaded", 45
+            "extensions", f"{skill_count} skills loaded", 45
         )
 
-        # Indexing tools and intents
+        # Indexing tools and skills
         try:
-            from utils.indexer import index_all_system_tools, index_initial_intents
+            from utils.indexer import index_all_system_tools, index_all_skills
 
             await app_state.send_init_event("brain", "Indexing tools...", 50)
             await index_all_system_tools()
-            await app_state.send_init_event("brain", "Indexing intents...", 55)
-            await index_initial_intents()
+            await app_state.send_init_event("brain", "Indexing skills...", 55)
+            await index_all_skills()
         except Exception as exc:
             app_state.logger.warning("[Main] Indexing error: %s", exc)
 

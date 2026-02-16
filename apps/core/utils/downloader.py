@@ -384,6 +384,13 @@ def clear_version_cache():
         os.remove(CACHE_FILE)
         print("[Cache] Cache limpo com sucesso.")
 
+def ensure_engine_installed(progress_callback=None, backend=None):
+    """Verifica se o motor está instalado e, se não, inicia a instalação."""
+    if not check_engine_installed(backend):
+        print(f"[Downloader] Engine for {backend or 'auto'} not found. Starting automatic setup...")
+        return setup_local_engine(progress_callback, forced_backend=backend)
+    return True
+
 if __name__ == "__main__":
     # Local test if script is run directly
     setup_local_engine()

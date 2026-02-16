@@ -51,12 +51,23 @@ class EmbeddingEngine:
             backend = info.get("backend", "cpu")
 
         exe_path = base_dir / "bin" / backend / "llama-server.exe"
-        if not exe_path.exists():
+        
+        # Only fallback if not explicitly chosen
+        try:
+            db = SessionLocal()
+            s = db.query(Settings).first()
+            is_auto = s.local_backend == "auto" if s else True
+            db.close()
+        except:
+            is_auto = True
+
+        if is_auto and not exe_path.exists():
             # Fallback
-            for b in ["vulkan", "cpu"]:
+            for b in ["cuda", "vulkan", "cpu"]:
                 p = base_dir / "bin" / b / "llama-server.exe"
                 if p.exists():
                     exe_path = p
+                    backend = b
                     break
         
         return {
@@ -71,11 +82,21 @@ class EmbeddingEngine:
         
         if not model_path.exists():
             print(f"[Embeddings] Downloading model {MODEL_FILE} from {MODEL_REPO}...")
-            hf_hub_download(
-                repo_id=MODEL_REPO,
-                filename=MODEL_FILE,
-                local_dir=MODELS_DIR
-            )
+            # Temporarily allow network for initial download
+            old_offline = os.environ.get("HF_HUB_OFFLINE")
+            os.environ["HF_HUB_OFFLINE"] = "0"
+            try:
+                hf_hub_download(
+                    repo_id=MODEL_REPO,
+                    filename=MODEL_FILE,
+                    local_dir=MODELS_DIR
+                )
+            finally:
+                # Restore offline mode
+                if old_offline is not None:
+                    os.environ["HF_HUB_OFFLINE"] = old_offline
+                else:
+                    os.environ["HF_HUB_OFFLINE"] = "1"
         else:
             print(f"[Embeddings] Using cached model: {MODEL_FILE}")
         return str(model_path.resolve())
@@ -93,6 +114,16 @@ class EmbeddingEngine:
                 pass
 
             paths = self._get_paths()
+            
+            # Ensure engine is installed before proceeding
+            if not Path(paths["exe"]).exists():
+                from utils.downloader import ensure_engine_installed
+                backend_name = Path(paths["exe"]).parent.name
+                print(f"[Embeddings] llama-server.exe for {backend_name} not found. Installing...")
+                ensure_engine_installed(backend=backend_name)
+                # Refresh paths
+                paths = self._get_paths()
+
             model_path = self._get_model_path()
             
             print(f"[Embeddings] Starting llama-server for embeddings on port {self._port}...")

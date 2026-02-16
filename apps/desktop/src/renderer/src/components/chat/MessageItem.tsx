@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { Message } from '../../services/api'
 import icon from '../../assets/icon.png'
 import { DocumentTextIcon } from '@heroicons/react/24/outline'
+import { ExtrasRenderer } from './ExtrasRenderer'
 
 interface MessageItemProps {
   message: Message
@@ -416,6 +417,17 @@ const MessageItem = memo(function MessageItem({
                       </a>
                     )
                   })}
+                </div>
+              )}
+
+              {/* Snippets and Cards from Skills - use ExtrasRenderer for all extras */}
+              {(message.snippets?.length || message.cards?.length) && (
+                <div className="mt-2">
+                  <ExtrasRenderer 
+                    snippets={message.snippets} 
+                    cards={message.cards}
+                    isLoading={isLoading}
+                  />
                 </div>
               )}
 

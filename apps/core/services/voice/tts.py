@@ -9,7 +9,7 @@ import os
 from typing import Optional, Any
 
 # Disable Hugging Face network checks globally for faster, offline-first execution
-os.environ["HF_HUB_OFFLINE"] = "1"
+# os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false" # Avoid warnings in multi-threaded env
 
 # Suppress specific warnings for a cleaner output
@@ -78,10 +78,20 @@ class TTSManager:
             
             self.pyaudio_instance = pyaudio.PyAudio()
             
-            # KPipeline may still try to check if it has repo_id. 
-            # If the files are already cached, this should be fast.
-            # Using repo_id='hexgrad/Kokoro-82M' but HF_HUB_OFFLINE=1 should skip the HEAD request.
-            self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+            # KPipeline handles downloading the model if repo_id is provided.
+            # We try to force offline first to respect privacy.
+            try:
+                # Attempt to load with offline mode enabled
+                os.environ["HF_HUB_OFFLINE"] = "1"
+                self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+            except Exception:
+                # If it fails, it might be missing. Enable network temporarily to download.
+                logger.info("[TTS] Model 'Kokoro-82M' not found in cache. Enabling network for initial download...")
+                os.environ["HF_HUB_OFFLINE"] = "0"
+                self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+            finally:
+                # Always return to offline mode after initialization
+                os.environ["HF_HUB_OFFLINE"] = "1"
             
             self.has_tts = True
             self.ready_event.set()

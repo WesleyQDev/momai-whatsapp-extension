@@ -264,6 +264,32 @@ export function useChat() {
             return updated
           })
         },
+        onSnippets: (snippets) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                snippets
+              }
+            }
+            return updated
+          })
+        },
+        onCards: (cards) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                cards
+              }
+            }
+            return updated
+          })
+        },
         onError: (error) => {
           console.error('Erro ao enviar escolha:', error)
         },
@@ -972,6 +998,32 @@ export function useChat() {
                 updated[lastIdx] = {
                   ...updated[lastIdx],
                   sources
+                }
+              }
+              return updated
+            })
+          },
+          onSnippets: (snippets) => {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const lastIdx = findLastAssistantIndex(updated)
+              if (lastIdx >= 0) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  snippets
+                }
+              }
+              return updated
+            })
+          },
+          onCards: (cards) => {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const lastIdx = findLastAssistantIndex(updated)
+              if (lastIdx >= 0) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  cards
                 }
               }
               return updated

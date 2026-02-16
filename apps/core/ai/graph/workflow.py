@@ -38,7 +38,7 @@ class AgentState(TypedDict):
     active_skill_id: str | None
     skill_result: str | None
     fast_path: bool | None
-    search_count: int | None
+    tool_usage: dict[str, int] | None
     tool_results: list[str] | None
     skill_id: str | None
     task: str | None
@@ -147,7 +147,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                     break
                 lines.append(entry)
                 used_tokens += entry_tokens
-            
+
             if lines:
                 context_header = (
                     "IMPORTANTE: As informações abaixo foram extraídas das NOTAS PESSOAIS DO USUÁRIO. "
@@ -179,13 +179,18 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
 
         if mem_context:
             from utils.tokenizer import count_tokens
-            log_event("Discovery", f"Memory Context loaded ({count_tokens(mem_context)} tokens)")
+
+            log_event(
+                "Discovery",
+                f"Memory Context loaded ({count_tokens(mem_context)} tokens)",
+            )
 
         return {
             "discovered_skills": skills_brief,
             "memory_context": mem_context,
             "memory_notes": memory_hits if memory_hits else None,
             "fast_path": False,
+            "tool_usage": {},
         }
 
     async def manager_node(state: AgentState):
@@ -194,7 +199,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         persona = PERSONA_INJECTION_TEMPLATE.format(
             user_name=user_name, assistant_persona=assistant_persona or ""
         )
-        
+
         now = datetime.now()
         current_time_info = f"Current Date: {now.strftime('%A, %d de %B de %Y')}\nCurrent Time: {now.strftime('%H:%M')}"
 
@@ -218,11 +223,12 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             "\n# EXECUTION PROTOCOL\n"
             "1. FIRST, check if the answer is already in the # CONTEÚDO DAS NOTAS DO USUÁRIO or # EXTERNAL MEMORY provided above.\n"
             "2. IF YOU HAVE THE ANSWER, you can respond directly without calling any tool.\n"
-            "3. OTHERWISE, plan a sequence of actions. For complex requests like 'resumo do dia', you might need to call MULTIPLE skills sequentially.\n"
-            "4. Briefly acknowledge the user and call 'activate_skill(skill_id, task_description)' for the FIRST step.\n"
-            "5. After each skill finishes, you will receive the result and can call ANOTHER skill if needed.\n"
-            "6. ONLY provide the final response to the user after you have gathered all necessary information.\n"
-            "7. NEVER invent personal data. If no skill matches and it's not in your memory, say you don't have access."
+            "3. OTHERWISE, call 'activate_skill(skill_id, task_description)' for the FIRST step.\n"
+            "4. MANDATORY: DO NOT NARRATE. Do not say what you will do. If you need a tool, just call it.\n"
+            "5. Your output must be ONLY the tool call or ONLY the final answer.\n"
+            "6. After each skill finishes, you will receive the result and can call ANOTHER skill if needed.\n"
+            "7. ONLY provide the final response to the user after you have gathered all necessary information.\n"
+            "8. NEVER invent personal data. If no skill matches and it's not in your memory, say you don't have access."
         )
 
         from langchain_core.tools import tool
@@ -234,22 +240,37 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
 
         manager_tools = [activate_skill]
         all_reg = get_all_tools_registry()
-        for t in ["show_interface", "close_interface", "search"]:
-            if all_reg.get(t):
-                manager_tools.append(all_reg[t])
+        for t_name in ["show_interface", "close_interface"]:
+            if all_reg.get(t_name):
+                manager_tools.append(all_reg[t_name])
+
+        tool_usage = state.get("tool_usage", {}) or {}
+        tool_limits = {
+            "search": 3,
+            "duckduckgo_search": 3,
+            "duckduckgo_news": 3,
+            "default": 10
+        }
+        
+        available_manager_tools = []
+        for t in manager_tools:
+            limit = tool_limits.get(t.name, tool_limits["default"])
+            if tool_usage.get(t.name, 0) < limit:
+                available_manager_tools.append(t)
+            else:
+                log_event("Guardrail", f"Manager Tool '{t.name}' reached its limit ({limit}). Hiding.")
 
         # Fortalecer o prompt para forçar uso de ferramentas quando necessário
         system_prompt += (
             "\n# CRITICAL INSTRUCTIONS\n"
-            "Use tools ONLY when necessary to get missing information.\n"
-            "If the information is already in your memory, DO NOT call any skill - just answer directly.\n"
-            "NEVER describe what you will do without actually doing it if a tool is needed.\n"
+            "Use tools ONLY when absolutely necessary. If you have the answer in history or memory, PROVIDE IT IMMEDIATELY.\n"
+            "If you reach a tool limit, stop trying and answer with what you have.\n"
         )
 
         prompt = ChatPromptTemplate.from_messages(
             [("system", system_prompt), MessagesPlaceholder(variable_name="messages")]
         )
-        chain = prompt | llm.bind_tools(manager_tools)
+        chain = prompt | llm.bind_tools(available_manager_tools) if available_manager_tools else prompt | llm
         budget = _compute_history_budget(system_prompt, state.get("summary"))
         result = await chain.ainvoke(
             {"messages": get_valid_history(state["messages"], 8, budget)}
@@ -301,28 +322,46 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
             f"{get_language_instruction()}\n\n"
             f"# ROLE: {skill.name}\n{skill.full_instructions}\n\n"
         )
-        
+
         if mem_context:
             system_instructions += f"{mem_context}\n\n"
-            
+
         system_instructions += (
             f"# TASK: {task}\n\n"
             "# CRITICAL INSTRUCTIONS:\n"
-            "1. If the user asks about MULTIPLE DIFFERENT topics, make SEPARATE search calls for EACH topic.\n"
-            "2. Example: 'preço dólar e temperatura Curitiba' = 1 call for dólar, 1 call for temperatura.\n"
-            "3. Call the search tool as many times as needed (up to 3 total).\n"
-            "4. Do NOT describe what you will search - just call the tool.\n"
-            "5. ONLY after getting ALL search results, provide the final answer.\n"
-            "6. Your response must start directly with the answer - no preamble.\n"
+            "1. If the information is available in the 'Search results so far', ANSWER IMMEDIATELY.\n"
+            "2. Only call the search tool if the existing results are insufficient.\n"
+            "3. DO NOT NARRATE YOUR ACTIONS. Call the tool DIRECTLY without any conversational text.\n"
+            "4. If you reach 3 searches, you MUST stop and answer with what you have.\n"
+            "5. Your response must start directly with the answer - no preamble.\n"
         )
 
-        registry = get_all_tools_registry()
-        skill_tools = [registry[t] for t in skill.allowed_tools if t in registry]
+        skill_tools = skill.get_tools()
+        tool_usage = state.get("tool_usage", {}) or {}
+        
+        # Dynamic Tool Filtering: Remove tools that reached their limits
+        # Using same limits as manager for consistency
+        tool_limits = {
+            "search": 3,
+            "duckduckgo_search": 3,
+            "duckduckgo_news": 3,
+            "default": 10
+        }
+        
+        available_tools = []
+        if skill_tools:
+            for t in skill_tools:
+                limit = tool_limits.get(t.name, tool_limits["default"])
+                if tool_usage.get(t.name, 0) < limit:
+                    available_tools.append(t)
+                else:
+                    log_event("Guardrail", f"Tool '{t.name}' reached its limit ({limit}). Hiding from LLM.")
 
         prompt = ChatPromptTemplate.from_messages(
             [("system", system_instructions), ("human", "{task}")]
         )
-        chain = prompt | llm.bind_tools(skill_tools) if skill_tools else prompt | llm
+        # Bind only the available tools
+        chain = prompt | llm.bind_tools(available_tools) if available_tools else prompt | llm
 
         # Check if there are tool results in state from previous iteration
         tool_results = state.get("tool_results", [])
@@ -369,91 +408,89 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
         }
 
     def search_counter_node(state: AgentState):
-        """Count search results and emit for UI."""
-        tool_count = 0
-        for msg in state["messages"]:
-            if isinstance(msg, ToolMessage):
-                tool_count += 1
-        if tool_count > 0:
-            print(f">>> [SearchCount] {tool_count}")
-            logger.info(f">>> [SearchCount] {tool_count}")
-        return {"search_count": tool_count}
+        """Extract search count from tool_usage and emit for UI."""
+        usage = state.get("tool_usage", {}) or {}
+        # Sum all search-related tool calls
+        count = usage.get("search", 0) + usage.get("duckduckgo_search", 0) + usage.get("duckduckgo_news", 0)
+        
+        if count > 0:
+            log_event("SearchCount", f"Total searches: {count}")
+        
+        return {"search_count": count}
 
     def extract_sources_node(state: AgentState):
-        """Extract URLs and titles from ALL search tool results - accumulates from all searches."""
+        """Extract URLs, titles and extras from ALL tool results - accumulates from all searches."""
         import json
         import re
         from langchain_core.messages import ToolMessage
 
-        SEARCH_TOOLS = {"duckduckgo_search", "duckduckgo_news"}
-
-        # Get ALL tool_call_ids from ALL messages with tool_calls (accumulate from all searches)
-        all_tool_call_ids = set()
-        all_tool_names = set()
-        for msg in state["messages"]:
-            if hasattr(msg, "tool_calls") and msg.tool_calls:
-                for tc in msg.tool_calls:
-                    if tc["name"] in SEARCH_TOOLS:
-                        all_tool_call_ids.add(tc["id"])
-                        all_tool_names.add(tc["name"])
-
         sources = []
         seen_urls = set()
+        all_extras = []
+        snippets = []
+        cards = []
 
-        # Add memory notes first if they exist
+        # Process external memory notes first
         mem_notes = state.get("memory_notes")
         if mem_notes:
             for note in mem_notes:
                 url = f"momai://note/{note.get('note_id', 'unknown')}"
                 if url not in seen_urls:
                     seen_urls.add(url)
-                    sources.append({
-                        "url": url,
-                        "title": f"Nota: {note.get('title', 'Sem título')}",
-                        "snippet": note.get("text", "")[:200]
-                    })
-
-        # Only proceed if any of the tools are search tools or we have memory notes
-        if not all_tool_call_ids and not mem_notes:
-            return {"sources": None}
-
-        for msg in state["messages"]:
-            if isinstance(msg, ToolMessage) and msg.tool_call_id in all_tool_call_ids:
-                content = msg.content
-                results = None
-
-                # Try to parse using ast.literal_eval (handles Python dict strings)
-                try:
-                    import ast
-
-                    parsed = (
-                        ast.literal_eval(content)
-                        if isinstance(content, str)
-                        else content
+                    sources.append(
+                        {
+                            "url": url,
+                            "title": f"Nota: {note.get('title', 'Sem título')}",
+                            "snippet": note.get("text", "")[:200],
+                        }
                     )
-                    if isinstance(parsed, list):
-                        results = parsed
-                    elif isinstance(parsed, dict):
-                        results = [parsed]
-                except Exception:
-                    # Fallback to json
-                    try:
-                        results = (
-                            json.loads(content) if isinstance(content, str) else content
-                        )
-                    except:
-                        results = None
 
-                # Process results
-                if isinstance(results, list):
-                    for item in results:
-                        if isinstance(item, dict):
-                            url = (
-                                item.get("link")
-                                or item.get("href")
-                                or item.get("url", "")
-                            )
-                            # Clean URL - remove trailing characters like '},
+        # Iterate through all messages to find ToolMessages with extras or structured content
+        any_valid_tool_data = False
+        for msg in state["messages"]:
+            if not isinstance(msg, ToolMessage):
+                continue
+
+            # 1. Check for explicit 'extras' protocol (highest priority)
+            has_extras = (
+                hasattr(msg, "additional_kwargs")
+                and msg.additional_kwargs
+                and "extras" in msg.additional_kwargs
+            )
+            if has_extras:
+                any_valid_tool_data = True
+                extras = msg.additional_kwargs["extras"]
+                if extras.get("sources"):
+                    all_extras.extend(extras.get("sources", []))
+                if extras.get("snippets"):
+                    snippets.extend(extras.get("snippets", []))
+                if extras.get("cards"):
+                    cards.extend(extras.get("cards", []))
+
+            # 2. Heuristic extraction for tools that return lists/dicts but didn't use the extras protocol
+            content = msg.content
+            results = None
+
+            try:
+                import ast
+                # Try to parse stringified Python/JSON content
+                parsed = ast.literal_eval(content) if isinstance(content, str) else content
+                if isinstance(parsed, (list, dict)):
+                    results = parsed if isinstance(parsed, list) else [parsed]
+            except Exception:
+                try:
+                    results = json.loads(content) if isinstance(content, str) else content
+                    if isinstance(results, dict):
+                        results = [results]
+                except:
+                    results = None
+
+            if results and isinstance(results, list):
+                for item in results:
+                    if isinstance(item, dict):
+                        url = item.get("link") or item.get("href") or item.get("url", "")
+                        if url and isinstance(url, str) and (url.startswith("http") or url.startswith("momai://")):
+                            any_valid_tool_data = True
                             url = re.sub(r"['\"]*,?}$", "", url).strip()
                             title = item.get("title", "") or item.get("name", "")
                             snippet = (
@@ -462,44 +499,36 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
                                 or item.get("text", "")
                                 or item.get("description", "")
                             )
-                            if url and url not in seen_urls:
+                            if url not in seen_urls:
                                 seen_urls.add(url)
-                                sources.append(
-                                    {
-                                        "url": url,
-                                        "title": title,
-                                        "snippet": snippet[:200] if snippet else "",
-                                    }
-                                )
-                elif isinstance(results, dict):
-                    url = (
-                        results.get("link")
-                        or results.get("href")
-                        or results.get("url", "")
-                    )
-                    url = re.sub(r"['\"]*,?}$", "", url).strip()
-                    title = results.get("title", "") or results.get("name", "")
-                    snippet = (
-                        results.get("snippet", "")
-                        or results.get("body", "")
-                        or results.get("text", "")
-                        or results.get("description", "")
-                    )
-                    if url and url not in seen_urls:
-                        seen_urls.add(url)
-                        sources.append(
-                            {
-                                "url": url,
-                                "title": title,
-                                "snippet": snippet[:200] if snippet else "",
-                            }
-                        )
+                                sources.append({
+                                    "url": url,
+                                    "title": title or url,
+                                    "snippet": snippet[:200] if snippet else ""
+                                })
+
+        if not any_valid_tool_data and not mem_notes:
+            return {"sources": None}
+
+        # Merge explicit extras into sources list
+        if all_extras:
+            for src in all_extras:
+                if src.get("url") and src["url"] not in seen_urls:
+                    seen_urls.add(src["url"])
+                    sources.append(src)
+            print(f">>> [Extras] Merged {len(all_extras)} sources from extras")
 
         if sources:
-            print(f">>> [Sources] Found {len(sources)} sources from ALL searches")
-            logger.info(f">>> [Sources] Found {len(sources)} sources from ALL searches")
+            print(f">>> [Sources] Total of {len(sources)} sources accumulated")
+            logger.info(f">>> [Sources] Total of {len(sources)} sources accumulated")
 
-        return {"sources": sources if sources else None}
+        result = {"sources": sources if sources else None}
+        if snippets:
+            result["snippets"] = snippets
+        if cards:
+            result["cards"] = cards
+
+        return result
 
     def route_specialist(state: AgentState):
         """Route specialist output: if tool_calls, go to tools; else go to search_counter."""
@@ -569,7 +598,7 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
     workflow.add_conditional_edges("tools", route_tools)
     workflow.add_conditional_edges("extract_sources", route_extract_sources)
     workflow.add_conditional_edges("search_counter", route_search_counter)
-    
+
     # Static edges for the data preparation flow
     workflow.add_edge("prepare_tool_results", "extract_sources")
 
@@ -578,19 +607,35 @@ def create_momai_graph(llm, user_name="Sir", assistant_persona=None, checkpointe
 
 async def dynamic_tools_node(state: AgentState):
     from langchain_core.messages import ToolMessage
+    from utils.safe_tools import extract_extras
 
     last_msg = state["messages"][-1]
     if not hasattr(last_msg, "tool_calls") or not last_msg.tool_calls:
         return {"messages": []}
     registry = get_all_tools_registry()
     tool_messages = []
+    tool_usage = state.get("tool_usage", {}) or {}
+    
     for tc in last_msg.tool_calls:
-        tool = registry.get(tc["name"])
+        tool_name = tc["name"]
+        tool = registry.get(tool_name)
         if tool:
+            # Increment usage count for this tool
+            tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1
+            
             res = await tool.ainvoke(tc["args"])
-            tool_messages.append(ToolMessage(content=str(res), tool_call_id=tc["id"]))
+
+            processed_res, extras = extract_extras(res)
+
+            tool_msg_kwargs = {"tool_call_id": tc["id"]}
+            if extras:
+                tool_msg_kwargs["additional_kwargs"] = {"extras": extras}
+
+            tool_messages.append(
+                ToolMessage(content=str(processed_res), **tool_msg_kwargs)
+            )
 
     # Determine next step: if specialist called tools, go back to specialist; else go to manager
     has_skill_id = bool(state.get("skill_id"))
     next_step = "prepare_tool_results" if has_skill_id else "momai_agent"
-    return {"messages": tool_messages, "next_step": next_step}
+    return {"messages": tool_messages, "tool_usage": tool_usage, "next_step": next_step}
