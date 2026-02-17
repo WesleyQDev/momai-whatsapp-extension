@@ -193,6 +193,15 @@
             color: var(--text);
         }
 
+        .post-view-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+            color: var(--text);
+        }
+
         .post-excerpt { 
             color: var(--text-secondary); 
             font-size: 0.9rem; 
@@ -352,8 +361,20 @@
                 display: none;
             }
 
-            .post-content h1 { font-size: 1.8rem; }
+            .post-content h1 { font-size: 2rem; margin-top: 2rem; }
+            .post-content h2 { font-size: 1.6rem; margin-top: 1.8rem; }
+            .post-content h3 { font-size: 1.3rem; margin-top: 1.5rem; }
+            .post-view-title { font-size: 2.2rem; }
+            .featured-content .post-title { font-size: 1.8rem; }
             .blog-container { padding: 2rem 1.5rem; }
+        }
+
+        @media (max-width: 480px) {
+            .post-view-title { font-size: 1.8rem; }
+            .post-content { font-size: 1.05rem; }
+            .post-content h1 { font-size: 1.7rem; }
+            .post-content h2 { font-size: 1.4rem; }
+            .featured-content .post-title { font-size: 1.6rem; }
         }
     </style>
 </head>
@@ -369,7 +390,7 @@
             </ul>
         </div>
         <div class="nav-right">
-            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -538,7 +559,7 @@
                     <a href="javascript:renderList()" class="back-button">← Voltar para todos os posts</a>
                     <div class="post-view-header">
                         <div class="post-date">${post.date || ''}</div>
-                        <h1 style="font-size: 3.5rem; margin-bottom: 1rem;">${post.title}</h1>
+                        <h1 class="post-view-title">${post.title}</h1>
                     </div>
                     <div class="post-content">${contentHtml}</div>
                 </div>
@@ -571,7 +592,7 @@
 
         // Busca automática do último release do GitHub
         async function updateDownloadLinks() {
-            const repo = "WesleyQDev/MomAI";
+            const repo = "WesleyQDev/MomAI-App";
             const storageKey = "momai_latest_download";
             const cachedUrl = sessionStorage.getItem(storageKey);
             if (cachedUrl) {

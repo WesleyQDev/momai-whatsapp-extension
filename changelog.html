@@ -86,6 +86,16 @@
             .nav-links a { display: block; padding: 1rem 1.5rem; font-size: 0.95rem; border-top: 1px solid var(--bg-subtle); }
             .menu-toggle { display: block; }
             .nav-right .btn-primary { display: none; }
+            
+            .md-content h1 { font-size: 1.8rem; }
+            .md-content h2 { font-size: 1.3rem; margin-top: 2rem; }
+            .changelog-content { padding: 2rem 1.5rem; }
+        }
+
+        @media (max-width: 480px) {
+            .md-content h1 { font-size: 1.6rem; }
+            .md-content h2 { font-size: 1.2rem; }
+            .md-content p, .md-content li { font-size: 0.9rem; }
         }
 
         .changelog-content {
@@ -119,7 +129,7 @@
             </ul>
         </div>
         <div class="nav-right">
-            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download" class="btn-primary">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -159,7 +169,7 @@
 
         // Busca automática do último release do GitHub
         async function updateDownloadLinks() {
-            const repo = "WesleyQDev/MomAI";
+            const repo = "WesleyQDev/MomAI-App";
             const storageKey = "momai_latest_download";
             const cachedUrl = sessionStorage.getItem(storageKey);
             if (cachedUrl) {
