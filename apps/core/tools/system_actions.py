@@ -255,7 +255,7 @@ def open_model_selector():
     return show_interface.invoke(
         {
             "view": "side",
-            "content": "### Modelo Local\n\nNo momento o MomAI opera exclusivamente de forma local e privada.",
+            "content": "### Modelo Local\n\nNo momento a MomAI opera exclusivamente de forma local e privada.",
             "options": ["Local"],
             "bypass_wake_word": True,
         }

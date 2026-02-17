@@ -266,7 +266,7 @@ const MessageItem = memo(function MessageItem({
   return (
     <div 
       onContextMenu={handleContextMenu}
-      className={`flex items-start gap-3 sm:gap-4 max-w-full group animate-slide-in-up ${message.role === 'assistant' ? 'self-start w-full' : 'self-end flex-row-reverse ml-12'}`}
+      className={`flex items-start gap-3 sm:gap-4 max-w-full group ${message.role === 'assistant' ? 'self-start w-full' : 'self-end flex-row-reverse ml-12'}`}
     >
       {contextMenu && (
         <MessageContextMenu
@@ -283,8 +283,12 @@ const MessageItem = memo(function MessageItem({
       <div className={`flex-shrink-0 mt-1 ${message.role === 'assistant' ? 'block' : 'hidden sm:block opacity-0 group-hover:opacity-100 transition-opacity'}`}>
         {message.role === 'assistant' ? (
           <div className="relative">
-            <div className="absolute inset-0 bg-accent/10 blur-md rounded-full"></div>
-            <img src={icon} alt="MomAI" className="relative z-10 w-8 h-8 rounded-lg object-cover border border-border/20 bg-card" />
+            {isLoading && (
+              <div className="absolute inset-[-2px] rounded-xl bg-gradient-to-tr from-accent/40 via-purple-500/20 to-accent/40 animate-spin-slow opacity-40 blur-[4px]"></div>
+            )}
+            <div className={`relative z-10 w-8 h-8 rounded-lg border border-border/20 bg-card overflow-hidden ${isLoading ? 'animate-ai-loading ring-1 ring-accent/20' : ''}`}>
+              <img src={icon} alt="MomAI" className="w-full h-full object-cover" />
+            </div>
           </div>
         ) : (
           <div className="w-8 h-8 rounded-full bg-accent/5 flex items-center justify-center text-[10px] font-bold text-text-muted border border-border/20">EU</div>
@@ -292,11 +296,6 @@ const MessageItem = memo(function MessageItem({
       </div>
 
       <div className={`relative break-words overflow-hidden min-w-0 max-w-full transition-all duration-300 ${message.role === 'assistant' ? 'flex-1 pt-0.5 text-text text-[15px] sm:text-[16px] leading-relaxed message' : 'bg-accent/5 border border-border/30 p-3 px-4 rounded-xl rounded-tr-none text-text text-[14px] sm:text-[15px] message'}`}>
-        {message.role === 'assistant' && (
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] opacity-50">MomAI</span>
-          </div>
-        )}
         
         <div className="flex flex-col gap-0 transition-all duration-300 overflow-hidden">
           {/* 1. Aviso Inicial */}

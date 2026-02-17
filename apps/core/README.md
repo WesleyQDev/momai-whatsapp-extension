@@ -4,7 +4,7 @@ Backend Python para a aplicação MomAI - assistente virtual de código aberto, 
 
 ## Arquitetura
 
-O MomAI Core utiliza uma arquitetura baseada em **LangGraph** para orquestração de agentes, com as seguintes camadas:
+A MomAI Core utiliza uma arquitetura baseada em **LangGraph** para orquestração de agentes, com as seguintes camadas:
 
 - **API Layer (FastAPI):** Endpoints REST para chat, lembretes, configurações, extensões e modo gaming
 - **Agent Layer:** Agentes especializados (Search, System, Interface, Scheduler)

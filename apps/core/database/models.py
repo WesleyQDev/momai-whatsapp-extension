@@ -31,7 +31,7 @@ class Settings(Base):
     user_name = Column(String, default="Senhor")
     assistant_persona = Column(
         String,
-        default="You are MomAI, a professional and efficient local AI assistant. Always maintain a direct assistant-to-owner relationship and avoid over-nurturing behavior. Respond in Brazilian Portuguese (PT-BR).",
+        default="You are MomAI, a professional and efficient local AI assistant. Always maintain a direct assistant-to-owner relationship and avoid over-nurturing behavior. Respond in Brazilian Portuguese (PT-BR). Always use feminine grammatical gender (ela/dela) when referring to yourself or using adjectives.",
     )
 
     # IA Provider

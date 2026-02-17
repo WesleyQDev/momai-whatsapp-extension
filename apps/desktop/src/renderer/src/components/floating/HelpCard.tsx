@@ -12,7 +12,7 @@ export default function HelpCard({ onClose }: HelpCardProps) {
     },
     {
       title: 'Extensões',
-      content: 'Acesse a loja de extensões para adicionar novas funcionalidades ao MomAI. Cada extensão pode adicionar agentes, ferramentas ou integrações.'
+      content: 'Acesse a loja de extensões para adicionar novas funcionalidades à MomAI. Cada extensão pode adicionar agentes, ferramentas ou integrações.'
     },
     {
       title: 'Notas',
@@ -24,7 +24,7 @@ export default function HelpCard({ onClose }: HelpCardProps) {
     },
     {
       title: 'Configurações',
-      content: 'Acesse as configurações para personalizar o MomAI. Você pode ajustar o cérebro da IA, voz, economia de recursos e preferências de atualizações.'
+      content: 'Acesse as configurações para personalizar a MomAI. Você pode ajustar o cérebro da IA, voz, economia de recursos e preferências de atualizações.'
     },
     {
       title: 'Atalhos de Teclado',

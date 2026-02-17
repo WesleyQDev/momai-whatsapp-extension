@@ -88,9 +88,9 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
   const userName = settings?.user_name || 'Senhor'
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 animate-fade-in select-none">
+    <div className="flex-1 flex flex-col items-center justify-center p-4 select-none">
       <div className="flex flex-col items-center mb-8 gap-1">
-        <h2 className="text-2xl font-bold text-text tracking-tight animate-in fade-in slide-in-from-bottom-2 duration-700">
+        <h2 className="text-2xl font-bold text-text tracking-tight">
           Olá, <span className="text-white">{userName}</span>
         </h2>
         <p className="text-[13px] text-text-muted/60 font-medium">Como posso te ajudar hoje?</p>

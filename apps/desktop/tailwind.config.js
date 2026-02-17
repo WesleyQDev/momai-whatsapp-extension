@@ -39,13 +39,28 @@ module.exports = {
         typing: {
           '0%, 80%, 100%': { transform: 'scale(0)', opacity: '0.6' },
           '40%': { transform: 'scale(1)', opacity: '1' }
+        },
+        spinSlow: {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' }
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' }
+        },
+        aiLoading: {
+          '0%, 100%': { transform: 'scale(1) translateY(0)' },
+          '50%': { transform: 'scale(1.05) translateY(-2px)' }
         }
       },
       animation: {
         'fade-in': 'fadeIn 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
         'zoom-in': 'zoomIn 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
         'slide-in-up': 'slideInUp 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-        typing: 'typing 1s infinite'
+        typing: 'typing 1s infinite',
+        'spin-slow': 'spinSlow 5s linear infinite',
+        shimmer: 'shimmer 2s linear infinite',
+        'ai-loading': 'aiLoading 2s ease-in-out infinite'
       }
     }
   },

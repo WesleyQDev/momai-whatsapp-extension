@@ -168,21 +168,23 @@ export function useChat() {
   }, [messages])
 
   const clearHistory = useCallback(async () => {
-    setIsLoading(true)
+    // Clear local state immediately for instantaneous feedback
+    setMessages([])
+    setSpeakingIndex(null)
+    setCallHistory([])
+    toolTraceRef.current = { activeMsgId: null, byToolId: {} }
+    
+    // Notify other components
+    window.dispatchEvent(new CustomEvent('momai_clear_history'))
+
     try {
-      setSpeakingIndex(null)
-      try {
-        await stopVoice()
-      } catch (e) {
-        // Ignore errors if voice stop fails
-      }
-      await clearChatHistory(threadId)
-      toolTraceRef.current = { activeMsgId: null, byToolId: {} }
-      window.dispatchEvent(new CustomEvent('momai_clear_history'))
+      // Background actions
+      await Promise.all([
+        stopVoice(),
+        clearChatHistory(threadId)
+      ])
     } catch (err) {
-      console.error('Erro ao limpar histórico:', err)
-    } finally {
-      setIsLoading(false)
+      console.error('Erro ao sincronizar limpeza de histórico:', err)
     }
   }, [threadId])
 
