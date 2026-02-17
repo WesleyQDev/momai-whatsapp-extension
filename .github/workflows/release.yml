@@ -122,7 +122,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          repository: WesleyQDev/MomAI-App  # <--- SEU REPOSITÓRIO PÚBLICO AQUI
           name: MomAI ${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ steps.version.outputs.VERSION }}
           draft: false
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') }}
           generate_release_notes: true
@@ -133,4 +135,4 @@ jobs:
             dist/linux/*.deb
             dist/linux/latest-linux.yml
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }} # <--- USAR O TOKEN QUE VOCÊ CRIOU

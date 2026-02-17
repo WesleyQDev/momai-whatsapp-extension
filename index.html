@@ -474,7 +474,7 @@
             </ul>
         </div>
         <div class="nav-right">
-            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+            <a href="https://github.com/WesleyQDev/MomAI/releases/latest" class="btn-primary btn-download" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -516,38 +516,57 @@
 
         // Busca automática do último release do GitHub
         async function updateDownloadLinks() {
-            const repo = "WesleyQDev/MomAI";
-            const storageKey = "momai_latest_download";
+            const repo = "WesleyQDev/MomAI-App";
+            const platform = navigator.platform?.toLowerCase() || "";
+            const isLinux = platform.includes('linux') || navigator.userAgent.toLowerCase().includes('linux');
+            const storageKey = isLinux ? "momai_latest_linux" : "momai_latest_win";
             
-            // Tenta usar o cache do link para evitar excesso de chamadas à API
             const cachedUrl = sessionStorage.getItem(storageKey);
             if (cachedUrl) {
-                applyDownloadUrl(cachedUrl);
+                applyDownloadUrl(cachedUrl, isLinux);
                 return;
             }
 
             try {
-                const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
-                if (!res.ok) return;
-                const data = await res.json();
-                
-                // Procura pelo executável do Windows (.exe)
-                const winAsset = data.assets.find(a => a.name.endsWith('.exe'));
-                if (winAsset) {
-                    const downloadUrl = winAsset.browser_download_url;
-                    sessionStorage.setItem(storageKey, downloadUrl);
-                    applyDownloadUrl(downloadUrl);
+                // 1. Tenta buscar o último release oficial
+                let res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+                let data;
+
+                if (res.ok) {
+                    data = await res.json();
+                } else if (res.status === 404) {
+                    // 2. Se falhar, tenta buscar a lista e pega o primeiro (mesmo que seja prerelease)
+                    const resList = await fetch(`https://api.github.com/repos/${repo}/releases`);
+                    if (resList.ok) {
+                        const list = await resList.json();
+                        if (list && list.length > 0) data = list[0];
+                    }
+                }
+
+                if (data && data.assets) {
+                    let asset;
+                    if (isLinux) {
+                        asset = data.assets.find(a => a.name.endsWith('.AppImage')) || data.assets.find(a => a.name.endsWith('.deb'));
+                    } else {
+                        asset = data.assets.find(a => a.name.endsWith('.exe'));
+                    }
+
+                    if (asset) {
+                        const downloadUrl = asset.browser_download_url;
+                        sessionStorage.setItem(storageKey, downloadUrl);
+                        applyDownloadUrl(downloadUrl, isLinux);
+                    }
                 }
             } catch (err) {
                 console.error("Erro ao buscar release do GitHub:", err);
             }
         }
 
-        function applyDownloadUrl(url) {
-            // Atualiza todos os botões que têm o texto "Download" ou links de download conhecidos
-            document.querySelectorAll('a').forEach(el => {
-                if (el.textContent.includes('Download') || el.href.includes('google.com/download')) {
-                    el.href = url;
+        function applyDownloadUrl(url, isLinux) {
+            document.querySelectorAll('.btn-download').forEach(el => {
+                el.href = url;
+                if (el.textContent.includes('para Windows') && isLinux) {
+                    el.innerHTML = el.innerHTML.replace('Windows', 'Linux');
                 }
             });
         }
@@ -562,7 +581,7 @@
         <p class="subtitle">A MomAI é uma assistente inteligente que roda inteiramente na sua máquina. Sem nuvem, sem assinaturas, sem coleta de dados.</p>
         
         <div class="btn-group">
-            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download&authuser=0&confirm=t&uuid=c415dca4-036a-45a1-8dc7-7ad9254a4c7c&at=APcXIO1l0KOOWEI5vzxfZD1_YlSF:1771334762568" class="btn-primary">
+            <a href="https://github.com/WesleyQDev/MomAI/releases/latest" class="btn-primary btn-download">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -661,7 +680,7 @@
     <section class="cta-section">
         <h2>Pronto para experimentar?</h2>
         <p>Baixe gratuitamente e descubra o poder de uma IA que é só sua.</p>
-        <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download&authuser=0&confirm=t&uuid=c415dca4-036a-45a1-8dc7-7ad9254a4c7c&at=APcXIO1l0KOOWEI5vzxfZD1_YlSF:1771334762568" class="btn-primary">
+        <a href="https://github.com/WesleyQDev/MomAI/releases/latest" class="btn-primary btn-download">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
