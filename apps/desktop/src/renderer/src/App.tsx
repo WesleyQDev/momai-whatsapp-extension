@@ -25,7 +25,7 @@ function App(): React.JSX.Element {
 
   const chat = useChat()
   const { graphState, handleGraphOption, closeGraph, clearHistory } = chat
-  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady } = useStatus()
+  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady, isOnline } = useStatus()
   const [showSettings, setShowSettings] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -34,9 +34,6 @@ function App(): React.JSX.Element {
   const [isCompact, setIsCompact] = useState(window.innerWidth < 850)
   const [extensions, setExtensions] = useState<any[]>([])
   const [settingsLoaded, setSettingsLoaded] = useState(false)
-
-  // Notifica o Electron quando o sistema está pronto para redimensionar a janela
-  // Agora movido para o callback onFinished do SplashScreen para evitar resize com splash ativo
 
   // Overlay Helper
   useEffect(() => {
@@ -82,9 +79,9 @@ function App(): React.JSX.Element {
     setShowClearConfirm(false)
   }
 
+  // Sincroniza configurações e decide se mostra onboarding/tutorial
   useEffect(() => {
-    const savedTheme = localStorage.getItem('momai_theme') || 'dark'
-    document.documentElement.setAttribute('data-theme', savedTheme)
+    if (!isOnline || settingsLoaded) return
 
     const syncLocale = async () => {
       try {
@@ -92,20 +89,24 @@ function App(): React.JSX.Element {
         if (settings.locale) {
           setLocale(settings.locale as any)
         }
-        // @ts-ignore
+        
         if (!settings.onboarding_completed) {
           setShowOnboarding(true)
-        } else if (!settings.tutorial_completed) {
+        }/* else if (!settings.tutorial_completed) {
           setShowTutorial(true)
-        }
-      } catch {
-        // Ignore locale sync errors on boot
-      } finally {
+        }*/
         setSettingsLoaded(true)
+      } catch (err) {
+        console.error('Retrying settings sync...', err)
       }
     }
 
     syncLocale()
+  }, [isOnline, settingsLoaded, setLocale])
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('momai_theme') || 'dark'
+    document.documentElement.setAttribute('data-theme', savedTheme)
 
     const handleResize = () => setIsCompact(window.innerWidth < 850)
     window.addEventListener('resize', handleResize)
@@ -318,14 +319,14 @@ function App(): React.JSX.Element {
         <OnboardingCard
           onFinish={() => {
             setShowOnboarding(false)
-            setShowTutorial(true)
+            // setShowTutorial(true)
             // Agora que o onboarding acabou, podemos redimensionar a janela
             window.electron.ipcRenderer.send('app-ready')
           }}
         />
       )}
 
-      {showTutorial && <TutorialTour onFinish={() => setShowTutorial(false)} />}
+      {/* showTutorial && <TutorialTour onFinish={() => setShowTutorial(false)} /> */}
       {/*
       <FortScriptToast />
 

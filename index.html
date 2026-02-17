@@ -1,442 +1,222 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="scroll-smooth">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MomAI - Assistente Pessoal Local-First</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#8B5CF6',
-                        secondary: '#A78BFA',
-                        dark: '#0f172a',
-                        darker: '#020617',
-                        surface: '#1e293b'
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-20px)' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <title>MomAI | Inteligência Artificial Local</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-        
+        :root {
+            --accent: #8B5CF6;
+            --accent-glow: rgba(139, 92, 246, 0.4);
+            --bg: #030014;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --text: #F8FAFC;
+            --text-muted: #94A3B8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Manrope', sans-serif;
-            background-color: #000000;
-            color: #e2e8f0;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             overflow-x: hidden;
-        }
-        
-        .font-mono {
-            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.6;
         }
 
-        .gradient-text {
-            background: linear-gradient(to right, #a78bfa, #c084fc, #818cf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-size: 200% auto;
-            animation: gradient 5s linear infinite;
-        }
-
-        @keyframes gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        .blob {
-            position: absolute;
-            filter: blur(80px);
-            opacity: 0.4;
+        /* Premium Background */
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
             z-index: -1;
         }
 
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        .glow {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Nav */
+        nav {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+        }
+
+        .logo {
+            font-weight: 900;
+            font-size: 1.8rem;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        /* Hero */
+        section.hero {
+            height: calc(100vh - 80px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding-bottom: 5rem;
+        }
+
+        .badge {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            padding: 0.5rem 1.2rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin-bottom: 2rem;
+            animation: fadeIn 1s ease-out;
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -2px;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to bottom, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: slideUp 1s ease-out;
+        }
+
+        p.subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin-bottom: 3rem;
+            font-weight: 300;
+            animation: slideUp 1.2s ease-out;
+        }
+
+        /* Button */
+        .btn-download {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            padding: 1.2rem 2.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            box-shadow: 0 10px 40px -10px var(--accent-glow);
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: slideUp 1.4s ease-out;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px -10px var(--accent-glow);
+            background: #9d71ff;
+        }
+
+        .btn-download svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Footer */
+        footer {
+            position: absolute;
+            bottom: 2rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.2);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 3rem; }
+            p.subtitle { font-size: 1rem; }
         }
     </style>
 </head>
-<body class="antialiased selection:bg-purple-500 selection:text-white">
+<body>
+    <div class="grid-bg"></div>
+    <div class="glow"></div>
 
-    <!-- Background Blobs -->
-    <div class="blob bg-purple-600 w-96 h-96 rounded-full top-0 left-0 -translate-x-1/2 -translate-y-1/2"></div>
-    <div class="blob bg-indigo-600 w-96 h-96 rounded-full bottom-0 right-0 translate-x-1/2 translate-y-1/2"></div>
-    <div class="blob bg-pink-600 w-64 h-64 rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block opacity-20"></div>
+    <div class="container">
+        <nav>
+            <div class="logo">MOM<span>AI</span></div>
+            <div style="font-size: 0.7rem; opacity: 0.3; font-weight: 600; letter-spacing: 1px;">V0.1.0 ENTERPRISE</div>
+        </nav>
 
-    <!-- Navigation -->
-    <nav class="fixed w-full z-50 top-0 transition-all duration-300 backdrop-blur-md border-b border-white/5 bg-darker/60">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400 font-mono">MomAI</span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20">Alpha v0.0.0</span>
-            </div>
-            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-                <a href="#features" class="hover:text-white transition">Recursos</a>
-                <a href="#vision" class="hover:text-white transition">Visão</a>
-                <a href="#comparison" class="hover:text-white transition">Comparativo</a>
-                <a href="apps/docs/pt-BR/introducao.mdx" class="hover:text-white transition">Docs</a>
-            </div>
-            <a href="https://github.com/WesleyQDev/MomAI" target="_blank" class="hidden md:flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-full transition text-sm font-semibold border border-white/10">
-                <span>GitHub</span>
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path></svg>
+        <section class="hero">
+            <div class="badge">100% Local & Privada</div>
+            <h1>Sua Assistente<br>de Inteligência Local</h1>
+            <p class="subtitle">A MomAI é uma assistente pessoal poderosa que roda inteiramente no seu computador. Sem nuvem, sem assinaturas, privacidade absoluta.</p>
+            
+            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download&authuser=0&confirm=t&uuid=c415dca4-036a-45a1-8dc7-7ad9254a4c7c&at=APcXIO1l0KOOWEI5vzxfZD1_YlSF:1771334762568" class="btn-download">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Baixar MomAI v0.1.0
             </a>
-        </div>
-    </nav>
+        </section>
+    </div>
 
-    <!-- Hero Section -->
-    <header class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-        <div class="max-w-7xl mx-auto px-6 text-center relative z-10">
-            <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight mb-8 leading-tight">
-                Sua assistente <br class="hidden md:block" />
-                <span class="gradient-text">Local & Proativa</span>
-            </h1>
-            <p class="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                MomAI é um aplicativo de desktop fácil de usar. Ela roda no seu computador, aprende sua rotina e executa tarefas reais enquanto protege sua privacidade.
-            </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <a href="#install" class="group relative px-8 py-4 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-white transition-all hover:scale-105 shadow-lg shadow-purple-500/30">
-                    <span class="absolute inset-0 w-full h-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                    <span class="relative flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        Baixar para Windows
-                    </span>
-                </a>
-                <a href="https://wesleyydev.mintlify.app/pt-BR/por-que-momai" class="px-8 py-4 bg-surface hover:bg-slate-700 rounded-xl font-medium text-slate-300 border border-slate-700 transition-all hover:border-purple-500/50">
-                    Ler a Documentação
-                </a>
-            </div>
-
-            <!-- App UI Preview Mockup -->
-            <div class="mt-20 mx-auto max-w-5xl glass-card rounded-xl border border-[#282828] shadow-2xl animate-float overflow-hidden relative bg-[#0a0a0a]">
-                <!-- Title Bar -->
-                <div class="h-10 bg-[#0a0a0a] border-b border-[#282828] flex items-center justify-between px-4">
-                    <div class="flex items-center gap-2">
-                        <img src="apps/docs/logo/logo.png" class="w-4 h-4 opacity-70">
-                        <span class="text-xs font-medium text-slate-400">MomAI Desktop</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <div class="w-2.5 h-2.5 rounded-full bg-slate-700 hover:bg-slate-600 transition"></div>
-                        <div class="w-2.5 h-2.5 rounded-full bg-slate-700 hover:bg-slate-600 transition"></div>
-                        <div class="w-2.5 h-2.5 rounded-full bg-slate-700 hover:bg-slate-600 transition"></div>
-                    </div>
-                </div>
-
-                <!-- App Content -->
-                <div class="flex h-[600px] text-left">
-                    <!-- Sidebar (LateralBar.tsx) -->
-                    <div class="w-16 border-r border-[#282828] flex flex-col items-center py-4 gap-2 bg-[#0a0a0a] z-50">
-                        <!-- Chat Item (Active) -->
-                        <div class="relative w-10 h-10 flex items-center justify-center text-[#8b5cf6] bg-[#8b5cf6]/5 rounded-xl cursor-default">
-                            <div class="absolute -left-3 w-1 h-6 bg-[#8b5cf6] rounded-r-full"></div>
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.67 1.09-.086 2.17-.208 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
-                        </div>
-                        
-                         <!-- Extensions -->
-                        <button class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-[#8b5cf6]/10 rounded-xl transition">
-                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
-                        </button>
-                         <button class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-[#8b5cf6]/10 rounded-xl transition">
-                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 01-.657.643 48.39 48.39 0 01-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 01-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 00-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 01-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 00.657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 00-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 005.427-.63 48.05 48.05 0 00.582-4.717.532.532 0 00-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.959.401v0c.31 0 .555-.26.532-.57a48.039 48.039 0 01-.642-5.056c-1.518-.19-3.058-.309-4.616-.354a.64.64 0 00-.657.643v0z" /></svg>
-                        </button>
-                        
-                        <div class="h-[1px] w-8 bg-[#282828] my-2"></div>
-                        
-                        <!-- Settings -->
-                        <button class="mt-auto mb-4 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-[#8b5cf6]/10 rounded-xl transition">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        </button>
-                    </div>
-
-                    <!-- Main Chat Area -->
-                    <div class="flex-1 flex flex-col relative bg-[#0a0a0a]">
-                        <div class="flex-1 flex items-center justify-center flex-col p-8 animate-fade-in">
-                            <!-- Real Logo -->
-                            <div class="mb-8 relative">
-                                <div class="absolute inset-0 bg-[#8b5cf6] blur-2xl opacity-20 rounded-full"></div>
-                                <img src="apps/docs/logo/logo.png" alt="MomAI Logo" class="relative w-32 h-32 drop-shadow-2xl">
-                            </div>
-                            
-                            <h3 class="text-xl font-medium text-slate-200 mb-2 tracking-wide">Bem-vindo à MomAI</h3>
-                            <p class="text-slate-500 mb-12 text-sm max-w-sm text-center">Sua assistente virtual inteligente. Como posso ajudar você hoje?</p>
-                        </div>
-                        
-                        <!-- Input Area -->
-                        <div class="p-6 pb-8 mx-auto w-full max-w-3xl">
-                             <div class="relative bg-[#191919] border border-[#282828] rounded-2xl flex flex-col shadow-lg shadow-black/50">
-                                <input type="text" placeholder="Mande uma mensagem para a MomAI..." class="w-full bg-transparent border-none py-4 px-6 pr-14 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-0" disabled>
-                                
-                                <div class="flex justify-between items-center px-4 pb-3 pt-1">
-                                     <div class="flex gap-2">
-                                         <span class="px-2 py-1 rounded text-[10px] bg-[#282828] text-slate-400 border border-[#333] flex items-center gap-1">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> LOCAL
-                                        </span>
-                                        <span class="px-2 py-1 rounded text-[10px] bg-[#282828] text-slate-400 border border-[#333]">
-                                            Qwen 3
-                                        </span>
-                                     </div>
-                                     <button class="p-2 bg-[#8b5cf6] hover:bg-[#7c3aed] rounded-lg text-white transition-colors shadow-lg shadow-[#8b5cf6]/20">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"></path></svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right Panel (Dashboard style) -->
-                    <div class="w-80 bg-[#0c0c0e] border-l border-[#282828] p-8 hidden lg:block">
-                        <div class="flex flex-col items-center mb-12">
-                            <div class="w-24 h-24 rounded-full bg-gradient-to-t from-[#8b5cf6]/20 to-transparent p-1 mb-4 relative group cursor-pointer transition-all hover:scale-105">
-                                 <div class="absolute inset-0 rounded-full border border-[#8b5cf6]/30"></div>
-                                 <img src="apps/docs/logo/logo.png" class="w-full h-full object-contain p-2 opacity-90 drop-shadow-[0_0_15px_rgba(139,92,246,0.5)]">
-                            </div>
-                            <div class="text-[10px] tracking-[0.2em] text-[#8b5cf6] font-bold uppercase mb-1">Personal Assistant</div>
-                            <div class="h-[1px] w-12 bg-[#8b5cf6]/30 mt-4"></div>
-                        </div>
-
-                        <div class="space-y-6">
-                            <div class="flex items-center justify-between">
-                                <div class="text-xs font-bold text-slate-500 tracking-wider uppercase">Próximos</div>
-                                <div class="h-[1px] flex-1 bg-[#282828] ml-4"></div>
-                            </div>
-                            
-                            <!-- Reminder Item -->
-                            <div class="group bg-[#121212] hover:bg-[#18181b] rounded-xl p-5 border border-[#282828] hover:border-[#8b5cf6]/30 transition-all cursor-default relative overflow-hidden">
-                                <div class="absolute top-0 left-0 w-[2px] h-full bg-[#8b5cf6]"></div>
-                                <div class="flex justify-between items-start mb-2">
-                                    <span class="font-medium text-slate-200 text-sm">Beber água</span>
-                                    <span class="text-slate-400 font-mono text-xs bg-[#282828] px-1.5 py-0.5 rounded">20:28</span>
-                                </div>
-                                <div class="text-[10px] text-slate-500 flex items-center gap-2">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-[#8b5cf6]"></span> Hoje
-                                </div>
-                            </div>
-
-                             <!-- Reminder Item -->
-                             <div class="group bg-[#121212] hover:bg-[#18181b] rounded-xl p-5 border border-[#282828] hover:border-[#8b5cf6]/30 transition-all cursor-default relative overflow-hidden opacity-60">
-                                <div class="absolute top-0 left-0 w-[2px] h-full bg-slate-700"></div>
-                                <div class="flex justify-between items-start mb-2">
-                                    <span class="font-medium text-slate-200 text-sm">Reunião Daily</span>
-                                    <span class="text-slate-400 font-mono text-xs bg-[#282828] px-1.5 py-0.5 rounded">09:00</span>
-                                </div>
-                                <div class="text-[10px] text-slate-500 flex items-center gap-2">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Amanhã
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Status Bar -->
-                <div class="h-8 bg-[#0a0a0a] border-t border-[#282828] flex items-center justify-between px-4 text-[10px] text-[#8b5cf6] font-mono">
-                    <div class="flex items-center gap-2">
-                         <span class="w-1.5 h-1.5 rounded-full bg-[#8b5cf6] animate-pulse"></span> MOMAI CORE ACTIVE
-                    </div>
-                    <div class="flex gap-6 opacity-60 text-slate-400">
-                         <div class="flex items-center gap-1.5">
-                            <span class="text-[#8b5cf6]">CPU</span> 12%
-                         </div>
-                         <div class="flex items-center gap-1.5">
-                            <span class="text-[#8b5cf6]">RAM</span> 2.5 GB
-                         </div>
-                         <div class="flex items-center gap-1.5">
-                            <span class="text-[#8b5cf6]">VRAM</span> 0 MB
-                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Pain Points Section -->
-    <section class="py-24 bg-darker relative">
-        <div class="max-w-4xl mx-auto px-6 text-center">
-            <h2 class="text-3xl md:text-4xl font-bold mb-16">Cansado da rotina manual?</h2>
-            <div class="grid md:grid-cols-2 gap-6">
-                <div class="p-6 rounded-2xl bg-red-500/5 border border-red-500/20 text-left hover:bg-red-500/10 transition">
-                    <div class="text-3xl mb-4">😫</div>
-                    <h3 class="text-xl font-bold text-red-200 mb-2">Respostas Repetitivas</h3>
-                    <p class="text-slate-400">Responder as mesmas coisas no WhatsApp todo dia suga sua energia.</p>
-                </div>
-                <div class="p-6 rounded-2xl bg-orange-500/5 border border-orange-500/20 text-left hover:bg-orange-500/10 transition">
-                    <div class="text-3xl mb-4">🥀</div>
-                    <h3 class="text-xl font-bold text-orange-200 mb-2">Esquecer de viver</h3>
-                    <p class="text-slate-400">Pular refeições ou esquecer de beber água porque estava focado.</p>
-                </div>
-                <div class="p-6 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 text-left hover:bg-yellow-500/10 transition">
-                    <div class="text-3xl mb-4">😵‍💫</div>
-                    <h3 class="text-xl font-bold text-yellow-200 mb-2">Caos de Prazos</h3>
-                    <p class="text-slate-400">Tarefas espalhadas em 3 apps diferentes (Trello, Notion, Calendar).</p>
-                </div>
-                <div class="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/20 text-left hover:bg-blue-500/10 transition">
-                    <div class="text-3xl mb-4">🤖</div>
-                    <h3 class="text-xl font-bold text-blue-200 mb-2">Assistentes "Burros"</h3>
-                    <p class="text-slate-400">Siri e Alexa que só ligam a luz e não entendem seu contexto.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Imagine This Section (Vision) -->
-    <section id="vision" class="py-32 relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-b from-purple-900/10 to-transparent pointer-events-none"></div>
-        <div class="max-w-6xl mx-auto px-6">
-            <div class="bg-gradient-to-br from-surface to-slate-900 border border-white/10 rounded-3xl p-8 md:p-16 relative shadow-2xl">
-                <!-- Decorative quotes -->
-                <div class="absolute -top-6 -left-6 text-9xl text-purple-500/20 font-serif">"</div>
-                
-                <h2 class="text-3xl md:text-5xl font-bold mb-12 text-center">Imagine um novo começo...</h2>
-                
-                <div class="grid lg:grid-cols-2 gap-12 items-center">
-                    <div class="space-y-6 text-lg text-slate-300 leading-relaxed">
-                        <p>
-                            Você acorda e seu computador <strong class="text-purple-400">já ligou sozinho</strong>.
-                        </p>
-                        <p>
-                            Enquanto você toma café, uma voz natural diz:
-                        </p>
-                        <blockquote class="border-l-4 border-purple-500 pl-4 py-2 bg-purple-500/5 italic">
-                            "Bom dia! A reunião das 9h foi cancelada, então você tem tempo livre. Sua mãe mandou mensagem perguntando se você almoçou. Quer que eu responda?"
-                        </blockquote>
-                        <p>
-                            Você apenas diz: <strong class="text-white">"Responde que sim e avisa que vou passar lá."</strong>
-                        </p>
-                        <p>
-                             E continua tomando seu café. ☕
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Comparison Table -->
-    <section id="comparison" class="py-24 bg-darker">
-        <div class="max-w-5xl mx-auto px-6">
-            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16">Por que MomAI é diferente?</h2>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr>
-                            <th class="p-6 text-slate-500 font-medium">Característica</th>
-                            <th class="p-6 text-slate-400 font-bold text-xl">Cloud Chatbots</th>
-                            <th class="p-6 text-purple-400 font-bold text-xl bg-purple-500/5 rounded-t-xl border-t border-l border-r border-purple-500/20">MomAI</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-800">
-                        <tr>
-                            <td class="p-6 text-slate-300 font-medium">Privacidade</td>
-                            <td class="p-6 text-red-400">Seus dados são treinados</td>
-                            <td class="p-6 text-green-400 bg-purple-500/5 border-l border-r border-purple-500/20">100% Local (Local-First)</td>
-                        </tr>
-                        <tr>
-                            <td class="p-6 text-slate-300 font-medium">Proatividade</td>
-                            <td class="p-6 text-slate-500">Passivo (Espera comando)</td>
-                            <td class="p-6 text-white bg-purple-500/5 border-l border-r border-purple-500/20">Ativo (Age sozinha)</td>
-                        </tr>
-                        <tr>
-                            <td class="p-6 text-slate-300 font-medium">Custo</td>
-                            <td class="p-6 text-slate-500">Assinaturas caras (SaaS)</td>
-                            <td class="p-6 text-white bg-purple-500/5 border-l border-r border-purple-500/20">Grátis & Open Source</td>
-                        </tr>
-                        <tr>
-                            <td class="p-6 text-slate-300 font-medium">Internet</td>
-                            <td class="p-6 text-red-400">Obrigatória sempre</td>
-                            <td class="p-6 text-green-400 bg-purple-500/5 border-l border-r border-b rounded-b-xl border-purple-500/20">Funciona Offline</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <!-- Tech Stack / Features -->
-    <section id="features" class="py-24 relative">
-        <div class="max-w-7xl mx-auto px-6">
-            <h2 class="text-3xl md:text-5xl font-bold text-center mb-4">Poder de Verdade</h2>
-            <p class="text-center text-slate-400 mb-16 max-w-2xl mx-auto">Nada de scripts simples. Uma arquitetura robusta de Engenharia de IA.</p>
-
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Feature Card -->
-                <div class="glass-card p-8 rounded-2xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-12 h-12 bg-purple-900/50 text-purple-400 rounded-lg flex items-center justify-center mb-6 text-2xl group-hover:scale-110 transition">🧠</div>
-                    <h3 class="text-xl font-bold mb-3">Inteligência Real</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">Não é apenas um chatbot. MomAI usa tecnologia de ponta para entender o que você precisa de verdade.</p>
-                </div>
-
-                <!-- Feature Card -->
-                <div class="glass-card p-8 rounded-2xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-12 h-12 bg-blue-900/50 text-blue-400 rounded-lg flex items-center justify-center mb-6 text-2xl group-hover:scale-110 transition">⚡</div>
-                    <h3 class="text-xl font-bold mb-3">Rápida e Leve</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">Roda suavemente no seu PC. Nós otimizamos tudo para que ela não deixe seu computador lento.</p>
-                </div>
-
-                <!-- Feature Card -->
-                <div class="glass-card p-8 rounded-2xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-12 h-12 bg-pink-900/50 text-pink-400 rounded-lg flex items-center justify-center mb-6 text-2xl group-hover:scale-110 transition">🧩</div>
-                    <h3 class="text-xl font-bold mb-3">Ferramentas Úteis</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">Vem com calendário, lembretes e automações prontas para usar. Precisa de mais? Instale extensões.</p>
-                </div>
-
-                <!-- Feature Card -->
-                <div class="glass-card p-8 rounded-2xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-12 h-12 bg-green-900/50 text-green-400 rounded-lg flex items-center justify-center mb-6 text-2xl group-hover:scale-110 transition">🎙️</div>
-                    <h3 class="text-xl font-bold mb-3">Controle por Voz</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">Apenas diga "Sistema" e peça o que quiser. Converse naturalmente como se fosse uma pessoa.</p>
-                </div>
-
-                <!-- Feature Card -->
-                <div class="glass-card p-8 rounded-2xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-12 h-12 bg-yellow-900/50 text-yellow-400 rounded-lg flex items-center justify-center mb-6 text-2xl group-hover:scale-110 transition">🔌</div>
-                    <h3 class="text-xl font-bold mb-3">Fácil de Instalar</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">Baixe, instale e use. Sem configurações complicadas de terminal ou código.</p>
-                </div>
-
-                <!-- Feature Card -->
-                <div class="glass-card p-8 rounded-2xl hover:bg-white/5 transition duration-300 group">
-                    <div class="w-12 h-12 bg-indigo-900/50 text-indigo-400 rounded-lg flex items-center justify-center mb-6 text-2xl group-hover:scale-110 transition">🛡️</div>
-                    <h3 class="text-xl font-bold mb-3">Sua Privacidade</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">Chatbots online leem suas conversas. A MomAI não. Tudo fica salvo apenas no seu disco.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="py-12 border-t border-white/5 bg-black/40">
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div class="text-center md:text-left">
-                <h4 class="text-2xl font-bold text-white mb-2">MomAI</h4>
-                <p class="text-slate-500 text-sm">Cuidando das tarefas para você focar no que importa.</p>
-            </div>
-            
-            <div class="flex gap-6">
-                <a href="https://github.com/WesleyQDev/MomAI" class="text-slate-400 hover:text-white transition">GitHub</a>
-                <a href="apps/docs/docs.json" class="text-slate-400 hover:text-white transition">Docs</a>
-                <a href="#" class="text-slate-400 hover:text-white transition">Discord</a>
-            </div>
-            
-            <div class="text-slate-600 text-sm">
-                &copy; 2024 MomAI. Open Source (MIT License).
-            </div>
-        </div>
+    <footer>
+        © 2026 MomAI Ecosystem • Desenvolvido com foco em privacidade
     </footer>
-
 </body>
 </html>

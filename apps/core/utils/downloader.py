@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 # Settings
-LLAMA_VERSION = "b7790"  # Default stable fallback
+LLAMA_VERSION = "b8082"  # Manual override (momentarily disabled updates)
 BASE_URL_TEMPLATE = "https://github.com/ggerganov/llama.cpp/releases/download/{version}"
 BIN_PATH = Path(__file__).parent.parent / "bin"
 
@@ -27,86 +27,21 @@ def get_manifest_path(backend: str) -> Path:
 
 def is_cache_valid() -> bool:
     """Verifica se o cache ainda é válido."""
-    if not CACHE_FILE.exists():
-        return False
-    
-    try:
-        with open(CACHE_FILE, 'r') as f:
-            cache_data = json.load(f)
-        
-        cache_time = datetime.fromisoformat(cache_data.get('timestamp', ''))
-        return datetime.now() - cache_time < timedelta(hours=CACHE_DURATION_HOURS)
-    except:
-        return False
+    return True # Force valid to avoid updates
 
 def save_version_cache(version: str):
     """Salva a versão no cache."""
-    BIN_PATH.mkdir(parents=True, exist_ok=True)
-    cache_data = {
-        'version': version,
-        'timestamp': datetime.now().isoformat()
-    }
-    with open(CACHE_FILE, 'w') as f:
-        json.dump(cache_data, f, indent=2)
+    pass # Disabled
 
 def load_version_cache() -> str:
     """Carrega a versão do cache."""
-    try:
-        with open(CACHE_FILE, 'r') as f:
-            return json.load(f).get('version', LLAMA_VERSION)
-    except:
-        return LLAMA_VERSION
+    return LLAMA_VERSION
 
 def get_latest_llama_version():
     """
-    Fetches the latest release tag from llama.cpp GitHub repository.
-    Usa cache para evitar rate limiting.
+    Overridden: Momentum disables automatic updates.
+    Returns the fixed LLAMA_VERSION.
     """
-    # Verifica se o cache é válido
-    if is_cache_valid():
-        cached_version = load_version_cache()
-        print(f"[Cache] Usando versão em cache: {cached_version}")
-        return cached_version
-    
-    # Tenta buscar a versão mais recente
-    try:
-        # Headers para melhor identificação (opcional: adicione token de autenticação)
-        headers = {
-            'User-Agent': 'llama-cpp-downloader/1.0',
-            'Accept': 'application/vnd.github.v3+json'
-        }
-        
-        # You can add authentication here if you have a token:
-        # github_token = os.environ.get('GITHUB_TOKEN')
-        # if github_token:
-        #     headers['Authorization'] = f'token {github_token}'
-        
-        response = requests.get(
-            "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest",
-            headers=headers,
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            version = response.json().get("tag_name", LLAMA_VERSION)
-            save_version_cache(version)
-            print(f"[GitHub] Versão mais recente encontrada: {version}")
-            return version
-        elif response.status_code == 403:
-            print("[Aviso] Rate limit do GitHub atingido. Usando cache ou versão padrão.")
-
-            cached = load_version_cache()
-            if cached != LLAMA_VERSION:
-                print(f"[Cache] Usando versão em cache (expirada): {cached}")
-                return cached
-        else:
-            print(f"[Aviso] GitHub API retornou status {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        print(f"[Aviso] Erro ao conectar com GitHub: {e}")
-    except Exception as e:
-        print(f"[Aviso] Erro inesperado: {e}")
-    
-    print(f"[Fallback] Usando versão padrão: {LLAMA_VERSION}")
     return LLAMA_VERSION
 
 def get_available_builds(version=None):

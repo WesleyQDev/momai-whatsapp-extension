@@ -117,6 +117,15 @@ export function useChat() {
   const createAssistantMessageId = () =>
     `assistant:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
 
+  const toCompactJson = (obj: any) => {
+    if (obj === undefined || obj === null) return undefined
+    try {
+      return JSON.stringify(obj)
+    } catch {
+      return String(obj)
+    }
+  }
+
   // Atualiza refs quando o graphState muda
   useEffect(() => {
     currentGraphOptionsRef.current = graphState.options
@@ -646,7 +655,7 @@ export function useChat() {
                 updated[updated.length - 1] = { ...last, content: msg.text }
                 return updated
               }
-              return [...prev, { id: `user-${Date.now()}`, role: 'user', content: msg.text }].slice(-5)
+              return [...prev, { id: `user-${Date.now()}`, role: 'user' as const, content: msg.text }].slice(-5)
             })
           }
         } else if (msg.type === 'reminder_trigger') {
@@ -670,7 +679,7 @@ export function useChat() {
                 updated[updated.length - 1] = { ...last, content: msg.content }
                 return updated
               }
-              return [...prev, { id: `user-${Date.now()}`, role: 'user', content: msg.content }].slice(-5)
+              return [...prev, { id: `user-${Date.now()}`, role: 'user' as const, content: msg.content }].slice(-5)
             })
           }
 
@@ -761,7 +770,7 @@ export function useChat() {
                   // New assistant message: only start if we have actual text
                   const trimmed = cleanTokenForCall.replace(/^\s+/, '')
                   if (trimmed) {
-                    return [...prevHistory, { id: `assistant-${Date.now()}`, role: 'assistant', content: trimmed }].slice(-5)
+                    return [...prevHistory, { id: `assistant-${Date.now()}`, role: 'assistant' as const, content: trimmed }].slice(-5)
                   }
                   return prevHistory
                 })
@@ -890,7 +899,7 @@ export function useChat() {
         setMessages((prev) => [...prev, userMessage])
 
         if (isCallModeRef.current) {
-          setCallHistory((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: messageText }].slice(-5))
+          setCallHistory((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user' as const, content: messageText }].slice(-5))
         }
       }
 
@@ -962,7 +971,7 @@ export function useChat() {
 
                     const newContent = (prevContent === '...' ? '' : prevContent) + nextToken
                     history[history.length - 1] = {
-                      role: 'assistant',
+                      ...last,
                       content: newContent
                     }
                     return history
@@ -971,7 +980,7 @@ export function useChat() {
                   // New assistant message: only start if we have actual text
                   const trimmed = cleanTokenForCall.replace(/^\s+/, '')
                   if (trimmed) {
-                    return [...prevHistory, { role: 'assistant', content: trimmed }].slice(-5)
+                    return [...prevHistory, { id: `assistant-${Date.now()}`, role: 'assistant' as const, content: trimmed }].slice(-5)
                   }
                   return prevHistory
                 })

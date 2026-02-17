@@ -20,7 +20,7 @@ interface ContainerChatProps {
   isCallMode?: boolean
   voiceStatus?: 'idle' | 'listening' | 'processing'
   onToggleCallMode?: () => void
-  callHistory?: { role: 'user' | 'assistant'; content: string }[]
+  callHistory?: { id: string; role: 'user' | 'assistant'; content: string }[]
 }
 
 const CallModeUI = ({
@@ -29,7 +29,7 @@ const CallModeUI = ({
   status = 'idle'
 }: {
   onEndCall: () => void
-  history?: { role: 'user' | 'assistant'; content: string }[]
+  history?: { id: string; role: 'user' | 'assistant'; content: string }[]
   status?: 'idle' | 'listening' | 'processing'
 }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-8 bg-transparent">

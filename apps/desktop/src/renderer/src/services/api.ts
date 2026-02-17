@@ -225,6 +225,12 @@ export interface Extension {
   description: string
   category: string
   enabled: boolean
+  icon?: string
+  version?: string
+  error?: string
+  author?: string
+  is_official?: boolean
+  download_url?: string
 }
 
 export async function fetchExtensions(): Promise<Extension[]> {

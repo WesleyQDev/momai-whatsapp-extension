@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: desktop
+appId: com.wesleyqdev.momai
+productName: MomAI
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: desktop
+  executableName: MomAI
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

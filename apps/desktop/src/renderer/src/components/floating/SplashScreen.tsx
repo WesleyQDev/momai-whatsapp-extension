@@ -169,7 +169,7 @@ export default function SplashScreen({
           </div>
 
           <div className="flex justify-between items-center text-[8px] text-text/10 font-medium tracking-widest uppercase">
-            <span>MomAI Ecosystem v1.0</span>
+            <span>MomAI Ecosystem v0.1</span>
             <span>Local Processing Secured</span>
           </div>
         </div>
