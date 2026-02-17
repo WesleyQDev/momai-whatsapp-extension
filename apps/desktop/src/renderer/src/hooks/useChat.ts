@@ -740,13 +740,13 @@ export function useChat() {
             })
           }
         } else if (msg.type === 'reminder_trigger') {
-          // Alerta visual de lembrete
-          setGraphState({
-            view: 'center',
-            content: `### 🔔 Lembrete: ${msg.data.title}\n\n${msg.data.content || ''}`,
-            options: ['OK'],
-            bypass_wake_word: false
-          })
+          // Notificação nativa do sistema
+          if (window.electron) {
+            window.electron.ipcRenderer.send('show-notification', {
+              title: `🔔 Lembrete: ${msg.data.title}`,
+              body: msg.data.content || ''
+            })
+          }
         } else if (msg.type === 'user') {
           // Alguém falou via voice command
           const content = msg.content.toLowerCase()

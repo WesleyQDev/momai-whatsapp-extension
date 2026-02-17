@@ -248,64 +248,37 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
   const icons = {
     general: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
     ),
     brain: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
         <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
         <path d="M12 2a10 10 0 0 1 10 10"></path>
-        <path d="M12 12 2.1 12.1"></path>
       </svg>
     ),
     updates: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
     ),
     economy: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="6" width="20" height="12" rx="2" />
         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+    voice: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
       </svg>
     )
   }
@@ -318,6 +291,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
           {[
             { id: 'general', label: t('settings.tabs.general'), icon: icons.general },
             { id: 'brain', label: t('settings.tabs.brain'), icon: icons.brain },
+            { id: 'voice', label: t('settings.tabs.voice'), icon: icons.voice },
             { id: 'economy', label: t('settings.tabs.economy'), icon: icons.economy },
             { id: 'updates', label: t('settings.tabs.updates'), icon: icons.updates }
           ].map((tab) => (
@@ -389,14 +363,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         onClick={() => changeTheme('dark')}
                         className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg border text-xs font-bold transition-all ${theme === 'dark' ? 'bg-accent/10 border-accent/40 text-accent' : 'bg-input border-border text-text-muted hover:text-text'}`}
                       >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                         </svg>
                         {t('settings.general.theme.dark')}
@@ -405,23 +372,8 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         onClick={() => changeTheme('light')}
                         className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg border text-xs font-bold transition-all ${theme === 'light' ? 'bg-accent/10 border-accent/40 text-accent' : 'bg-input border-border text-text-muted hover:text-text'}`}
                       >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <circle cx="12" cy="12" r="5" />
-                          <line x1="12" y1="1" x2="12" y2="3" />
-                          <line x1="12" y1="21" x2="12" y2="23" />
-                          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                          <line x1="1" y1="12" x2="3" y2="12" />
-                          <line x1="21" y1="12" x2="23" y2="12" />
-                          <line x1="4.22" y1="19.07" x2="5.64" y2="17.66" />
-                          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.07" x2="5.64" y2="17.66" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                         </svg>
                         {t('settings.general.theme.light')}
                       </button>
@@ -443,47 +395,6 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                       <option value="en-US">{t('settings.language.enUS')}</option>
                     </select>
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                      {t('settings.general.personaLabel')}
-                    </label>
-                    <textarea
-                      value={settings.assistant_persona}
-                      onChange={(e) => updateField('assistant_persona', e.target.value)}
-                      onBlur={() => saveSettings(settings)}
-                      className="w-full h-32 bg-input border border-border/60 rounded-lg px-4 py-3 text-sm text-text focus:border-accent/40 outline-none resize-none transition-all leading-relaxed placeholder:text-text-muted/30"
-                      placeholder={t('settings.general.personaPlaceholder')}
-                    />
-                  </div>
-                </div>
-
-                {/* Recursos e Automacoes */}
-                <div className="space-y-4 pt-6 border-t border-border/40">
-                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                    {t('settings.general.featuresTitle')}
-                  </label>
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-black/20 group/briefing">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent group-hover/briefing:scale-110 transition-transform">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-text uppercase tracking-wider">{t('settings.general.dailyBriefingLabel')}</span>
-                        <span className="text-[10px] text-text-muted font-medium">{t('settings.general.dailyBriefingSubtitle')}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => updateField('daily_briefing_enabled', !settings.daily_briefing_enabled, true)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${settings.daily_briefing_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
-                    >
-                      <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${settings.daily_briefing_enabled ? 'translate-x-4.5' : 'translate-x-1'}`}
-                      />
-                    </button>
-                  </div>
                 </div>
 
                 {/* Manutencao e Resets */}
@@ -495,9 +406,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     <button
                       onClick={() => {
                         updateField('tutorial_completed', false, true)
-                        alert(
-                          t('settings.general.resetTutorialSuccess') || 'Tutorial reiniciado!'
-                        )
+                        alert(t('settings.general.resetTutorialSuccess') || 'Tutorial reiniciado!')
                       }}
                       className="flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent text-[11px] font-black uppercase rounded-lg hover:bg-accent hover:text-white transition-all"
                     >
@@ -529,7 +438,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
             <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <div className="space-y-0.5">
-                  <h2 className="text-base font-black text-text uppercase tracking-tight">
+                  <h2 className="text-lg font-black text-text uppercase tracking-tight">
                     {t('settings.brain.title')}
                   </h2>
                   <p className="text-[10px] text-text-muted font-bold uppercase tracking-wide opacity-70">
@@ -545,6 +454,20 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
               </div>
 
               <div className="space-y-5">
+                {/* Persona Section */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                    {t('settings.general.personaLabel')}
+                  </label>
+                  <textarea
+                    value={settings.assistant_persona}
+                    onChange={(e) => updateField('assistant_persona', e.target.value)}
+                    onBlur={() => saveSettings(settings)}
+                    className="w-full h-32 bg-input border border-border/60 rounded-lg px-4 py-3 text-sm text-text focus:border-accent/40 outline-none resize-none transition-all leading-relaxed placeholder:text-text-muted/30"
+                    placeholder={t('settings.general.personaPlaceholder')}
+                  />
+                </div>
+
                 {/* Modelo Ativo */}
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
@@ -573,9 +496,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         {t('settings.brain.hardware')}
                       </label>
                       {localDetails.current_local_backend && (
-                        <span className={`text-[8px] font-black uppercase ${
-                          localDetails.current_local_backend === 'cpu' ? 'text-text-muted' : 'text-green-500'
-                        }`}>
+                        <span className={`text-[8px] font-black uppercase ${localDetails.current_local_backend === 'cpu' ? 'text-text-muted' : 'text-green-500'}`}>
                           {localDetails.current_local_backend === 'cpu' ? 'CPU' : 'GPU'}
                         </span>
                       )}
@@ -597,9 +518,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                     <div className="relative">
                       <select
                         value={settings.local_backend}
-                        onChange={(e) =>
-                          updateField('local_backend', e.target.value, true).then(checkLocalStatus)
-                        }
+                        onChange={(e) => updateField('local_backend', e.target.value, true).then(checkLocalStatus)}
                         className="w-full h-[50px] bg-black/10 border border-border/40 rounded-lg px-3 text-[10px] font-bold text-text outline-none appearance-none hover:border-accent/40"
                       >
                         <option value="auto" className="bg-[#1a1a1a]">{t('settings.brain.backend.auto')}</option>
@@ -607,98 +526,82 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         <option value="vulkan" className="bg-[#1a1a1a]">{t('settings.brain.backend.vulkan')}</option>
                         <option value="cpu" className="bg-[#1a1a1a]">{t('settings.brain.backend.cpu')}</option>
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted/40">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </div>
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
 
+          {activeTab === 'voice' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-text tracking-tight uppercase">
+                  {t('settings.tabs.voice')}
+                </h2>
+                <p className="text-[11px] text-text-muted font-medium">
+                  Gerencie as capacidades de fala e escuta.
+                </p>
               </div>
 
-              {/* Catálogo de Vozes (Consolidado na Inteligência) */}
-              <div className="space-y-4 pt-6 border-t border-border/40">
+              {/* Recursos de Voz */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-black/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-text uppercase tracking-wider">{t('settings.general.dailyBriefingLabel')}</span>
+                      <span className="text-[10px] text-text-muted font-medium">{t('settings.general.dailyBriefingSubtitle')}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateField('daily_briefing_enabled', !settings.daily_briefing_enabled, true)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${settings.daily_briefing_enabled ? 'bg-accent' : 'bg-text-muted/20'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${settings.daily_briefing_enabled ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
                 <div className="space-y-3">
                   <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
                     {t('settings.voice.catalogLabel')}
                   </label>
                   <div className="flex gap-4 h-[220px]">
-                    {/* Coluna de Idiomas */}
                     <div className="w-[160px] space-y-1.5 overflow-y-auto custom-scrollbar pr-2">
                       {voiceCatalog.map((catalog) => (
                         <button
                           key={catalog.code}
                           onClick={() => setExpandedLang(catalog.code)}
-                          className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-[9px] font-black uppercase tracking-tight transition-all ${
-                            expandedLang === catalog.code
-                              ? 'bg-accent/10 border-accent/40 text-accent shadow-sm'
-                              : 'bg-black/10 border-transparent text-text-muted hover:bg-black/20'
-                          }`}
+                          className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-[9px] font-black uppercase tracking-tight transition-all ${expandedLang === catalog.code ? 'bg-accent/10 border-accent/40 text-accent shadow-sm' : 'bg-black/10 border-transparent text-text-muted hover:bg-black/20'}`}
                         >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-1 h-1 rounded-full ${expandedLang === catalog.code ? 'bg-accent animate-pulse' : 'bg-text-muted/30'}`}
-                            />
-                            {t(catalog.langKey)}
-                          </div>
-                          <svg
-                            width="8"
-                            height="8"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="3"
-                            className={`transition-transform duration-300 ${expandedLang === catalog.code ? '-rotate-90' : ''}`}
-                          >
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
+                          {t(catalog.langKey)}
                         </button>
                       ))}
                     </div>
 
-                    {/* Coluna de Vozes (Dinâmica) */}
-                    <div className="flex-1 p-2.5 rounded-xl bg-black/10 border border-border/40 overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
+                    <div className="flex-1 p-2.5 rounded-xl bg-black/10 border border-border/40 overflow-y-auto custom-scrollbar">
                       <div className="grid grid-cols-1 gap-1">
-                        {voiceCatalog
-                          .find((c) => c.code === expandedLang)
-                          ?.voices.map((v) => (
-                            <button
-                              key={v.id}
-                              onClick={() => updateField('tts_voice', v.id, true)}
-                              className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold transition-all ${
-                                settings.tts_voice === v.id
-                                  ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20 translate-x-1'
-                                  : 'bg-input border-border/40 text-text-muted hover:bg-black/20'
-                              }`}
-                            >
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="tracking-tight">
-                                  {v.suggested
-                                    ? t('settings.voice.nameSuggested', { name: v.name })
-                                    : v.name}
-                                </span>
-                                <span
-                                  className={`text-[7px] uppercase font-black tracking-tighter ${settings.tts_voice === v.id ? 'text-white/70' : 'text-text-muted opacity-60'}`}
-                                >
-                                  {t(`settings.voice.trait.${v.trait}`)}
-                                </span>
-                              </div>
-                              {settings.tts_voice === v.id && (
-                                <svg
-                                  width="10"
-                                  height="10"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="4"
-                                >
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              )}
-                            </button>
-                          ))}
+                        {voiceCatalog.find((c) => c.code === expandedLang)?.voices.map((v) => (
+                          <button
+                            key={v.id}
+                            onClick={() => updateField('tts_voice', v.id, true)}
+                            className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold transition-all ${settings.tts_voice === v.id ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' : 'bg-input border-border/40 text-text-muted hover:bg-black/20'}`}
+                          >
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span>{v.suggested ? t('settings.voice.nameSuggested', { name: v.name }) : v.name}</span>
+                              <span className="text-[7px] uppercase font-black tracking-tighter opacity-60">{t(`settings.voice.trait.${v.trait}`)}</span>
+                            </div>
+                            {settings.tts_voice === v.id && (
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -706,6 +609,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
               </div>
             </div>
           )}
+
           {activeTab === 'updates' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="space-y-1">
@@ -718,225 +622,90 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
               </div>
 
               <div className="space-y-4">
-                {/* Sistema Version */}
                 <div className="p-5 rounded-xl border bg-input border-border flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                      </svg>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[13px] font-black text-text uppercase tracking-tight">
-                        {t('settings.updates.coreTitle')}
-                      </span>
-                      <span className="text-[10px] text-text-muted font-medium">
-                        {t('settings.updates.coreVersion', { version: '0.1.0' })}
-                      </span>
+                      <span className="text-[13px] font-black text-text uppercase tracking-tight">{t('settings.updates.coreTitle')}</span>
+                      <span className="text-[10px] text-text-muted font-medium">{t('settings.updates.coreVersion', { version: '0.1.0' })}</span>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">
-                    {t('settings.updates.systemUpToDate')}
-                  </span>
+                  <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">{t('settings.updates.systemUpToDate')}</span>
                 </div>
 
-                {/* Motor Llama.cpp Version */}
                 <div className="p-5 rounded-xl border bg-input border-border space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? 'bg-accent/20 text-accent animate-pulse' : 'bg-black/20 text-text-muted'}`}
-                      >
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? 'bg-accent/20 text-accent animate-pulse' : 'bg-black/20 text-text-muted'}`}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[13px] font-black text-text uppercase tracking-tight">
-                          {t('settings.updates.engineTitle')}
-                        </span>
-                        <span className="text-[10px] text-text-muted font-medium">
-                          {localDetails.installed_version
-                            ? t('settings.updates.engineInstalled', {
-                                version: localDetails.installed_version
-                              })
-                            : t('settings.updates.engineNotInstalled')}
-                        </span>
+                        <span className="text-[13px] font-black text-text uppercase tracking-tight">{t('settings.updates.engineTitle')}</span>
+                        <span className="text-[10px] text-text-muted font-medium">{localDetails.installed_version ? t('settings.updates.engineInstalled', { version: localDetails.installed_version }) : t('settings.updates.engineNotInstalled')}</span>
                       </div>
                     </div>
-
                     {installStatus === 'installing' ? (
-                      <span className="text-[10px] font-black text-accent uppercase tracking-widest animate-pulse">
-                        {t('settings.updates.updating', { percent: installProgress })}
-                      </span>
-                    ) : localDetails.installed_version !== localDetails.latest_version &&
-                      localDetails.latest_version ? (
-                      <button
-                        onClick={() =>
-                          handleInstallEngine(
-                            settings.local_backend === 'auto' ? undefined : settings.local_backend
-                          )
-                        }
-                        className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20"
-                      >
-                        {t('settings.updates.updateTo', { version: localDetails.latest_version })}
-                      </button>
+                      <span className="text-[10px] font-black text-accent uppercase tracking-widest animate-pulse">{t('settings.updates.updating', { percent: installProgress })}</span>
+                    ) : localDetails.installed_version !== localDetails.latest_version && localDetails.latest_version ? (
+                      <button onClick={() => handleInstallEngine(settings.local_backend === 'auto' ? undefined : settings.local_backend)} className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20">{t('settings.updates.updateTo', { version: localDetails.latest_version })}</button>
                     ) : (
-                      <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">
-                        {t('settings.updates.engineUpToDate')}
-                      </span>
+                      <span className="text-[10px] font-black text-text-muted uppercase border border-border px-3 py-1 rounded-full bg-black/20">{t('settings.updates.engineUpToDate')}</span>
                     )}
                   </div>
-
                   {installStatus === 'installing' && (
                     <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-accent transition-all duration-300 ease-out"
-                        style={{ width: `${installProgress}%` }}
-                      />
+                      <div className="h-full bg-accent transition-all duration-300 ease-out" style={{ width: `${installProgress}%` }} />
                     </div>
                   )}
-
-                  {localDetails.latest_version &&
-                    localDetails.installed_version !== localDetails.latest_version && (
-                      <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
-                        <p className="text-[10px] text-text-muted leading-relaxed italic">
-                          {t('settings.updates.engineUpdateInfo', {
-                            version: localDetails.latest_version,
-                            build: localDetails.recommended_build?.toUpperCase() || 'AUTO'
-                          })}
-                        </p>
-                      </div>
-                    )}
                 </div>
               </div>
             </div>
           )}
+
           {activeTab === 'economy' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-black text-text tracking-tight uppercase">
-                    {t('settings.economy.title')}
-                  </h2>
-                  <span className="text-[10px] font-black bg-accent text-white px-2 py-0.5 rounded-md tracking-tighter">
-                    {t('settings.economy.badge')}
-                  </span>
+                  <h2 className="text-lg font-black text-text tracking-tight uppercase">{t('settings.economy.title')}</h2>
+                  <span className="text-[10px] font-black bg-accent text-white px-2 py-0.5 rounded-md tracking-tighter">{t('settings.economy.badge')}</span>
                 </div>
-                <p className="text-[11px] text-text-muted font-medium">
-                  {t('settings.economy.subtitle')}
-                </p>
+                <p className="text-[11px] text-text-muted font-medium">{t('settings.economy.subtitle')}</p>
               </div>
 
               <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-accent/5 border border-accent/20 flex gap-4">
+                <div className="p-4 rounded-xl bg-accent/5 border border-border/20 flex gap-4">
                   <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <path d="M6 12h4M14 8h-4v8h4M15 12h3" />
-                      <rect x="2" y="6" width="20" height="12" rx="2" />
-                    </svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 12h4M14 8h-4v8h4M15 12h3" /><rect x="2" y="6" width="20" height="12" rx="2" /></svg>
                   </div>
                   <div className="flex flex-col justify-center">
-                    <span className="text-[12px] font-black text-text uppercase">
-                      {t('settings.economy.monitoringTitle')}
-                    </span>
-                    <p className="text-[10px] text-text-muted leading-relaxed">
-                      {t('settings.economy.monitoringBody')}
-                    </p>
+                    <span className="text-[12px] font-black text-text uppercase">{t('settings.economy.monitoringTitle')}</span>
+                    <p className="text-[10px] text-text-muted leading-relaxed">{t('settings.economy.monitoringBody')}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                    {t('settings.economy.addTrigger')}
-                  </label>
+                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">{t('settings.economy.addTrigger')}</label>
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder={t('settings.economy.appNamePlaceholder')}
-                      value={newApp.name}
-                      onChange={(e) => setNewApp((prev) => ({ ...prev, name: e.target.value }))}
-                      className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none focus:border-accent/40"
-                    />
-                    <input
-                      type="text"
-                      placeholder={t('settings.economy.appExePlaceholder')}
-                      value={newApp.executable}
-                      onChange={(e) =>
-                        setNewApp((prev) => ({ ...prev, executable: e.target.value }))
-                      }
-                      className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none focus:border-accent/40"
-                    />
-                    <button
-                      onClick={handleAddGamingApp}
-                      className="px-4 bg-accent text-white rounded-lg text-xs font-black uppercase hover:opacity-90 transition-all"
-                    >
-                      {t('settings.economy.addButton')}
-                    </button>
+                    <input type="text" placeholder={t('settings.economy.appNamePlaceholder')} value={newApp.name} onChange={(e) => setNewApp((prev) => ({ ...prev, name: e.target.value }))} className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none focus:border-accent/40" />
+                    <input type="text" placeholder={t('settings.economy.appExePlaceholder')} value={newApp.executable} onChange={(e) => setNewApp((prev) => ({ ...prev, executable: e.target.value }))} className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-[11px] font-bold text-text outline-none focus:border-accent/40" />
+                    <button onClick={handleAddGamingApp} className="px-4 bg-accent text-white rounded-lg text-xs font-black uppercase hover:opacity-90 transition-all">{t('settings.economy.addButton')}</button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">
-                    {t('settings.economy.monitoredApps')}
-                  </label>
+                  <label className="text-[9px] font-black text-text-muted uppercase tracking-widest">{t('settings.economy.monitoredApps')}</label>
                   <div className="grid grid-cols-1 gap-2">
                     {gamingApps.length === 0 ? (
                       <div className="py-8 text-center border border-dashed border-border rounded-xl">
-                        <span className="text-[11px] text-text-muted font-medium italic">
-                          {t('settings.economy.emptyApps')}
-                        </span>
+                        <span className="text-[11px] text-text-muted font-medium italic">{t('settings.economy.emptyApps')}</span>
                       </div>
                     ) : (
                       gamingApps.map((app) => (
-                        <div
-                          key={app.id}
-                          className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-border"
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-[12px] font-bold text-text">{app.name}</span>
-                            <span className="text-[10px] text-accent font-mono">
-                              {app.executable}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteGamingApp(app.id)}
-                            className="p-2 text-text-muted hover:text-red-500 transition-colors"
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
+                        <div key={app.id} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-border">
+                          <div className="flex flex-col"><span className="text-[12px] font-bold text-text">{app.name}</span><span className="text-[10px] text-accent font-mono">{app.executable}</span></div>
+                          <button onClick={() => handleDeleteGamingApp(app.id)} className="p-2 text-text-muted hover:text-red-500 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></button>
                         </div>
                       ))
                     )}

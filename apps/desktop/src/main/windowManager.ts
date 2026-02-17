@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, shell, ipcMain, Menu, nativeImage, app, Tray } from 'electron'
+import { BrowserWindow, screen, shell, ipcMain, Menu, nativeImage, app, Tray, Notification } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { state, setMainWindow, setOverlayWindow, setTray, setIpcHandlersRegistered } from './state'
@@ -21,6 +21,14 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.on('window-close', () => app.quit())
+
+  ipcMain.on('show-notification', (_, { title, body }) => {
+    new Notification({
+      title,
+      body,
+      icon: join(__dirname, '../../resources/icon.png')
+    }).show()
+  })
 
   ipcMain.handle('get-window-state', () => {
     if (!state.mainWindow || state.mainWindow.isDestroyed()) {
