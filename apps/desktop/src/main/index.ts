@@ -36,7 +36,7 @@ app.whenReady().then(() => {
       } else {
         win.show()
         win.focus()
-        win.setSize(500, 650)
+        win.setSize(450, 670)
         win.center()
         win.webContents.send('focus-input')
       }

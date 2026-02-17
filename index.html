@@ -3,18 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MomAI | Inteligência Artificial Local</title>
+    <title>MomAI — Sua Assistente de Inteligência Local</title>
+    <meta name="description" content="MomAI é uma assistente pessoal poderosa que roda inteiramente no seu computador. Sem nuvem, sem assinaturas, privacidade absoluta.">
+    <link rel="icon" type="image/png" href="icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
+            --bg: #ffffff;
+            --bg-subtle: #f8f9fa;
+            --bg-section: #fafafa;
+            --border: #e8eaed;
+            --text: #202124;
+            --text-secondary: #5f6368;
+            --text-tertiary: #9aa0a6;
             --accent: #8B5CF6;
-            --accent-glow: rgba(139, 92, 246, 0.4);
-            --bg: #030014;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --text: #F8FAFC;
-            --text-muted: #94A3B8;
+            --accent-hover: #7c3aed;
+            --accent-subtle: rgba(139, 92, 246, 0.08);
+            --accent-light: rgba(139, 92, 246, 0.12);
         }
 
         * {
@@ -23,200 +30,607 @@
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: var(--bg);
             color: var(--text);
             overflow-x: hidden;
             line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Premium Background */
-        .grid-bg {
-            position: fixed;
-            inset: 0;
-            background-image: 
-                linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 40px 40px;
-            z-index: -1;
-        }
-
-        .glow {
-            position: fixed;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-            filter: blur(80px);
-            z-index: -1;
-            opacity: 0.5;
-        }
-
-        /* Container */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-
-        /* Nav */
+        /* ---- Nav ---- */
         nav {
-            height: 80px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: relative;
-            z-index: 10;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 100;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
         }
 
         .logo {
-            font-weight: 900;
-            font-size: 1.8rem;
-            letter-spacing: -1px;
-            text-transform: uppercase;
+            font-weight: 600;
+            font-size: 1.05rem;
+            letter-spacing: -0.3px;
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        .logo span {
+        .logo img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+
+        .nav-links a:hover {
             color: var(--accent);
         }
 
-        /* Hero */
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-version {
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .menu-toggle svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                padding: 0 1.5rem;
+            }
+
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 64px;
+                left: 0;
+                right: 0;
+                background: white;
+                flex-direction: column;
+                gap: 0;
+                border-bottom: 1px solid var(--border);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .nav-links li {
+                width: 100%;
+            }
+
+            .nav-links a {
+                display: block;
+                padding: 1rem 1.5rem;
+                font-size: 0.95rem;
+                border-top: 1px solid var(--bg-subtle);
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .nav-version {
+                display: none;
+            }
+        }
+
+        /* ---- Hero ---- */
         section.hero {
-            height: calc(100vh - 80px);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding-bottom: 5rem;
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 7rem 2rem 5rem;
         }
 
         .badge {
-            background: rgba(139, 92, 246, 0.1);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            padding: 0.5rem 1.2rem;
+            background: var(--accent-subtle);
+            padding: 0.35rem 0.9rem;
             border-radius: 99px;
             font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+            font-weight: 500;
             color: var(--accent);
-            margin-bottom: 2rem;
-            animation: fadeIn 1s ease-out;
+            margin-bottom: 1.5rem;
+            animation: fadeIn 0.8s ease-out;
         }
 
         h1 {
-            font-size: 4.5rem;
-            font-weight: 900;
-            line-height: 1.1;
-            letter-spacing: -2px;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(to bottom, #fff 0%, #94a3b8 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: slideUp 1s ease-out;
+            font-size: 3.2rem;
+            font-weight: 700;
+            line-height: 1.12;
+            letter-spacing: -1.5px;
+            margin-bottom: 1.2rem;
+            color: var(--text);
+            animation: slideUp 0.8s ease-out;
         }
 
         p.subtitle {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            max-width: 600px;
-            margin-bottom: 3rem;
-            font-weight: 300;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 520px;
+            margin-bottom: 2.5rem;
+            font-weight: 400;
+            line-height: 1.7;
+            animation: slideUp 1s ease-out;
+        }
+
+        .btn-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             animation: slideUp 1.2s ease-out;
         }
 
-        /* Button */
-        .btn-download {
-            display: flex;
+        .btn-primary {
+            display: inline-flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             background: var(--accent);
             color: white;
             text-decoration: none;
-            padding: 1.2rem 2.5rem;
-            border-radius: 12px;
+            padding: 0.65rem 1.4rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-primary svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: transparent;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.65rem 1.4rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-subtle);
+            color: var(--text);
+            border-color: #dadce0;
+        }
+
+        /* ---- Section Shared ---- */
+        .section-title {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .section-title h2 {
+            font-size: 1.8rem;
             font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
-            box-shadow: 0 10px 40px -10px var(--accent-glow);
-            border: 1px solid rgba(255,255,255,0.1);
-            animation: slideUp 1.4s ease-out;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.5rem;
         }
 
-        .btn-download:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 50px -10px var(--accent-glow);
-            background: #9d71ff;
+        .section-title p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            max-width: 480px;
+            margin: 0 auto;
         }
 
-        .btn-download svg {
+        /* ---- Features ---- */
+        .features-section {
+            background: var(--bg-section);
+            padding: 5rem 2rem;
+        }
+
+        .features {
+            max-width: 900px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .feature {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+
+        .feature:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-subtle);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .feature-icon svg {
             width: 20px;
             height: 20px;
+            stroke: var(--accent);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
-        /* Animations */
+        .feature h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: var(--text);
+        }
+
+        .feature p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ---- How It Works ---- */
+        .how-section {
+            padding: 5rem 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            counter-reset: step;
+        }
+
+        .step {
+            position: relative;
+            padding-left: 0;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-light);
+            color: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .step h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+
+        .step p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ---- CTA ---- */
+        .cta-section {
+            background: var(--bg-section);
+            padding: 5rem 2rem;
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.75rem;
+        }
+
+        .cta-section p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            max-width: 420px;
+            margin: 0 auto 2rem;
+        }
+
+        /* ---- Footer ---- */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            border-top: 1px solid var(--border);
+        }
+
+        footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            color: var(--accent);
+        }
+
+        /* ---- Animations ---- */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
 
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Footer */
-        footer {
-            position: absolute;
-            bottom: 2rem;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.2);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
         @media (max-width: 768px) {
-            h1 { font-size: 3rem; }
+            h1 { font-size: 2.2rem; letter-spacing: -1px; }
             p.subtitle { font-size: 1rem; }
+            .features { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: 1fr; gap: 1.5rem; }
+            section.hero { padding: 4rem 2rem 3rem; }
         }
     </style>
 </head>
 <body>
-    <div class="grid-bg"></div>
-    <div class="glow"></div>
 
-    <div class="container">
-        <nav>
-            <div class="logo">MOM<span>AI</span></div>
-            <div style="font-size: 0.7rem; opacity: 0.3; font-weight: 600; letter-spacing: 1px;">V0.1.0 ENTERPRISE</div>
-        </nav>
-
-        <section class="hero">
-            <div class="badge">100% Local & Privada</div>
-            <h1>Sua Assistente<br>de Inteligência Local</h1>
-            <p class="subtitle">A MomAI é uma assistente pessoal poderosa que roda inteiramente no seu computador. Sem nuvem, sem assinaturas, privacidade absoluta.</p>
-            
-            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download&authuser=0&confirm=t&uuid=c415dca4-036a-45a1-8dc7-7ad9254a4c7c&at=APcXIO1l0KOOWEI5vzxfZD1_YlSF:1771334762568" class="btn-download">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path>
+    <!-- Navbar -->
+    <nav>
+        <div class="nav-left">
+            <a href="index.html" class="logo">
+                <img src="icon.png" alt="MomAI">
+                MomAI
+            </a>
+            <ul class="nav-links">
+                <li><a href="blog.html">Blog</a></li>
+                <li><a href="changelog.html">Changelog</a></li>
+                <li><a href="#">Docs</a></li>
+            </ul>
+        </div>
+        <div class="nav-right">
+            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
-                Baixar MomAI v0.1.0
+                Download
             </a>
-        </section>
-    </div>
+            <button class="menu-toggle" aria-label="Menu" id="menuToggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </nav>
 
+    <script>
+        const menuToggle = document.getElementById('menuToggle');
+        const navLinks = document.querySelector('.nav-links');
+
+        menuToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = menuToggle.querySelector('svg');
+            if (navLinks.classList.contains('active')) {
+                icon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+            } else {
+                icon.innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+            }
+        });
+
+        // Fechar menu ao clicar em links (especialmente âncoras)
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                menuToggle.querySelector('svg').innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+            });
+        });
+    </script>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="badge">100% Local & Privada</div>
+        <h1>Sua assistente pessoal,<br>direto no seu computador.</h1>
+        <p class="subtitle">A MomAI é uma assistente inteligente que roda inteiramente na sua máquina. Sem nuvem, sem assinaturas, sem coleta de dados.</p>
+        
+        <div class="btn-group">
+            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download&authuser=0&confirm=t&uuid=c415dca4-036a-45a1-8dc7-7ad9254a4c7c&at=APcXIO1l0KOOWEI5vzxfZD1_YlSF:1771334762568" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download para Windows
+            </a>
+            <a href="#features" class="btn-secondary">Saiba mais</a>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features-section" id="features">
+        <div class="section-title">
+            <h2>Por que escolher a MomAI?</h2>
+            <p>Uma assistente projetada para quem valoriza privacidade, controle e simplicidade.</p>
+        </div>
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">
+                    <!-- Shield/Lock icon -->
+                    <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <h3>Privacidade Total</h3>
+                <p>Seus dados nunca saem do seu computador. Nenhuma informação é enviada para servidores externos.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <!-- Zap/Lightning icon -->
+                    <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <h3>IA 100% Local</h3>
+                <p>Funciona completamente offline. Sem depender de APIs, serviços na nuvem ou conexão com a internet.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <!-- Puzzle/Extension icon -->
+                    <svg viewBox="0 0 24 24"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0l1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
+                </div>
+                <h3>Extensível</h3>
+                <p>Instale extensões para expandir suas capacidades — desde buscas na web até automações do sistema.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <!-- Mic icon -->
+                    <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                </div>
+                <h3>Controle por Voz</h3>
+                <p>Converse com sua assistente usando apenas a voz. Wake word integrada, sem acionar manualmente.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <!-- Clock icon -->
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <h3>Lembretes Inteligentes</h3>
+                <p>Crie lembretes e agende tarefas com linguagem natural. A MomAI avisa você no momento certo.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <!-- Globe icon -->
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </div>
+                <h3>Busca na Web</h3>
+                <p>Quando precisa de informações atualizadas, a MomAI busca na web e traz os resultados para você.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="how-section" id="how">
+        <div class="section-title">
+            <h2>Como funciona</h2>
+            <p>Em três passos simples, sua assistente pessoal estará pronta.</p>
+        </div>
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Baixe e instale</h3>
+                <p>Faça o download, execute o instalador e pronto. Sem configurações complexas, sem criar conta.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Inicialização automática</h3>
+                <p>Na primeira vez, a MomAI configura o modelo de IA local automaticamente. Leva poucos minutos.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Comece a conversar</h3>
+                <p>Use texto ou voz para pedir o que precisar. Crie lembretes, pesquise, organize suas notas e muito mais.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+        <h2>Pronto para experimentar?</h2>
+        <p>Baixe gratuitamente e descubra o poder de uma IA que é só sua.</p>
+        <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download&authuser=0&confirm=t&uuid=c415dca4-036a-45a1-8dc7-7ad9254a4c7c&at=APcXIO1l0KOOWEI5vzxfZD1_YlSF:1771334762568" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download para Windows
+        </a>
+    </section>
+
+    <!-- Footer -->
     <footer>
-        © 2026 MomAI Ecosystem • Desenvolvido com foco em privacidade
+        © 2026 MomAI · <a href="changelog.html">Changelog</a> · Desenvolvido com foco em privacidade
     </footer>
+
 </body>
 </html>

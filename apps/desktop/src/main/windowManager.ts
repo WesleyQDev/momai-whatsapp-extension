@@ -68,9 +68,8 @@ export function registerIpcHandlers(): void {
   ipcMain.on('app-ready', () => {
     if (!state.mainWindow || state.mainWindow.isDestroyed()) return
     state.mainWindow.setResizable(true)
-    state.mainWindow.setMinimumSize(450, 500)
-    state.mainWindow.setSize(900, 670, true)
-    state.mainWindow.center()
+    state.mainWindow.setMinimumSize(450, 670)
+    state.mainWindow.maximize()
   })
 }
 
@@ -81,7 +80,7 @@ export function createOverlayWindow(): void {
 
   const overlayWindow = new BrowserWindow({
     width: 450,
-    height: 600,
+    height: 670,
     show: false,
     frame: false,
     transparent: true,

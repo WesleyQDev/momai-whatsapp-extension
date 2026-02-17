@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog — MomAI</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Biblioteca Marked para processar Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --bg-subtle: #f8f9fa;
+            --border: #e8eaed;
+            --text: #202124;
+            --text-secondary: #5f6368;
+            --text-tertiary: #9aa0a6;
+            --accent: #8B5CF6;
+            --accent-hover: #7c3aed;
+            --accent-subtle: rgba(139, 92, 246, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+        nav {
+            height: 64px; display: flex; align-items: center; justify-content: space-between;
+            max-width: 1100px; margin: 0 auto; padding: 0 2rem; border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); z-index: 100;
+        }
+        .nav-left { display: flex; align-items: center; gap: 2rem; }
+        .logo { font-weight: 600; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+        .logo img { width: 28px; height: 28px; border-radius: 6px; }
+        .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+        .nav-links a { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); text-decoration: none; }
+        .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+        .btn-primary { 
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            padding: 0.65rem 1.4rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+        }
+
+        .blog-container { max-width: 1000px; margin: 0 auto; padding: 4rem 2rem; }
+        
+        /* Grid Layout */
+        .post-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2.5rem;
+            margin-top: 3rem;
+        }
+
+        /* Card Design */
+        .post-card { 
+            background: var(--bg);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.6s ease-out;
+        }
+        
+        .post-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+            border-color: var(--accent-subtle);
+        }
+
+        .post-thumb {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            background: var(--bg-subtle);
+            overflow: hidden;
+            position: relative;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .post-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .post-card:hover .post-thumb img {
+            transform: scale(1.05);
+        }
+
+        .post-body {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Destaque (Featured Post) - Estilo Minimalista Retangular */
+        .featured-post {
+            display: flex;
+            align-items: flex-start; /* Impede que a imagem estique se o texto for longo */
+            background: var(--bg);
+            overflow: hidden;
+            margin-bottom: 5rem;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            animation: slideUp 0.8s ease-out;
+            gap: 4rem; /* Espaço entre imagem e texto */
+        }
+
+        .featured-post:hover {
+            transform: translateY(-4px);
+        }
+
+        .featured-thumb {
+            flex: 1.5;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            background: var(--bg-subtle);
+            overflow: hidden;
+            border-radius: 16px;
+        }
+
+        .featured-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .featured-post:hover .featured-thumb img {
+            transform: scale(1.03);
+        }
+
+        .featured-content {
+            flex: 1;
+            padding: 0; /* Removido padding interno para alinhar com o grid */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .featured-content .post-title {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .featured-content .post-excerpt {
+            font-size: 1.05rem;
+            -webkit-line-clamp: 4;
+            line-clamp: 4;
+            margin-bottom: 2rem;
+        }
+
+        .post-date { 
+            font-size: 0.75rem; 
+            color: var(--text-tertiary); 
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem; 
+        }
+
+        .post-title { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            margin-bottom: 0.75rem; 
+            line-height: 1.4;
+            color: var(--text);
+        }
+
+        .post-excerpt { 
+            color: var(--text-secondary); 
+            font-size: 0.9rem; 
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .post-footer {
+            margin-top: auto;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: gap 0.2s ease;
+        }
+
+        .post-card:hover .post-footer, .featured-post:hover .post-footer {
+            gap: 8px;
+        }
+
+        .badge-featured {
+            display: inline-block;
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Single Post View Enhancements */
+        .post-view {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .post-view-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .post-content { 
+            font-size: 1.125rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .post-content h1, .post-content h2, .post-content h3 {
+            color: var(--text);
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .post-content p { margin-bottom: 1.2rem; }
+
+        .post-content ul, .post-content ol { 
+            margin: 1.5rem 0 2rem 0; 
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .post-content li { 
+            margin-bottom: 0.75rem;
+            padding-left: 0.25rem;
+        }
+
+        .post-content img {
+            max-width: 100%;
+            max-height: 500px;
+            width: auto;
+            border-radius: 12px;
+            margin: 1.5rem auto 1rem;
+            display: block;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+        }
+        
+        .back-button { 
+            display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); 
+            text-decoration: none; font-size: 0.9rem; margin-bottom: 3rem; font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            background: var(--bg-subtle);
+            transition: all 0.2s;
+        }
+        .back-button:hover { 
+            color: var(--accent); 
+            background: var(--accent-subtle);
+        }
+
+        footer { text-align: center; padding: 2rem; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        @media (max-width: 900px) {
+            .featured-post { flex-direction: column; margin-bottom: 4rem; gap: 2rem; }
+            .featured-thumb { aspect-ratio: 16 / 9; height: auto; flex: none; }
+            .featured-content { padding: 0; }
+            .featured-content .post-title { font-size: 2rem; }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .post-content h1 { font-size: 1.8rem; }
+            .blog-container { padding: 2rem 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-left">
+            <a href="index.html" class="logo"><img src="icon.png" alt="MomAI"> MomAI</a>
+            <ul class="nav-links">
+                <li><a href="blog.html" class="active">Blog</a></li>
+                <li><a href="changelog.html">Changelog</a></li>
+                <li><a href="#">Docs</a></li>
+            </ul>
+        </div>
+        <div class="nav-right">
+            <a href="https://drive.usercontent.google.com/download?id=1jytH39lJ4crWNYKAnsV8f60YFrLjunWQ&export=download" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download
+            </a>
+            <button class="menu-toggle" aria-label="Menu" id="menuToggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <div class="blog-container" id="content">
+        <!-- Renderização via JS -->
+    </div>
+
+    <footer>© 2026 MomAI · <a href="index.html" style="color: inherit; text-decoration: none;">Home</a></footer>
+
+    <script>
+        const container = document.getElementById('content');
+        let postsData = [];
+        let postFiles = [];
+
+        // Carrega a lista de posts do arquivo posts.json
+        async function fetchPostList() {
+            try {
+                const res = await fetch('posts/posts.json');
+                if (!res.ok) throw new Error('Não foi possível carregar a lista de posts');
+                const data = await res.json();
+                postFiles = data.posts || [];
+            } catch (err) {
+                console.error("Aviso: posts.json não encontrado ou inválido. Usando lista vazia.", err);
+                postFiles = ['lancamento.md']; // Fallback
+            }
+        }
+
+        // Função para extrair Frontmatter (metadados) do arquivo MD
+        function parseFrontmatter(text) {
+            // Regex mais flexível para capturar o bloco entre --- até mesmo com espaços no início
+            const frontmatterRegex = /^\s*---\s*([\s\S]*?)\s*---/;
+            const match = text.match(frontmatterRegex);
+            
+            if (!match) return { content: text, title: 'Sem título' };
+
+            const yamlBlock = match[1];
+            const content = text.replace(frontmatterRegex, '').trim();
+            const metadata = {};
+
+            yamlBlock.split('\n').forEach(line => {
+                const parts = line.split(':');
+                if (parts.length >= 2) {
+                    const key = parts[0].trim().toLowerCase();
+                    const value = parts.slice(1).join(':').trim();
+                    metadata[key] = value;
+                }
+            });
+
+            return { ...metadata, content };
+        }
+
+        // Carrega os dados de todos os posts
+        async function initBlog() {
+            container.innerHTML = '<p style="text-align:center; padding: 4rem; color: var(--text-tertiary);">Sincronizando artigos...</p>';
+            
+            try {
+                await fetchPostList();
+                
+                const results = await Promise.allSettled(postFiles.map(async (filename) => {
+                    const res = await fetch(`posts/${filename}`);
+                    if (!res.ok) throw new Error(`Falha ao carregar ${filename}`);
+                    const text = await res.text();
+                    const parsed = parseFrontmatter(text);
+                    return {
+                        id: filename.replace('.md', ''),
+                        title: parsed.title || filename,
+                        date: parsed.date || 'Recente',
+                        image: parsed.image || 'icon.png',
+                        excerpt: parsed.excerpt || 'Clique para ler este artigo completo.',
+                        content: parsed.content,
+                        featured: parsed.featured || 'false'
+                    };
+                }));
+
+                // Filtra apenas os que deram certo
+                postsData = results
+                    .filter(r => r.status === 'fulfilled')
+                    .map(r => r.value);
+
+                renderList();
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<p style="text-align:center;">Erro crítico ao carregar o blog.</p>';
+            }
+        }
+
+        // Renderiza o Grid de Cards
+        function renderList() {
+            if (postsData.length === 0) {
+                container.innerHTML = '<p style="text-align:center; padding: 4rem; color: var(--text-tertiary);">Nenhum artigo encontrado.</p>';
+                return;
+            }
+
+            // Busca o post marcado como destaque no Markdown (featured: true)
+            // Se nenhum estiver marcado, pega o primeiro da lista
+            let featuredIndex = postsData.findIndex(p => p.featured === 'true');
+            if (featuredIndex === -1) featuredIndex = 0;
+
+            const featured = postsData[featuredIndex];
+            const others = postsData.filter((_, index) => index !== featuredIndex);
+
+            let html = `
+                <!-- Featured Post -->
+                <div class="featured-post" onclick="openPost('${featured.id}')">
+                    <div class="featured-thumb">
+                        <img src="${featured.image || 'icon.png'}" alt="${featured.title}">
+                    </div>
+                    <div class="featured-content">
+                        <span class="badge-featured">Destaque</span>
+                        <h2 class="post-title">${featured.title}</h2>
+                        <div class="post-date">${featured.date || ''}</div>
+                        <div class="post-footer">Ler artigo completo →</div>
+                    </div>
+                </div>
+            `;
+
+            if (others.length > 0) {
+                html += '<div class="post-grid">';
+                html += others.map((post, index) => `
+                    <div class="post-card" onclick="openPost('${post.id}')" style="animation-delay: ${index * 0.1}s">
+                        <div class="post-thumb">
+                            <img src="${post.image || 'icon.png'}" alt="${post.title}">
+                        </div>
+                        <div class="post-body">
+                            <div class="post-date">${post.date || ''}</div>
+                            <h2 class="post-title">${post.title || post.id}</h2>
+                            <div class="post-footer">Ler artigo completo →</div>
+                        </div>
+                    </div>
+                `).join('');
+                html += '</div>';
+            }
+            
+            container.innerHTML = html;
+            window.location.hash = '';
+        }
+
+        // Abre um post específico usando os dados já carregados
+        function openPost(id) {
+            const post = postsData.find(p => p.id === id);
+            if (!post) return;
+
+            const contentHtml = marked.parse(post.content);
+            
+            container.innerHTML = `
+                <div class="post-view">
+                    <a href="javascript:renderList()" class="back-button">← Voltar para todos os posts</a>
+                    <div class="post-view-header">
+                        <div class="post-date">${post.date || ''}</div>
+                        <h1 style="font-size: 3.5rem; margin-bottom: 1rem;">${post.title}</h1>
+                    </div>
+                    <div class="post-content">${contentHtml}</div>
+                </div>
+            `;
+            window.scrollTo(0, 0);
+            window.location.hash = post.id;
+        }
+
+        // Menu Mobile
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.querySelector('.nav-links').classList.toggle('active');
+        });
+
+        // Iniciar
+        initBlog();
+    </script>
+</body>
+</html>
