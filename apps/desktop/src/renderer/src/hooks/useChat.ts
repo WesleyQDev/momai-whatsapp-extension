@@ -344,96 +344,6 @@ export function useChat() {
       isBooting = false
     }, 15000)
 
-    const handleRemoteChange = (e: any) => {
-      const { detail } = e
-      console.log('[useChat] IA confirmou troca de modelo:', detail)
-
-      const modelNames: Record<string, string> = {
-        local: 'MomLocal (Qwen)'
-      }
-
-      const modelName = modelNames[detail] || detail
-      const contentPrefix = 'Brain changed to:'
-      const finalContent = `${contentPrefix} **${modelName}** ✅`
-
-      setMessages((prev) => {
-        const lastIdx = prev.length - 1
-        if (lastIdx < 0) return prev
-
-        const lastMsg = prev[lastIdx]
-
-        // 1. Se a última mensagem for uma bolha vazia (comum em trocas via voz/grafo)
-        // ou se for o carregamento (⏳), atualizamos ela para check (✅)
-        const isWaiting =
-          lastMsg.role === 'assistant' &&
-          (lastMsg.content === '' ||
-            (lastMsg.content.includes(contentPrefix) && lastMsg.content.includes('⏳')))
-
-        if (isWaiting) {
-          const updated = [...prev]
-          updated[lastIdx] = { ...lastMsg, content: finalContent }
-          return updated
-        }
-
-        // 2. Se a última mensagem já for EXATAMENTE o que queremos adicionar, ignoramos (evita duplicidade de eventos)
-        if (lastMsg.role === 'assistant' && lastMsg.content === finalContent) {
-          return prev
-        }
-
-        // 3. Caso contrário (mudança via comando de voz que não passou pelo dropdown), adicionamos o card finalizado
-        return [...prev, { role: 'assistant', content: finalContent }]
-      })
-    }
-
-    // Listener para o INÍCIO da troca (vindo do useStatus/Dropdown ou Tool)
-    const handleModelStartChange = (e: any) => {
-      const { detail } = e
-      const modelNames: Record<string, string> = {
-        local: 'MomLocal (Qwen)'
-      }
-      const modelName = modelNames[detail] || detail
-      const loadingContent = `Brain changed to: **${modelName}** ⏳`
-
-      setMessages((prev) => {
-        if (prev.length === 0) return [{ role: 'assistant', content: loadingContent }]
-
-        const updated = [...prev]
-        const lastMsg = updated[updated.length - 1]
-
-        // Se a última mensagem for do assistente e estiver vazia ou já for o loading, atualizamos ela
-        if (
-          lastMsg.role === 'assistant' &&
-          (lastMsg.content === '' ||
-            lastMsg.content === '...' ||
-            lastMsg.content.includes('Cérebro alterado'))
-        ) {
-          updated[updated.length - 1] = { ...lastMsg, content: loadingContent }
-          return updated
-        }
-
-        // Caso contrário, adicionamos uma nova bolha
-        return [...updated, { role: 'assistant', content: loadingContent }]
-      })
-    }
-
-    window.addEventListener('ai_model_changed', handleRemoteChange)
-    window.addEventListener('ai_model_change_start', handleModelStartChange)
-
-    const toCompactJson = (value: any, maxLength = 900) => {
-      if (value === null || value === undefined) return ''
-      if (typeof value === 'string') return value
-      let text = ''
-      try {
-        text = JSON.stringify(value, null, 2)
-      } catch {
-        text = String(value)
-      }
-      if (text.length > maxLength) {
-        return `${text.slice(0, maxLength)}...`
-      }
-      return text
-    }
-
     const connect = () => {
       if (isUnmounting) return
 
@@ -967,8 +877,6 @@ export function useChat() {
       clearTimeout(bootTimeout)
       if (reconnectTimeout) clearTimeout(reconnectTimeout)
       if (ws) ws.close()
-      window.removeEventListener('ai_model_changed', handleRemoteChange)
-      window.removeEventListener('ai_model_change_start', handleModelStartChange)
     }
   }, []) // Removida dependência graphState para estabilidade
 

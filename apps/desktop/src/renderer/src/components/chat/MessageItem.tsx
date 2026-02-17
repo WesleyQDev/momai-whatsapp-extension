@@ -217,44 +217,6 @@ const MessageItem = memo(function MessageItem({
     return ''
   }
 
-  if (isSystemModelChange) {
-    const modelName =
-      message.content.split('**')[1] ||
-      message.content.replace('Brain changed to:', '').replace('⏳', '').replace('✅', '').trim()
-
-    return (
-      <div className="w-full flex justify-center px-4 my-4 animate-in fade-in zoom-in-95 duration-500">
-        <div
-          className={`max-w-full px-5 py-2.5 rounded-xl border backdrop-blur-md flex items-center gap-3 transition-all duration-700 min-w-0 ${isDone ? 'bg-white/5 border-white/5 shadow-sm' : 'bg-accent/10 border-accent/20 shadow-lg shadow-accent/5'}`}
-        >
-          <div className="flex-shrink-0">
-            {isDone ? (
-              <div className="w-6 h-6 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20 animate-in zoom-in duration-300">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green-400">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </div>
-            ) : (
-              <div className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center border border-accent/20">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent animate-spin-slow">
-                  <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
-                </svg>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 min-w-0 overflow-hidden">
-            <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDone ? 'text-green-400/80' : 'text-accent/80'}`}>
-              {isDone ? 'Cérebro Ativo' : 'Sincronizando'}
-            </span>
-            <span className="text-sm font-bold text-text break-all truncate sm:whitespace-normal">
-              {modelName}
-            </span>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const displayContentStr = String(displayContent || '')
   const ACTION_MARKER = '__MOMAI_ACTIONS__'
   const hasMarker = displayContentStr.includes(ACTION_MARKER)
