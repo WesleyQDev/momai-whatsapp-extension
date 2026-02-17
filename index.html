@@ -507,7 +507,7 @@
             </ul>
         </div>
         <div class="nav-right">
-            <a href="https://github.com/WesleyQDev/MomAI/releases/latest" class="btn-primary btn-download" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -598,8 +598,10 @@
         function applyDownloadUrl(url, isLinux) {
             document.querySelectorAll('.btn-download').forEach(el => {
                 el.href = url;
-                if (el.textContent.includes('para Windows') && isLinux) {
-                    el.innerHTML = el.innerHTML.replace('Windows', 'Linux');
+                if (isLinux) {
+                    el.innerHTML = el.innerHTML.replace('Windows', 'Linux').replace('Download', 'Download para Linux');
+                } else {
+                    el.innerHTML = el.innerHTML.replace('Linux', 'Windows');
                 }
             });
         }

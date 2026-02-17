@@ -390,7 +390,7 @@
             </ul>
         </div>
         <div class="nav-right">
-            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -593,30 +593,58 @@
         // Busca automática do último release do GitHub
         async function updateDownloadLinks() {
             const repo = "WesleyQDev/MomAI-App";
-            const storageKey = "momai_latest_download";
+            const platform = navigator.platform?.toLowerCase() || "";
+            const isLinux = platform.includes('linux') || navigator.userAgent.toLowerCase().includes('linux');
+            const storageKey = isLinux ? "momai_latest_linux" : "momai_latest_win";
+            
             const cachedUrl = sessionStorage.getItem(storageKey);
             if (cachedUrl) {
-                applyDownloadUrl(cachedUrl);
+                applyDownloadUrl(cachedUrl, isLinux);
                 return;
             }
+
             try {
-                const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+                // 1. Tenta buscar o último release oficial
+                let res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+                let data;
+
                 if (res.ok) {
-                    const data = await res.json();
-                    const winAsset = data.assets.find(a => a.name.endsWith('.exe'));
-                    if (winAsset) {
-                        const downloadUrl = winAsset.browser_download_url;
-                        sessionStorage.setItem(storageKey, downloadUrl);
-                        applyDownloadUrl(downloadUrl);
+                    data = await res.json();
+                } else if (res.status === 404) {
+                    // 2. Se falhar, tenta buscar a lista e pega o primeiro (mesmo que seja prerelease)
+                    const resList = await fetch(`https://api.github.com/repos/${repo}/releases`);
+                    if (resList.ok) {
+                        const list = await resList.json();
+                        if (list && list.length > 0) data = list[0];
                     }
                 }
-            } catch (err) {}
+
+                if (data && data.assets) {
+                    let asset;
+                    if (isLinux) {
+                        asset = data.assets.find(a => a.name.endsWith('.AppImage')) || data.assets.find(a => a.name.endsWith('.deb'));
+                    } else {
+                        asset = data.assets.find(a => a.name.endsWith('.exe'));
+                    }
+
+                    if (asset) {
+                        const downloadUrl = asset.browser_download_url;
+                        sessionStorage.setItem(storageKey, downloadUrl);
+                        applyDownloadUrl(downloadUrl, isLinux);
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao buscar release do GitHub:", err);
+            }
         }
 
-        function applyDownloadUrl(url) {
-            document.querySelectorAll('a').forEach(el => {
-                if (el.textContent.includes('Download') || el.href.includes('google.com/download')) {
-                    el.href = url;
+        function applyDownloadUrl(url, isLinux) {
+            document.querySelectorAll('.btn-download').forEach(el => {
+                el.href = url;
+                if (isLinux) {
+                    el.innerHTML = el.innerHTML.replace('Windows', 'Linux').replace('Download', 'Download para Linux');
+                } else {
+                    el.innerHTML = el.innerHTML.replace('Linux', 'Windows');
                 }
             });
         }
