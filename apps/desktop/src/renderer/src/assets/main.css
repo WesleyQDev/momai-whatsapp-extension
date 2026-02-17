@@ -132,6 +132,27 @@
   .message h3 {
     @apply text-lg;
   }
+
+  /* Global Markdown Table Styles */
+  table {
+    @apply border-collapse w-full my-4 rounded-lg overflow-hidden border border-border/20;
+  }
+
+  th, td {
+    @apply border border-border/10 p-3 text-left text-sm;
+  }
+
+  th {
+    @apply bg-white/5 font-semibold text-text text-xs uppercase tracking-wider;
+  }
+
+  tr:nth-child(even) {
+    @apply bg-white/[0.02];
+  }
+
+  tr:hover {
+    @apply bg-white/[0.05] transition-colors;
+  }
 }
 
 /* Animations */

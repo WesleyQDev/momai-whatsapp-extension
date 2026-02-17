@@ -7,26 +7,18 @@ interface WelcomeTipsProps {
 }
 
 const ALL_SUGGESTIONS = [
-  'Liste meus compromissos de hoje',
-  'Liste meus compromissos de amanha',
-  'Criar lembrete para amanha as 9h',
-  'O que tenho na agenda para esta semana?',
-  'Listar minhas anotacoes',
-  'Criar anotacao: Compras do mes',
-  'Do que trata minha ultima anotacao?',
-  'O que MomAI consegue fazer?',
-  'Me explique como funciona a interface',
-  'Quais extensoes estao instaladas?',
-  'Me conte uma piada',
-  'Qual e o clima hoje?',
-  'Me ensine algo novo',
-  'Faca uma resumo do dia',
+  'O que tenho na agenda para hoje?',
+  'Quais são as novidades sobre tecnologia?',
+  'Me ajude a organizar minhas notas',
+  'Como está o uso dos recursos do sistema?',
+  'Resuma minhas notas mais recentes',
+  'Quais são as suas capacidades?',
+  'Mostre a interface de lembretes',
+  'Como configurar o FortScript?',
   'Liste meus lembretes pendentes',
-  'Quando e meu proximo evento?',
-  'Editar configuracoes de voz',
-  'Ver status do sistema',
-  'Buscar palavra no meu conhecimento',
-  'Explicar como usar lembretes'
+  'Qual é a previsão do tempo para hoje?',
+  'Me conte uma curiosidade aleatória',
+  'Verifique meus compromissos de amanhã'
 ]
 
 const MAX_SUGGESTIONS = 3

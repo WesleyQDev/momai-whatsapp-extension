@@ -495,11 +495,11 @@ const MessageItem = memo(function MessageItem({
           {finalResponseText && (
             <div className="transition-all duration-500 animate-in fade-in">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                table: ({ node, ...props }) => <div className="overflow-x-auto my-4"><table className="min-w-full border-collapse" {...props} /></div>,
-                thead: ({ node, ...props }) => <thead className="border-b border-border/20" {...props} />,
-                th: ({ node, ...props }) => <th className="px-3 py-2 text-left text-[10px] font-black text-accent/70 uppercase tracking-widest" {...props} />,
-                td: ({ node, ...props }) => <td className="px-3 py-2 text-sm text-text-muted border-b border-border/10" {...props} />,
-                tr: ({ node, ...props }) => <tr className="hover:bg-text/5 transition-colors" {...props} />
+                table: ({ node, ...props }) => <div className="overflow-x-auto my-4 scrollbar-thin"><table className="min-w-full border-collapse border border-border/20 rounded-lg overflow-hidden" {...props} /></div>,
+                thead: ({ node, ...props }) => <thead className="bg-white/5" {...props} />,
+                th: ({ node, ...props }) => <th className="px-4 py-2.5 text-left text-[10px] font-black text-accent/90 uppercase tracking-widest border border-border/10" {...props} />,
+                td: ({ node, ...props }) => <td className="px-4 py-2 text-sm text-text-muted border border-border/10" {...props} />,
+                tr: ({ node, ...props }) => <tr className="hover:bg-white/[0.02] transition-colors" {...props} />
               }}>
                 {finalResponseText}
               </ReactMarkdown>

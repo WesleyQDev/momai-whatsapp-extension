@@ -65,7 +65,7 @@ export default function NotesView() {
     const query = filterText.trim().toLowerCase()
     if (!query) return notes
     return notes.filter((note) =>
-      [note.title, note.preview || ''].some((value) => value.toLowerCase().includes(query))
+      [(note.title || ''), note.preview || ''].some((value) => value.toLowerCase().includes(query))
     )
   }, [filterText, notes])
 
@@ -85,6 +85,7 @@ export default function NotesView() {
   }
 
   const selectNote = async (noteId: string) => {
+    if (activeId === noteId && title !== '') return // Already selected
     setActiveId(noteId)
     setIsLoading(true)
     setError(null)
@@ -104,15 +105,19 @@ export default function NotesView() {
 
   // Auto-Save Logic
   useEffect(() => {
-    if (!activeId) return
+    if (!activeId || isLoading) return
     if (title === lastSaved.current.title && content === lastSaved.current.content) return
 
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    
+    const currentId = activeId
     saveTimer.current = window.setTimeout(async () => {
       try {
         setIsSaving(true)
-        const updated = await updateMemoryNote(activeId, { title, content })
-        lastSaved.current = { title: updated.title, content: updated.content }
+        const updated = await updateMemoryNote(currentId, { title, content })
+        if (activeId === currentId) {
+          lastSaved.current = { title: updated.title, content: updated.content }
+        }
         setNotes(prev => prev.map(n => n.id === updated.id ? { ...n, title: updated.title, updated_at: new Date().toISOString() } : n))
       } catch (err) {
         setError(t('notes.errors.save'))
@@ -122,10 +127,11 @@ export default function NotesView() {
     }, 1000)
 
     return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current) }
-  }, [activeId, title, content])
+  }, [activeId, title, content, isLoading])
 
   const handleCreateNote = async () => {
     setError(null)
+    setFilterText('')
     try {
       const note = await createMemoryNote(t('notes.newNoteTitleDefault'), '')
       setNotes(prev => [note, ...prev])
@@ -179,7 +185,10 @@ export default function NotesView() {
     try {
       // Optimistic update
       setNotes(prev => prev.map(n => n.id === renamingId ? { ...n, title: renameValue } : n))
-      if (activeId === renamingId) setTitle(renameValue)
+      if (activeId === renamingId) {
+        setTitle(renameValue)
+        lastSaved.current.title = renameValue
+      }
       
       await updateMemoryNote(renamingId, { title: renameValue })
     } catch (err) {
@@ -218,20 +227,20 @@ export default function NotesView() {
 
   const markdownHighlighting = useMemo(() => {
     const textColor = 'rgb(var(--text-primary))'
+    const accentColor = 'rgb(var(--accent))'
     return HighlightStyle.define([
-      // Heading styles
-      { tag: tags.heading1, fontSize: '2.2em', fontWeight: '800', lineHeight: '1.2', letterSpacing: '-0.02em', color: textColor },
-      { tag: tags.heading2, fontSize: '1.7em', fontWeight: '700', lineHeight: '1.3', color: textColor },
-      { tag: tags.heading3, fontSize: '1.35em', fontWeight: '700', lineHeight: '1.4', color: textColor },
-      { tag: tags.heading4, fontSize: '1.15em', fontWeight: '600', color: textColor },
-      // Text styles
+      { tag: tags.heading1, class: 'cm-h1' },
+      { tag: tags.heading2, class: 'cm-h2' },
+      { tag: tags.heading3, class: 'cm-h3' },
+      { tag: tags.heading4, class: 'cm-h4' },
       { tag: tags.strong, fontWeight: '700', color: textColor },
       { tag: tags.emphasis, fontStyle: 'italic' },
-      // Markdown markers
+      { tag: tags.strikethrough, textDecoration: 'line-through', opacity: '0.6' },
+      { tag: tags.quote, color: 'rgb(var(--text-muted))', fontStyle: 'italic' },
+      { tag: tags.monospace, color: accentColor, backgroundColor: 'rgb(var(--accent) / 0.1)', borderRadius: '4px', padding: '1px 4px' },
       { tag: [tags.processingInstruction, tags.punctuation, tags.meta, tags.modifier], class: 'cm-md-marker' },
-      // Links
-      { tag: tags.link, textDecoration: 'underline', opacity: '0.8' },
-      { tag: tags.url, textDecoration: 'underline', opacity: '0.7' },
+      { tag: tags.link, textDecoration: 'underline', color: accentColor, opacity: '0.9' },
+      { tag: tags.url, textDecoration: 'underline', opacity: '0.5' },
     ])
   }, [])
 
@@ -250,34 +259,52 @@ export default function NotesView() {
       '.cm-scroller': {
         fontFamily: 'inherit',
         fontSize: '16px',
-        lineHeight: '1.8',
+        lineHeight: '1.7',
         overflow: 'auto',
         padding: '20px 0'
       },
       '.cm-content': {
         color: 'rgb(var(--text-primary))',
         caretColor: 'rgb(var(--text-primary)) !important',
-        backgroundColor: 'transparent !important'
+        backgroundColor: 'transparent !important',
+        padding: '0 32px !important' // Fixed padding to prevent clipping
       },
+      '.cm-line': {
+        padding: '2px 0'
+      },
+      // MARKER HIDING: Completely hide markers on inactive lines
       '.cm-md-marker': {
-        display: 'none'
+        display: 'none !important'
       },
+      // MARKER REVEALING: Show only on active line with soft opacity
       '.cm-activeLine .cm-md-marker': {
-        display: 'inline',
-        opacity: '0.3',
-        marginRight: '4px'
+        display: 'inline !important',
+        opacity: '0.4',
+        marginRight: '0.1em'
       },
-      // Heading styles - using CodeMirror's built-in header classes
-      '.cm-line:not(.cm-activeLine) .cm-header': {
-        marginLeft: '-0.3em'
+      // HEADER SIZES: Force sizes with high specificity
+      '.cm-h1': { fontSize: '1.8em !important', fontWeight: '800 !important' },
+      '.cm-h2': { fontSize: '1.5em !important', fontWeight: '700 !important' },
+      '.cm-h3': { fontSize: '1.25em !important', fontWeight: '700 !important' },
+      '.cm-h4': { fontSize: '1.1em !important', fontWeight: '600 !important' },
+      
+      // ALIGNMENT FIX: Pull text back exactly one space width to align perfectly
+      '.cm-line:not(.cm-activeLine) .cm-h1, .cm-line:not(.cm-activeLine) .cm-h2, .cm-line:not(.cm-activeLine) .cm-h3, .cm-line:not(.cm-activeLine) .cm-h4': {
+        marginLeft: '-0.32em !important', 
+        display: 'inline-block'
       },
-      '.cm-header': {
-        fontWeight: '700'
+      
+      // Blockquote visual cue
+      '.cm-quote': {
+        borderLeft: '3px solid rgb(var(--accent) / 0.3)',
+        paddingLeft: '1rem',
+        display: 'inline-block',
+        width: '100%'
       },
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { 
-        backgroundColor: 'rgb(var(--accent) / 0.25) !important'
+        backgroundColor: 'rgb(var(--accent) / 0.2) !important'
       },
-      '.cm-cursor': { borderLeftColor: 'rgb(var(--text-primary)) !important' },
+      '.cm-cursor': { borderLeftColor: 'rgb(var(--text-primary)) !important', borderLeftWidth: '2px' },
       '.cm-activeLine': { backgroundColor: 'transparent' },
       '.cm-gutters': { display: 'none' }
     })
