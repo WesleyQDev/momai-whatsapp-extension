@@ -287,6 +287,20 @@
             background: var(--accent-subtle);
         }
 
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .menu-toggle svg {
+            width: 24px;
+            height: 24px;
+        }
+
         footer { text-align: center; padding: 2rem; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -298,7 +312,46 @@
         }
 
         @media (max-width: 768px) {
-            .nav-links { display: none; }
+            nav {
+                padding: 0 1.5rem;
+            }
+
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 64px;
+                left: 0;
+                right: 0;
+                background: white;
+                flex-direction: column;
+                gap: 0;
+                border-bottom: 1px solid var(--border);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .nav-links li {
+                width: 100%;
+            }
+
+            .nav-links a {
+                display: block;
+                padding: 1rem 1.5rem;
+                font-size: 0.95rem;
+                border-top: 1px solid var(--bg-subtle);
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .nav-right .btn-primary {
+                display: none;
+            }
+
             .post-content h1 { font-size: 1.8rem; }
             .blog-container { padding: 2rem 1.5rem; }
         }
@@ -490,8 +543,25 @@
         }
 
         // Menu Mobile
-        document.getElementById('menuToggle').addEventListener('click', () => {
-            document.querySelector('.nav-links').classList.toggle('active');
+        const menuToggle = document.getElementById('menuToggle');
+        const navLinks = document.querySelector('.nav-links');
+
+        menuToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = menuToggle.querySelector('svg');
+            if (navLinks.classList.contains('active')) {
+                icon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+            } else {
+                icon.innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+            }
+        });
+
+        // Fechar menu ao clicar em links
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                menuToggle.querySelector('svg').innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+            });
         });
 
         // Iniciar
