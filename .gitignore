@@ -55,7 +55,9 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
+# build/ <- Allowing build folders for Electron
+!apps/desktop/build/
+!apps/desktop/bin/
 develop-eggs/
 dist/
 downloads/

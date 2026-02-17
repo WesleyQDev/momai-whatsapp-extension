@@ -63,6 +63,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools
+
       - name: Build Linux
         run: pnpm --filter desktop build:linux
         env:
@@ -75,7 +80,6 @@ jobs:
           path: |
             apps/desktop/dist/*.AppImage
             apps/desktop/dist/*.deb
-            apps/desktop/dist/*.snap
             apps/desktop/dist/*.yml
           if-no-files-found: warn
           retention-days: 5
