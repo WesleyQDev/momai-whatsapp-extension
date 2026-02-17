@@ -1,7 +1,7 @@
-﻿import os
+import os
 import logging
-# Force offline mode for all HuggingFace-based modules (TTS, LLM, Embeddings)
-# os.environ["HF_HUB_OFFLINE"] = "1" <-- Removed to allow initial model downloads
+import time
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from dotenv import load_dotenv
@@ -26,7 +26,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 app.include_router(api_router)
@@ -38,5 +38,28 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", 8000))
 
-    logger.info("[Main] Starting MomAI Core on %s:%s (Reload: %s)", host, port, should_reload)
-    uvicorn.run("main:app", host=host, port=port, reload=should_reload)
+    logger.info(
+        "[Main] Starting MomAI Core on %s:%s (Reload: %s)", host, port, should_reload
+    )
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=should_reload,
+        loop="asyncio",
+        http="h11",
+        factory=False,
+        use_colors=not should_reload,
+        log_config=None,
+    )
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=should_reload,
+        loop="asyncio",
+        http="h11",
+        factory=True,
+        use_colors=not should_reload,
+        log_config=None,
+    )

@@ -150,7 +150,7 @@ def init_db():
         if "prebuffer_chars" not in cols:
             conn.execute(
                 text(
-                    "ALTER TABLE settings ADD COLUMN prebuffer_chars INTEGER DEFAULT 120"
+                    "ALTER TABLE settings ADD COLUMN prebuffer_chars INTEGER DEFAULT 0"
                 )
             )
         if "onboarding_completed" not in cols:

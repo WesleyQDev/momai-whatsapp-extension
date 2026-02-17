@@ -5,6 +5,7 @@ import { Message } from '../../services/api'
 import icon from '../../assets/icon.png'
 import { DocumentTextIcon } from '@heroicons/react/24/outline'
 import { ExtrasRenderer } from './ExtrasRenderer'
+import MessageContextMenu from './MessageContextMenu'
 
 interface MessageItemProps {
   message: Message
@@ -14,6 +15,9 @@ interface MessageItemProps {
   isSpeaking?: boolean
   onStopVoice?: () => void
   onStopGeneration?: () => void
+  onSpeak?: () => void
+  onDelete?: () => void
+  onRetry?: () => void
 }
 
 const MessageItem = memo(function MessageItem({
@@ -23,7 +27,10 @@ const MessageItem = memo(function MessageItem({
   onGraphOption,
   isSpeaking = false,
   onStopVoice,
-  onStopGeneration
+  onStopGeneration,
+  onSpeak,
+  onDelete,
+  onRetry
 }: MessageItemProps): JSX.Element {
   const [showTrace, setShowTrace] = useState(true)
   const [showToolDetails, setShowToolDetails] = useState(true)
@@ -32,7 +39,17 @@ const MessageItem = memo(function MessageItem({
   const [elapsedSeconds, setElapsedSeconds] = useState<Record<number, number>>({})
   const [openSources, setOpenSources] = useState(false)
   const [revealedSources, setRevealedSources] = useState<number>(0)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const startTimesRef = useRef<Record<number, number>>({})
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.y })
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content)
+  }
 
   const handleStopVoiceClick = () => {
     if (!onStopVoice) return
@@ -247,7 +264,22 @@ const MessageItem = memo(function MessageItem({
   const finalResponseText = hasMarker ? textParts[1]?.trim() : ''
 
   return (
-    <div className={`flex items-start gap-3 sm:gap-4 max-w-full group animate-slide-in-up ${message.role === 'assistant' ? 'self-start w-full' : 'self-end flex-row-reverse ml-12'}`}>
+    <div 
+      onContextMenu={handleContextMenu}
+      className={`flex items-start gap-3 sm:gap-4 max-w-full group animate-slide-in-up ${message.role === 'assistant' ? 'self-start w-full' : 'self-end flex-row-reverse ml-12'}`}
+    >
+      {contextMenu && (
+        <MessageContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isUser={message.role === 'user'}
+          onClose={() => setContextMenu(null)}
+          onCopy={handleCopy}
+          onSpeak={onSpeak || (() => {})}
+          onDelete={onDelete || (() => {})}
+          onRetry={onRetry}
+        />
+      )}
       <div className={`flex-shrink-0 mt-1 ${message.role === 'assistant' ? 'block' : 'hidden sm:block opacity-0 group-hover:opacity-100 transition-opacity'}`}>
         {message.role === 'assistant' ? (
           <div className="relative">

@@ -167,15 +167,43 @@ async def init_system_task() -> None:
                     app_state.process_voice_command(text), app_state.main_loop
                 )
 
+        def on_voice_status(status: str) -> None:
+            if app_state.main_loop:
+                asyncio.run_coroutine_threadsafe(
+                    app_state.broadcast_to_sockets({"type": "voice_status", "status": status}),
+                    app_state.main_loop,
+                )
+
+        def on_voice_partial(text: str) -> None:
+            if app_state.main_loop:
+                asyncio.run_coroutine_threadsafe(
+                    app_state.broadcast_to_sockets({"type": "voice_partial", "text": text}),
+                    app_state.main_loop,
+                )
+
         def should_bypass_wake_word() -> bool:
             state = app_state.get_graph_state()
-            return state["view"] is not None and state["bypass_wake_word"]
+            return app_state.is_call_mode() or (
+                state["view"] is not None and state["bypass_wake_word"]
+            )
 
         await app_state.send_init_event("brain", "Starting voice detector...", 85)
         app_state.ww = app_state.WakeWordDetector(
-            keyword="sistema",
+            keyword="Loki",
             callback=on_wake_word,
+            status_callback=on_voice_status,
+            partial_callback=on_voice_partial,
             bypass_condition=should_bypass_wake_word,
+            variants=[
+                "Loki",
+                "Lucky",
+                "Rucky",
+                "Rocky",
+                "Locky",
+                "Lock",
+                "Rock",
+                "Locke",
+            ],
         )
         if settings.wake_word_enabled:
             app_state.ww.start()

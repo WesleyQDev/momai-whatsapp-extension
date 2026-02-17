@@ -12,6 +12,10 @@ class ModeChange(BaseModel):
     mode: str
 
 
+class CallModeUpdate(BaseModel):
+    enabled: bool
+
+
 class ReminderCreate(BaseModel):
     title: str
     content: str | None = None

@@ -37,6 +37,20 @@ active_graph = {"view": None, "bypass_wake_word": False}
 
 pending_graph_data: dict[str, dict[str, Any]] = {}
 
+call_mode = False
+
+
+def is_call_mode() -> bool:
+    """Returns whether call mode is active."""
+    return call_mode
+
+
+def set_call_mode(enabled: bool) -> None:
+    """Enable or disable call mode."""
+    global call_mode
+    call_mode = enabled
+    logger.info("[Main] Call mode: %s", enabled)
+
 
 def initialize_ai_stack() -> None:
     """Lazy load heavy AI modules."""
@@ -164,8 +178,11 @@ async def send_init_event(stage: str, message: str, progress: int = 0) -> None:
 
 async def process_voice_command(text: str) -> None:
     """Processes a recognized voice command through the AI engine."""
-    if not text:
-        return
+    # If the text is empty, the user just said the keyword.
+    # We provide a prompt to show we are listening.
+    if not text or len(text.strip()) < 2:
+        text = "Oi"  # This will trigger a greeting/ready response from the AI
+
     logger.info("[Voice] Processing: %s", text)
     logger.info("[Voice] Active websockets: %d", len(active_websockets))
 

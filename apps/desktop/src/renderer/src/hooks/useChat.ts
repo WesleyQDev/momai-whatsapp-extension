@@ -5,7 +5,10 @@ import {
   fetchChatHistory,
   clearChatHistory,
   stopGeneration,
-  stopVoice
+  stopVoice,
+  speakText,
+  deleteMessage,
+  setCallMode
 } from '../services/api'
 
 export function useChat() {
@@ -16,6 +19,10 @@ export function useChat() {
   const [_isHistoryLoaded, setIsHistoryLoaded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
+  const [isCallMode, setIsCallMode] = useState(false)
+  const isCallModeRef = useRef(false)
+  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'processing'>('idle')
+  const [callHistory, setCallHistory] = useState<{ id: string; role: 'user' | 'assistant'; content: string }[]>([])
   const messagesRef = useRef<Message[]>([])
 
   // Graph State
@@ -163,6 +170,12 @@ export function useChat() {
   const clearHistory = useCallback(async () => {
     setIsLoading(true)
     try {
+      setSpeakingIndex(null)
+      try {
+        await stopVoice()
+      } catch (e) {
+        // Ignore errors if voice stop fails
+      }
       await clearChatHistory(threadId)
       toolTraceRef.current = { activeMsgId: null, byToolId: {} }
       window.dispatchEvent(new CustomEvent('momai_clear_history'))
@@ -311,6 +324,10 @@ export function useChat() {
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
   }, [closeGraph])
+
+  useEffect(() => {
+    isCallModeRef.current = isCallMode
+  }, [isCallMode])
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -708,6 +725,18 @@ export function useChat() {
           window.dispatchEvent(new CustomEvent('ai_model_change_start', { detail: msg.data.mode }))
         } else if (msg.type === 'model_change_progress') {
           // Progress is now handled via activities or global status if needed
+        } else if (msg.type === 'voice_partial') {
+          if (isCallModeRef.current && msg.text) {
+            setCallHistory((prev) => {
+              const last = prev[prev.length - 1]
+              if (last && last.role === 'user') {
+                const updated = [...prev]
+                updated[updated.length - 1] = { ...last, content: msg.text }
+                return updated
+              }
+              return [...prev, { id: `user-${Date.now()}`, role: 'user', content: msg.text }].slice(-5)
+            })
+          }
         } else if (msg.type === 'reminder_trigger') {
           // Alerta visual de lembrete
           setGraphState({
@@ -719,6 +748,19 @@ export function useChat() {
         } else if (msg.type === 'user') {
           // Alguém falou via voice command
           const content = msg.content.toLowerCase()
+
+          // Update call mode history
+          if (isCallModeRef.current) {
+            setCallHistory((prev) => {
+              const last = prev[prev.length - 1]
+              if (last && last.role === 'user') {
+                const updated = [...prev]
+                updated[updated.length - 1] = { ...last, content: msg.content }
+                return updated
+              }
+              return [...prev, { id: `user-${Date.now()}`, role: 'user', content: msg.content }].slice(-5)
+            })
+          }
 
           // Verifica se bate com alguma opção do gráfico aberto usando REFS
           if (isGraphOpenRef.current && currentGraphOptionsRef.current.length > 0) {
@@ -781,6 +823,39 @@ export function useChat() {
           }
 
           if (data.token) {
+            // Update call mode history with assistant words
+            if (isCallModeRef.current) {
+              const cleanTokenForCall = data.token.split('__MOMAI_ACTIONS__')[0]
+              if (cleanTokenForCall !== undefined) {
+                setCallHistory((prevHistory) => {
+                  const last = prevHistory[prevHistory.length - 1]
+                  if (last && last.role === 'assistant') {
+                    const history = [...prevHistory]
+                    const prevContent = last.content
+                    // If it's the very first token of the assistant, trim leading whitespace/newlines
+                    let nextToken = cleanTokenForCall
+                    if (prevContent === '...' || prevContent === '') {
+                      nextToken = nextToken.replace(/^\s+/, '')
+                    }
+                    
+                    const newContent = (prevContent === '...' ? '' : prevContent) + nextToken
+                    history[history.length - 1] = {
+                      ...last,
+                      content: newContent
+                    }
+                    return history
+                  }
+                  
+                  // New assistant message: only start if we have actual text
+                  const trimmed = cleanTokenForCall.replace(/^\s+/, '')
+                  if (trimmed) {
+                    return [...prevHistory, { id: `assistant-${Date.now()}`, role: 'assistant', content: trimmed }].slice(-5)
+                  }
+                  return prevHistory
+                })
+              }
+            }
+
             setMessages((prev) => {
               const updated = [...prev]
               const lastIdx = updated.length - 1
@@ -819,9 +894,10 @@ export function useChat() {
                     content: buildToolTraceContent(traceData || {}, textPart + cleanToken)
                   }
                 } else {
+                  const finalContent = newBase + cleanToken
                   updated[lastIdx] = {
                     ...updated[lastIdx],
-                    content: newBase + cleanToken
+                    content: finalContent
                   }
                 }
                 return updated
@@ -902,6 +978,10 @@ export function useChat() {
       if (!isSilent) {
         const userMessage: Message = { role: 'user', content: messageText }
         setMessages((prev) => [...prev, userMessage])
+
+        if (isCallModeRef.current) {
+          setCallHistory((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: messageText }].slice(-5))
+        }
       }
 
       if (!overrideText) setText('')
@@ -943,9 +1023,10 @@ export function useChat() {
                     content: buildToolTraceContent(traceData || {}, textPart + token)
                   }
                 } else {
+                  const finalContent = newBase + token
                   updated[lastIdx] = {
                     ...updated[lastIdx],
-                    content: newBase + token
+                    content: finalContent
                   }
                 }
                 return updated
@@ -953,6 +1034,39 @@ export function useChat() {
                 return [...prev, { role: 'assistant', content: token }]
               }
             })
+
+            // Update call mode history separately
+            if (isCallModeRef.current) {
+              const cleanTokenForCall = token.split('__MOMAI_ACTIONS__')[0]
+              if (cleanTokenForCall !== undefined) {
+                setCallHistory((prevHistory) => {
+                  const last = prevHistory[prevHistory.length - 1]
+                  if (last && last.role === 'assistant') {
+                    const history = [...prevHistory]
+                    const prevContent = history[history.length - 1].content
+                    // If it's the very first token of the assistant, trim leading whitespace/newlines
+                    let nextToken = cleanTokenForCall
+                    if (prevContent === '...' || prevContent === '') {
+                      nextToken = nextToken.replace(/^\s+/, '')
+                    }
+
+                    const newContent = (prevContent === '...' ? '' : prevContent) + nextToken
+                    history[history.length - 1] = {
+                      role: 'assistant',
+                      content: newContent
+                    }
+                    return history
+                  }
+                  
+                  // New assistant message: only start if we have actual text
+                  const trimmed = cleanTokenForCall.replace(/^\s+/, '')
+                  if (trimmed) {
+                    return [...prevHistory, { role: 'assistant', content: trimmed }].slice(-5)
+                  }
+                  return prevHistory
+                })
+              }
+            }
           },
           onStatus: (status) => {
             setMessages((prev) => {
@@ -1069,6 +1183,39 @@ export function useChat() {
     }
   }, [])
 
+  const speakMessage = useCallback(async (content: string, index: number) => {
+    try {
+      setSpeakingIndex(index)
+      await speakText(content)
+    } catch (error) {
+      console.error('Erro ao falar mensagem:', error)
+      setSpeakingIndex(null)
+    }
+  }, [])
+
+const removeMessage = useCallback(async (index: number) => {
+    const msg = messages[index]
+    if (msg.id) {
+      try {
+        await deleteMessage(Number(msg.id))
+      } catch (error) {
+        console.error('Erro ao excluir mensagem do banco:', error)
+      }
+    }
+    setMessages((prev) => prev.filter((_, i) => i !== index))
+  }, [messages])
+
+  const toggleCallMode = useCallback(async () => {
+    const newState = !isCallMode
+    setIsCallMode(newState)
+    setCallHistory([])
+    try {
+      await setCallMode(newState)
+    } catch (error) {
+      console.error('Erro ao alterar modo chamada:', error)
+    }
+  }, [isCallMode])
+
   return {
     text,
     setText,
@@ -1083,6 +1230,12 @@ export function useChat() {
     clearHistory,
     stopCurrentGeneration,
     stopCurrentVoice,
-    speakingIndex
+    speakingIndex,
+    speakMessage,
+    removeMessage,
+    isCallMode,
+    toggleCallMode,
+    voiceStatus,
+    callHistory
   }
 }

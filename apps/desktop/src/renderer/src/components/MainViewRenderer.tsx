@@ -31,6 +31,10 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
         stopCurrentGeneration={props.chat.stopCurrentGeneration}
         stopCurrentVoice={props.chat.stopCurrentVoice}
         speakingIndex={props.chat.speakingIndex}
+        isCallMode={props.chat.isCallMode}
+        voiceStatus={props.chat.voiceStatus}
+        onToggleCallMode={props.chat.toggleCallMode}
+        callHistory={props.chat.callHistory}
       />
     )
   },

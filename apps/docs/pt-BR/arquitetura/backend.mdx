@@ -219,7 +219,7 @@ O sistema de voz é composto por:
         data = stream.read(4000)
         if recognizer.AcceptWaveform(data):
             result = json.loads(recognizer.Result())
-            if "sistema" in result["text"].lower():
+            if "Loki" in result["text"].lower():
                 activate_assistant()
     ```
   </Tab>

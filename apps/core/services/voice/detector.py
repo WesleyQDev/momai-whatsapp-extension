@@ -15,14 +15,14 @@ logger = logging.getLogger("uvicorn.error")
 class WakeWordDetector:
     """
     Wake Word Detector with proper end-of-speech detection.
-    
+
     Instead of continuously transcribing a rolling buffer (which causes premature
     recognition), this detector uses a state machine approach:
-    
+
     1. IDLE: Monitoring for speech activity via energy levels
     2. LISTENING: Speech detected, recording utterance into a growing buffer
     3. PROCESSING: Silence detected after speech, transcribe the complete utterance
-    
+
     This ensures we only transcribe AFTER the user finishes speaking.
     """
 
@@ -31,12 +31,19 @@ class WakeWordDetector:
     STATE_LISTENING = "listening"
     STATE_PROCESSING = "processing"
 
-    def __init__(self, keyword="sistema", callback=None, bypass_condition=None):
+    def __init__(
+        self, keyword="computador", callback=None, status_callback=None, partial_callback=None, bypass_condition=None, variants=None
+    ):
         """
         Initializes the Wake Word detector using Faster-Whisper.
         """
         self.keyword = keyword.lower()
+        self.variants = (
+            [keyword.lower()] if not variants else [v.lower() for v in variants]
+        )
         self.callback = callback
+        self.status_callback = status_callback
+        self.partial_callback = partial_callback
         self.bypass_condition = bypass_condition
         self.running = False
         self.thread = None
@@ -48,12 +55,16 @@ class WakeWordDetector:
             device = "cuda" if torch.cuda.is_available() else "cpu"
             compute_type = "float16" if device == "cuda" else "int8"
 
-            # Upgrade to 'small' for MUCH better English/Technical recognition
-            logger.info(f"[WakeWord] Initializing Faster-Whisper (small) on {device} ({compute_type})...")
-            self.model = WhisperModel("small", device=device, compute_type=compute_type)
+            # Use 'base' for the best balance between speed and accuracy in real-time
+            logger.info(
+                f"[WakeWord] Initializing Faster-Whisper (base) on {device} ({compute_type})..."
+            )
+            self.model = WhisperModel("base", device=device, compute_type=compute_type)
         except Exception as e:
-            logger.warning(f"[WakeWord] Could not load 'small' Whisper ({e}). Falling back to 'base' on CPU.")
-            self.model = WhisperModel("base", device="cpu", compute_type="int8")
+            logger.warning(
+                f"[WakeWord] Could not load 'base' Whisper ({e}). Falling back to 'tiny' on CPU."
+            )
+            self.model = WhisperModel("tiny", device="cpu", compute_type="int8")
 
         self.audio_queue = queue.Queue(maxsize=200)
         self.processing_queue = queue.Queue(maxsize=2)
@@ -63,8 +74,8 @@ class WakeWordDetector:
         # Energy threshold to consider a chunk as "speech"
         self.speech_energy_threshold = 0.008
         # How many consecutive silent chunks before we consider speech ended
-        # Each chunk is ~250ms (blocksize=4000 at 16kHz), so 6 chunks ≈ 1.5s
-        self.silence_chunks_required = 6
+        # Each chunk is ~250ms (blocksize=4000 at 16kHz), so 4 chunks ≈ 1s
+        self.silence_chunks_required = 4
         # Minimum speech duration (in chunks) to avoid processing noise bursts
         # 3 chunks ≈ 0.75s minimum speech
         self.min_speech_chunks = 3
@@ -85,6 +96,13 @@ class WakeWordDetector:
         self.last_text_time = 0.0
         self.text_repeat_cooldown = 1.0
 
+    def _set_state(self, new_state):
+        """Internal helper to change state and notify callback."""
+        if self.state != new_state:
+            self.state = new_state
+            if self.status_callback:
+                self.status_callback(new_state)
+
     def _audio_callback(self, indata, frames, time_info, status):
         """Callback for sounddevice."""
         if status:
@@ -102,7 +120,7 @@ class WakeWordDetector:
 
     def _get_chunk_energy(self, chunk):
         """Calculate RMS energy of an audio chunk."""
-        return np.sqrt(np.mean(chunk ** 2))
+        return np.sqrt(np.mean(chunk**2))
 
     def _listen_loop(self):
         """Main listening loop with state-machine based speech segmentation."""
@@ -112,9 +130,9 @@ class WakeWordDetector:
             with sd.InputStream(
                 samplerate=self.sample_rate,
                 channels=1,
-                dtype='float32',
+                dtype="float32",
                 blocksize=4000,  # 250ms chunks at 16kHz
-                callback=self._audio_callback
+                callback=self._audio_callback,
             ):
                 logger.info("[WakeWord] Microphone active. Ready and listening!")
 
@@ -134,7 +152,7 @@ class WakeWordDetector:
                     if self.state == self.STATE_IDLE:
                         if is_speech:
                             # Speech started! Transition to LISTENING
-                            self.state = self.STATE_LISTENING
+                            self._set_state(self.STATE_LISTENING)
                             self.speech_buffer = [chunk]
                             self.speech_chunk_count = 1
                             self.silence_counter = 0
@@ -148,6 +166,11 @@ class WakeWordDetector:
                         if is_speech:
                             self.speech_chunk_count += 1
                             self.silence_counter = 0
+                            
+                            # Real-time/Partial transcription:
+                            # Every ~1 second (4 chunks of 250ms), try a partial transcription
+                            if len(self.speech_buffer) % 4 == 0 and len(self.speech_buffer) >= 4:
+                                self._enqueue_partial_recording()
                         else:
                             self.silence_counter += 1
 
@@ -155,8 +178,10 @@ class WakeWordDetector:
                         recording_duration = self.recorded_samples / self.sample_rate
 
                         if recording_duration >= self.max_recording_duration:
-                            logger.info(f"[WakeWord] Max recording duration reached ({recording_duration:.1f}s). Processing...")
-                            self.state = self.STATE_PROCESSING
+                            logger.info(
+                                f"[WakeWord] Max recording duration reached ({recording_duration:.1f}s). Processing..."
+                            )
+                            self._set_state(self.STATE_PROCESSING)
 
                         # Check if enough silence has passed to consider speech ended
                         elif self.silence_counter >= self.silence_chunks_required:
@@ -166,23 +191,26 @@ class WakeWordDetector:
                                     f"Duration: {recording_duration:.1f}s, "
                                     f"Speech chunks: {self.speech_chunk_count}"
                                 )
-                                self.state = self.STATE_PROCESSING
+                                self._set_state(self.STATE_PROCESSING)
                             else:
                                 # Too short, probably just noise
-                                logger.debug("[WakeWord] Too short, ignoring noise burst.")
+                                logger.debug(
+                                    "[WakeWord] Too short, ignoring noise burst."
+                                )
                                 self._reset_state()
 
                     if self.state == self.STATE_PROCESSING:
                         self._enqueue_recording()
-                        self._reset_state()
+                        self._reset_state(silent=True)
 
         except Exception as e:
             logger.error(f"[WakeWord] Fatal microphone error: {e}")
             self.running = False
 
-    def _reset_state(self):
-        """Reset state machine to IDLE."""
-        self.state = self.STATE_IDLE
+    def _reset_state(self, silent=False):
+        """Reset state machine variables, optionally keeping the current state."""
+        if not silent:
+            self._set_state(self.STATE_IDLE)
         self.speech_buffer = []
         self.speech_chunk_count = 0
         self.silence_counter = 0
@@ -195,48 +223,71 @@ class WakeWordDetector:
 
         audio = np.concatenate(self.speech_buffer)
         try:
-            self.processing_queue.put_nowait(audio)
+            self.processing_queue.put_nowait((audio, False)) # False = Not partial
         except queue.Full:
             try:
                 self.processing_queue.get_nowait()
-                self.processing_queue.put_nowait(audio)
+                self.processing_queue.put_nowait((audio, False))
             except Exception:
                 pass
+
+    def _enqueue_partial_recording(self):
+        """Queue partial audio for real-time feedback."""
+        if not self.speech_buffer or len(self.speech_buffer) < 4:
+            return
+
+        audio = np.concatenate(self.speech_buffer)
+        try:
+            # We don't want to overflow the queue with partials, so we use a non-blocking put
+            # and if it's full we just skip this partial (the next one will come soon)
+            self.processing_queue.put_nowait((audio, True)) # True = Partial
+        except queue.Full:
+            pass
 
     def _processing_loop(self):
         """Background transcription loop."""
         while self.running or not self.processing_queue.empty():
             try:
-                audio = self.processing_queue.get(timeout=0.5)
+                audio_data = self.processing_queue.get(timeout=0.5)
+                audio, is_partial = audio_data
             except queue.Empty:
                 continue
 
-            self._process_recording(audio)
+            if not is_partial:
+                self._set_state(self.STATE_PROCESSING)
+            
+            self._process_recording(audio, is_partial)
+            
+            if not is_partial:
+                self._set_state(self.STATE_IDLE)
 
-    def _process_recording(self, audio):
+    def _process_recording(self, audio, is_partial=False):
         """Transcribe the recorded speech buffer and process the result."""
         if audio is None or len(audio) == 0:
             return
 
         duration = len(audio) / self.sample_rate
-        logger.info(f"[WakeWord] Transcribing {duration:.1f}s of audio...")
+        logger.debug(f"[WakeWord] Transcribing {duration:.1f}s of audio (partial={is_partial})...")
 
         try:
+            # Optimized parameters for real-time latency
+            # beam_size=1 (greedy search) is MUCH faster than 7
             segments, info = self.model.transcribe(
                 audio,
-                language="pt",  # Auto-detect allows English words to be recognized better
-                beam_size=7,    # Increased for better precision
-                best_of=7,
-                initial_prompt="Sistema",  # Critical for keyword accuracy
+                language="pt",
+                beam_size=1 if is_partial else 2, 
+                best_of=1,
+                initial_prompt="Computador",
                 vad_filter=True,
                 vad_parameters=dict(
-                    min_silence_duration_ms=500,
-                    speech_pad_ms=300,
-                    threshold=0.35,
+                    min_silence_duration_ms=400,
+                    speech_pad_ms=200,
+                    threshold=0.4,
                 ),
                 no_speech_threshold=0.5,
                 log_prob_threshold=-0.8,
                 condition_on_previous_text=False,
+                suppress_blank=True,
             )
 
             raw_text = "".join([s.text for s in segments]).strip()
@@ -246,19 +297,28 @@ class WakeWordDetector:
                 return
 
             # Clean text from Whisper artifacts and punctuation
-            text = re.sub(r'[^\w\s]', '', raw_text).lower().strip()
+            text = re.sub(r"[^\w\s]", "", raw_text).lower().strip()
             # Remove extra whitespace
-            text = re.sub(r'\s+', ' ', text)
+            text = re.sub(r"\s+", " ", text)
 
             if not text or len(text) < 2:
                 return
 
             # Filter out common Whisper hallucinations
             hallucinations = [
-                "obrigado", "legendado", "legenda", "legendas",
-                "inscreva", "inscrever", "subscribe", "obrigada",
-                "tchau", "até", "continue assistindo",
-                "thank you", "thanks for watching",
+                "obrigado",
+                "legendado",
+                "legenda",
+                "legendas",
+                "inscreva",
+                "inscrever",
+                "subscribe",
+                "obrigada",
+                "tchau",
+                "até",
+                "continue assistindo",
+                "thank you",
+                "thanks for watching",
             ]
             text_lower = text.lower()
             if any(h in text_lower for h in hallucinations):
@@ -274,7 +334,16 @@ class WakeWordDetector:
                     return
 
             now = time.time()
-            is_repeat = text == self.last_text and (now - self.last_text_time) < self.text_repeat_cooldown
+            is_repeat = (
+                text == self.last_text
+                and (now - self.last_text_time) < self.text_repeat_cooldown
+            )
+            
+            if is_partial:
+                if self.partial_callback:
+                    self.partial_callback(raw_text)
+                return
+
             if not is_repeat:
                 logger.info(f"[WakeWord] Transcribed: '{raw_text}'")
                 self._handle_transcription(text, raw_text)
@@ -289,7 +358,7 @@ class WakeWordDetector:
         try:
             # Common parameters
             sr = self.sample_rate
-            
+
             tone = None
 
             if sound_type == "start_listening":
@@ -298,29 +367,29 @@ class WakeWordDetector:
                 t = np.linspace(0, duration, int(sr * duration), False)
                 freq = 440
                 tone = 0.1 * np.sin(2 * np.pi * freq * t) * np.exp(-15 * t)
-            
+
             elif sound_type == "stop_listening":
                 # Subtle low "thump"
                 duration = 0.15
                 t = np.linspace(0, duration, int(sr * duration), False)
                 freq = 300
                 tone = 0.1 * np.sin(2 * np.pi * freq * t) * np.exp(-20 * t)
-            
+
             elif sound_type == "success":
                 # Modern "Glassy" Chime (C Major 7th ish feel)
-                duration = 0.6 
+                duration = 0.6
                 t = np.linspace(0, duration, int(sr * duration), False)
-                
+
                 # Frequencies: C5, E5, G5 (C Major Triad) + C6 (Octave)
                 f1, f2, f3, f4 = 523.25, 659.25, 783.99, 1046.50
-                
+
                 # Mix with exponential decay
                 v1 = np.sin(2 * np.pi * f1 * t) * np.exp(-8 * t)
                 v2 = np.sin(2 * np.pi * f2 * t) * np.exp(-10 * t)
                 v3 = np.sin(2 * np.pi * f3 * t) * np.exp(-12 * t)
                 v4 = np.sin(2 * np.pi * f4 * t) * np.exp(-14 * t) * 0.4
-                
-                tone = (v1 + 0.8*v2 + 0.8*v3 + 0.5*v4) * 0.08
+
+                tone = (v1 + 0.8 * v2 + 0.8 * v3 + 0.5 * v4) * 0.08
 
             if tone is not None:
                 fade_in = min(50, len(tone))
@@ -334,6 +403,7 @@ class WakeWordDetector:
         """Stop any ongoing TTS playback."""
         try:
             import services.voice.tts as tts
+
             if tts.is_speaking():
                 logger.info("[WakeWord] Interruption! Stopping TTS.")
                 tts.stop_all()
@@ -344,16 +414,14 @@ class WakeWordDetector:
         """Processes a complete transcription to find the keyword or handle bypass."""
         now = time.time()
 
-        # 1. Check for Keyword variations FIRST (Precedence)
-        variations = [
-            "hey sistema", "ei sistema", "e sistema",
-            "o sistema", "no sistema", "oi sistema",
-            self.keyword,
-        ]
-
-        keyword_pattern = r"\\b(?:" + "|".join(re.escape(v) for v in variations) + r")\\b"
-        match = re.search(keyword_pattern, text)
-        detected_variation = match.group(0) if match else None
+        # Keyword detection with variants
+        detected_variation = None
+        for kw in self.variants:
+            keyword_pattern = rf"\b{re.escape(kw)}\b"
+            match = re.search(keyword_pattern, text)
+            if match:
+                detected_variation = match.group(0)
+                break
 
         if detected_variation:
             if (now - self.last_trigger_time) < self.trigger_cooldown:
@@ -361,30 +429,32 @@ class WakeWordDetector:
 
             self.last_trigger_time = now
             self._stop_tts()
-            self._play_feedback("success") # Feedback sound immediately!
+            self._play_feedback("success")  # Feedback sound immediately!
 
             # Clean and extract command
             command_clean = text.replace(detected_variation, "", 1).strip()
-            
+
             # Reconstruct clean command from raw text to preserve punctuation/casing
             words = raw_text.split()
-            variation_words = set(detected_variation.split())
+            variation_words = {self.keyword}
             cmd_words = []
             skip_count = 0
             for w in words:
-                clean_w = re.sub(r'[^\w\s]', '', w).lower()
+                clean_w = re.sub(r"[^\w\s]", "", w).lower()
                 if clean_w in variation_words and skip_count < len(variation_words):
                     skip_count += 1
                     continue
                 cmd_words.append(w)
-            
+
             final_cmd = " ".join(cmd_words).strip()
             # If for some reason the word-by-word reconstruction leaves us empty but cleaned was not
             if not final_cmd and command_clean:
                 final_cmd = command_clean
 
-            logger.info(f"[WakeWord] Keyword detected. Command: '{final_cmd if final_cmd else '(empty)'}'")
-            
+            logger.info(
+                f"[WakeWord] Keyword detected. Command: '{final_cmd if final_cmd else '(empty)'}'"
+            )
+
             if self.callback:
                 # Small sleep to let the chime start before the UI reacts
                 time.sleep(0.1)
@@ -396,7 +466,9 @@ class WakeWordDetector:
             if len(text) < 3 or (now - self.last_trigger_time) < self.trigger_cooldown:
                 return
 
-            logger.info(f"[WakeWord] Bypass active (conversation). Message: '{raw_text}'")
+            logger.info(
+                f"[WakeWord] Bypass active (conversation). Message: '{raw_text}'"
+            )
             self._stop_tts()
             self.last_trigger_time = now
             if self.callback:
@@ -409,7 +481,9 @@ class WakeWordDetector:
         with self.lock:
             if not self.running:
                 self.running = True
-                self.processing_thread = threading.Thread(target=self._processing_loop, daemon=True)
+                self.processing_thread = threading.Thread(
+                    target=self._processing_loop, daemon=True
+                )
                 self.thread = threading.Thread(target=self._listen_loop, daemon=True)
                 self.processing_thread.start()
                 self.thread.start()

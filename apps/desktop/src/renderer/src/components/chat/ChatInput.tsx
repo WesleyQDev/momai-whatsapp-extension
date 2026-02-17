@@ -9,6 +9,8 @@ interface ChatInputProps {
   isModeChanging?: boolean
   statusInfo: StatusData | null
   onStopGeneration?: () => void
+  isCallMode?: boolean
+  onToggleCallMode?: () => void
 }
 
 export default function ChatInput({
@@ -17,7 +19,9 @@ export default function ChatInput({
   isLoading,
   isModeChanging = false,
   statusInfo,
-  onStopGeneration
+  onStopGeneration,
+  isCallMode = false,
+  onToggleCallMode
 }: ChatInputProps) {
   const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -147,7 +151,7 @@ export default function ChatInput({
           }}
         />
 
-        <div className="flex items-center justify-between px-2 pb-0.5">
+        <div className="flex items-center justify-end gap-2 px-2 pb-0.5">
           <div className="relative voice-dropdown">
             <button
               type="button"
@@ -241,29 +245,47 @@ export default function ChatInput({
               </svg>
             </button>
           ) : (
-            <button
-              type="button"
-              className="bg-accent/90 hover:bg-accent text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-accent/10 disabled:opacity-30 disabled:scale-95 group"
-              onClick={handleSend}
-              disabled={
-                isLoading || isModeChanging || !localText.trim() || !isBrainReady || isBrainLoading
-              }
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            <>
+              <button
+                type="button"
+                className="bg-green-500/80 hover:bg-green-500 text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-green-500/10"
+                onClick={onToggleCallMode}
+                title={isCallMode ? 'Encerrar chamada' : 'Iniciar chamada'}
               >
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-              </svg>
-            </button>
+                {isCallMode ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
+                className="bg-accent/90 hover:bg-accent text-white rounded-2xl w-9 h-9 flex items-center justify-center transition-all shadow-lg shadow-accent/10 disabled:opacity-30 disabled:scale-95 group"
+                onClick={handleSend}
+                disabled={
+                  isLoading || isModeChanging || !localText.trim() || !isBrainReady || isBrainLoading
+                }
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </>
           )}
         </div>
       </div>

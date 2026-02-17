@@ -84,11 +84,16 @@ class TTSManager:
                 # Attempt to load with offline mode enabled
                 os.environ["HF_HUB_OFFLINE"] = "1"
                 self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
-            except Exception:
+            except BaseException:
                 # If it fails, it might be missing. Enable network temporarily to download.
-                logger.info("[TTS] Model 'Kokoro-82M' not found in cache. Enabling network for initial download...")
+                logger.info("[TTS] Model 'Kokoro-82M' not found in cache or G2P missing. Enabling network for initial download...")
                 os.environ["HF_HUB_OFFLINE"] = "0"
-                self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+                try:
+                    self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+                except BaseException as e:
+                    logger.error(f"❌ [TTS] Critical error initializing Kokoro: {e}")
+                    self._error = str(e)
+                    self.has_tts = False
             finally:
                 # Always return to offline mode after initialization
                 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -152,10 +157,10 @@ class TTSManager:
                                 break
 
                         if audio_chunk is not None:
-                            # Write in small sub-chunks (~100ms each) for responsive interruption
+                            # Write in small sub-chunks (~50ms each) for responsive interruption
                             raw = audio_chunk.numpy().tobytes()
-                            # 2400 samples * 4 bytes/float32 = 9600 bytes = ~100ms at 24kHz
-                            sub_chunk_size = 9600
+                            # 1200 samples * 4 bytes/float32 = 4800 bytes = ~50ms at 24kHz
+                            sub_chunk_size = 4800
                             offset = 0
                             while offset < len(raw):
                                 with self.state_lock:
@@ -329,8 +334,20 @@ class TTSManager:
             self.lang_code = new_lang
             # Re-initialize pipeline for new language
             if self.has_tts:
-                from kokoro import KPipeline
-                self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+                try:
+                    from kokoro import KPipeline
+                    # Try offline first
+                    os.environ["HF_HUB_OFFLINE"] = "1"
+                    self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+                except BaseException:
+                    try:
+                        logger.info(f"[TTS] Language model for '{new_lang}' might be missing. Enabling network for download...")
+                        os.environ["HF_HUB_OFFLINE"] = "0"
+                        self.pipeline = KPipeline(lang_code=self.lang_code, repo_id='hexgrad/Kokoro-82M')
+                    except BaseException as e:
+                        logger.error(f"[TTS] Failed to initialize pipeline for lang '{new_lang}': {e}")
+                finally:
+                    os.environ["HF_HUB_OFFLINE"] = "1"
 
     def set_enabled(self, enabled: bool):
         """Enables or disables TTS."""

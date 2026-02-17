@@ -18,15 +18,15 @@ export function useStatus() {
   const isBrainLoading = statusInfo?.is_loading ?? false
   const isReady = initProgress >= 100 && !isBooting && isBrainReady && !isBrainLoading
 
-  // Polling de fallback para progresso de init (caso WebSocket demore)
+  // Polling de fallback para progresso de init
   const checkInitProgress = useCallback(async () => {
-    if (hasReceivedWSEvent || initProgress >= 100) return
+    if (initProgress >= 100) return
 
     try {
       const data = await (fetchInitStatus() as any)
 
       setInitMessage(data.message)
-      setInitProgress(data.progress)
+      setInitProgress((prev) => Math.max(prev, data.progress))
 
       if (data.progress >= 100) {
         setIsBooting(false)
@@ -34,7 +34,7 @@ export function useStatus() {
     } catch {
       // Silent fail
     }
-  }, [hasReceivedWSEvent, initProgress])
+  }, [initProgress])
 
   const checkStatus = useCallback(async () => {
     try {
@@ -47,6 +47,8 @@ export function useStatus() {
       if (data.status === 'ok' && data.brain_ready && !data.is_loading) {
         setIsBooting(false)
         setInitProgress(100)
+      } else if (data.is_loading) {
+        setInitProgress((prev) => Math.max(prev, 50))
       }
 
       setRetryCount(0)
@@ -69,7 +71,7 @@ export function useStatus() {
       const { message, progress } = e.detail
       setHasReceivedWSEvent(true)
       setInitMessage(message)
-      setInitProgress(progress)
+      setInitProgress((prev) => Math.max(prev, progress))
 
       if (progress >= 100) {
         setIsBooting(false)
@@ -100,12 +102,13 @@ export function useStatus() {
 
     const startPolling = () => {
       checkStatus()
+      checkInitProgress()
       const pollInterval = isBooting ? 2000 : 8000
       statusInterval = setInterval(checkStatus, pollInterval)
     }
 
-    if (isBooting && initProgress < 100 && !hasReceivedWSEvent) {
-      initInterval = setInterval(checkInitProgress, 2000)
+    if (isBooting && initProgress < 100) {
+      initInterval = setInterval(checkInitProgress, 1500)
     }
 
     startPolling()
@@ -113,7 +116,7 @@ export function useStatus() {
       clearInterval(statusInterval)
       if (initInterval) clearInterval(initInterval)
     }
-  }, [checkStatus, checkInitProgress, isBooting, initProgress, hasReceivedWSEvent])
+  }, [checkStatus, checkInitProgress, isBooting, initProgress])
 
   return {
     statusInfo,

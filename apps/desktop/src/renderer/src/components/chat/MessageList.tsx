@@ -12,6 +12,8 @@ interface MessageListProps {
   onSendMessage: (text: string) => void
   onStopVoice?: () => void
   onStopGeneration?: () => void
+  onSpeakMessage?: (content: string, index: number) => void
+  onRemoveMessage?: (index: number) => void
   speakingIndex?: number | null
   statusInfo: StatusData | null
 }
@@ -25,6 +27,8 @@ const MessageList = memo(function MessageList({
   onSendMessage,
   onStopVoice,
   onStopGeneration,
+  onSpeakMessage,
+  onRemoveMessage,
   speakingIndex = null,
   statusInfo
 }: MessageListProps): JSX.Element {
@@ -43,6 +47,9 @@ const MessageList = memo(function MessageList({
           isSpeaking={speakingIndex === i}
           onStopVoice={onStopVoice}
           onStopGeneration={onStopGeneration}
+          onSpeak={() => onSpeakMessage?.(msg.content, i)}
+          onDelete={() => onRemoveMessage?.(i)}
+          onRetry={() => onSendMessage(msg.content)}
         />
       ))}
 

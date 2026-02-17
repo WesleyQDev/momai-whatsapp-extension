@@ -21,6 +21,7 @@ export default function SplashScreen({
   const [shouldRender, setShouldRender] = useState(true)
   const [currentTipIndex, setCurrentTipIndex] = useState(0)
   const [tipFade, setTipFade] = useState(true)
+  const [elapsedTime, setElapsedTime] = useState(0)
 
   // Load tips from i18n
   const tips = useMemo(() => {
@@ -61,6 +62,16 @@ export default function SplashScreen({
 
     return () => clearInterval(interval)
   }, [isVisible, tips.length])
+
+  // Elapsed time counter
+  useEffect(() => {
+    if (isFullyReady) return
+    const startTime = Date.now()
+    const interval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isFullyReady])
 
   if (!shouldRender) return null
 
@@ -144,7 +155,10 @@ export default function SplashScreen({
               <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
               <span>{initMessage || 'Engine Loading...'}</span>
             </div>
-            <span className="font-mono">{Math.round(displayProgress)}%</span>
+            <div className="flex items-center gap-4">
+              <span className="font-mono">{elapsedTime}s</span>
+              <span className="font-mono">{Math.round(displayProgress)}%</span>
+            </div>
           </div>
 
           <div className="relative h-[2px] w-full bg-text/5 rounded-full overflow-hidden">

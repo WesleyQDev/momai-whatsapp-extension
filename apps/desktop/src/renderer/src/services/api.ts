@@ -162,6 +162,15 @@ export async function stopVoice(): Promise<void> {
   if (!response.ok) throw new Error('Erro ao parar voz')
 }
 
+export async function speakText(text: string): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/speak`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  })
+  if (!response.ok) throw new Error('Erro ao ler texto')
+}
+
 export async function fetchInitStatus(): Promise<{
   stage: string
   message: string
@@ -199,6 +208,13 @@ export async function clearChatHistory(threadId: string = 'default'): Promise<vo
     method: 'DELETE'
   })
   if (!response.ok) throw new Error('Erro ao limpar histórico')
+}
+
+export async function deleteMessage(messageId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/message/${messageId}`, {
+    method: 'DELETE'
+  })
+  if (!response.ok) throw new Error('Erro ao excluir mensagem')
 }
 
 // --- EXTENSIONS ---
@@ -322,6 +338,15 @@ export async function updateSettingsPartial(payload: Partial<SettingsData>): Pro
     body: JSON.stringify(payload)
   })
   if (!response.ok) throw new Error('Erro ao atualizar configuracoes')
+}
+
+export async function setCallMode(enabled: boolean): Promise<void> {
+  const response = await fetch(`${API_URL}/mode/call-mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled })
+  })
+  if (!response.ok) throw new Error('Erro ao definir modo chamada')
 }
 
 // --- EXTERNAL MEMORY ---
