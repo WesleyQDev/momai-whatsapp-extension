@@ -44,7 +44,7 @@ const MessageItem = memo(function MessageItem({
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.y })
+    setContextMenu({ x: e.clientX, y: e.clientY })
   }
 
   const handleCopy = () => {
