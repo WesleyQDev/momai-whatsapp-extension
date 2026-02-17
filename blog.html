@@ -401,19 +401,20 @@
         // Carrega a lista de posts do arquivo posts.json
         async function fetchPostList() {
             try {
-                const res = await fetch('posts/posts.json');
-                if (!res.ok) throw new Error('Não foi possível carregar a lista de posts');
+                // Adiciona um timestamp para evitar cache no GitHub Pages
+                const res = await fetch(`posts/posts.json?t=${new Date().getTime()}`);
+                if (!res.ok) throw new Error('posts.json não encontrado');
                 const data = await res.json();
                 postFiles = data.posts || [];
+                console.log("Lista de posts carregada:", postFiles);
             } catch (err) {
-                console.error("Aviso: posts.json não encontrado ou inválido. Usando lista vazia.", err);
+                console.warn("Aviso: posts.json não encontrado ou inválido. Usando fallback.", err);
                 postFiles = ['lancamento.md']; // Fallback
             }
         }
 
         // Função para extrair Frontmatter (metadados) do arquivo MD
         function parseFrontmatter(text) {
-            // Regex mais flexível para capturar o bloco entre --- até mesmo com espaços no início
             const frontmatterRegex = /^\s*---\s*([\s\S]*?)\s*---/;
             const match = text.match(frontmatterRegex);
             
@@ -443,7 +444,7 @@
                 await fetchPostList();
                 
                 const results = await Promise.allSettled(postFiles.map(async (filename) => {
-                    const res = await fetch(`posts/${filename}`);
+                    const res = await fetch(`posts/${filename}?t=${new Date().getTime()}`);
                     if (!res.ok) throw new Error(`Falha ao carregar ${filename}`);
                     const text = await res.text();
                     const parsed = parseFrontmatter(text);
@@ -463,9 +464,13 @@
                     .filter(r => r.status === 'fulfilled')
                     .map(r => r.value);
 
+                if (postsData.length === 0) {
+                    console.error("Nenhum post foi carregado com sucesso. Verifique os caminhos e o console.");
+                }
+
                 renderList();
             } catch (err) {
-                console.error(err);
+                console.error("Erro crítico no blog:", err);
                 container.innerHTML = '<p style="text-align:center;">Erro crítico ao carregar o blog.</p>';
             }
         }
