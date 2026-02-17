@@ -569,6 +569,39 @@
             });
         });
 
+        // Busca automática do último release do GitHub
+        async function updateDownloadLinks() {
+            const repo = "WesleyQDev/MomAI";
+            const storageKey = "momai_latest_download";
+            const cachedUrl = sessionStorage.getItem(storageKey);
+            if (cachedUrl) {
+                applyDownloadUrl(cachedUrl);
+                return;
+            }
+            try {
+                const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const winAsset = data.assets.find(a => a.name.endsWith('.exe'));
+                    if (winAsset) {
+                        const downloadUrl = winAsset.browser_download_url;
+                        sessionStorage.setItem(storageKey, downloadUrl);
+                        applyDownloadUrl(downloadUrl);
+                    }
+                }
+            } catch (err) {}
+        }
+
+        function applyDownloadUrl(url) {
+            document.querySelectorAll('a').forEach(el => {
+                if (el.textContent.includes('Download') || el.href.includes('google.com/download')) {
+                    el.href = url;
+                }
+            });
+        }
+
+        updateDownloadLinks();
+
         // Iniciar
         initBlog();
     </script>

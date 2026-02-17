@@ -513,6 +513,46 @@
                 menuToggle.querySelector('svg').innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
             });
         });
+
+        // Busca automática do último release do GitHub
+        async function updateDownloadLinks() {
+            const repo = "WesleyQDev/MomAI";
+            const storageKey = "momai_latest_download";
+            
+            // Tenta usar o cache do link para evitar excesso de chamadas à API
+            const cachedUrl = sessionStorage.getItem(storageKey);
+            if (cachedUrl) {
+                applyDownloadUrl(cachedUrl);
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                // Procura pelo executável do Windows (.exe)
+                const winAsset = data.assets.find(a => a.name.endsWith('.exe'));
+                if (winAsset) {
+                    const downloadUrl = winAsset.browser_download_url;
+                    sessionStorage.setItem(storageKey, downloadUrl);
+                    applyDownloadUrl(downloadUrl);
+                }
+            } catch (err) {
+                console.error("Erro ao buscar release do GitHub:", err);
+            }
+        }
+
+        function applyDownloadUrl(url) {
+            // Atualiza todos os botões que têm o texto "Download" ou links de download conhecidos
+            document.querySelectorAll('a').forEach(el => {
+                if (el.textContent.includes('Download') || el.href.includes('google.com/download')) {
+                    el.href = url;
+                }
+            });
+        }
+
+        updateDownloadLinks();
     </script>
 
     <!-- Hero -->
