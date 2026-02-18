@@ -170,14 +170,18 @@ async def init_system_task() -> None:
         def on_voice_status(status: str) -> None:
             if app_state.main_loop:
                 asyncio.run_coroutine_threadsafe(
-                    app_state.broadcast_to_sockets({"type": "voice_status", "status": status}),
+                    app_state.broadcast_to_sockets(
+                        {"type": "voice_status", "status": status}
+                    ),
                     app_state.main_loop,
                 )
 
         def on_voice_partial(text: str) -> None:
             if app_state.main_loop:
                 asyncio.run_coroutine_threadsafe(
-                    app_state.broadcast_to_sockets({"type": "voice_partial", "text": text}),
+                    app_state.broadcast_to_sockets(
+                        {"type": "voice_partial", "text": text}
+                    ),
                     app_state.main_loop,
                 )
 
@@ -189,20 +193,17 @@ async def init_system_task() -> None:
 
         await app_state.send_init_event("brain", "Starting voice detector...", 85)
         app_state.ww = app_state.WakeWordDetector(
-            keyword="Loki",
+            keyword="Luna",
             callback=on_wake_word,
             status_callback=on_voice_status,
             partial_callback=on_voice_partial,
             bypass_condition=should_bypass_wake_word,
             variants=[
-                "Loki",
-                "Lucky",
-                "Rucky",
-                "Rocky",
-                "Locky",
-                "Lock",
-                "Rock",
-                "Locke",
+                "Luna",
+                "Loona",
+                "Luhna",
+                "Lana",
+                "Lonna",
             ],
         )
         if settings.wake_word_enabled:

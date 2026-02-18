@@ -83,7 +83,7 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
     <div className="flex-1 flex flex-col items-center justify-center p-4 select-none">
       <div className="flex flex-col items-center mb-8 gap-1">
         <h2 className="text-2xl font-bold text-text tracking-tight">
-          Olá, <span className="text-white">{userName}</span>
+          Olá, <span className="text-accent">{userName}</span>
         </h2>
         <p className="text-[13px] text-text-muted/60 font-medium">Como posso te ajudar hoje?</p>
       </div>

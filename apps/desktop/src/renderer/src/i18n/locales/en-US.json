@@ -201,7 +201,7 @@
   "settings.voice.title": "Neural Synthesis",
   "settings.voice.subtitle": "Configure speech capabilities.",
   "settings.voice.wakeTitle": "Voice Activation",
-  "settings.voice.wakeSubtitle": "Say \"System\" • Neural Whisper (Local)",
+  "settings.voice.wakeSubtitle": "Say \"Luna\" • Neural Whisper (Local)",
   "settings.voice.ttsTitle": "Audio Output (TTS)",
   "settings.voice.ttsSubtitle": "Kokoro-82M (Local Neural)",
   "settings.voice.catalogLabel": "Voice Catalog",
