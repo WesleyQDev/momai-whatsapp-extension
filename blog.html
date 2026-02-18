@@ -21,6 +21,20 @@
             --accent: #8B5CF6;
             --accent-hover: #7c3aed;
             --accent-subtle: rgba(139, 92, 246, 0.08);
+            --nav-bg: rgba(255, 255, 255, 0.92);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0a0a0a;
+            --bg-subtle: #141414;
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #ffffff;
+            --text-secondary: #a8a8a8;
+            --text-tertiary: #666666;
+            --accent: #8ab4f8;
+            --accent-hover: #aecbfa;
+            --accent-subtle: rgba(138, 180, 248, 0.08);
+            --nav-bg: rgba(0, 0, 0, 0.8);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,8 +42,8 @@
 
         nav {
             height: 64px; display: flex; align-items: center; justify-content: space-between;
-            max-width: 1100px; margin: 0 auto; padding: 0 2rem; border-bottom: 1px solid var(--border);
-            position: sticky; top: 0; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); z-index: 100;
+            width: 100%; padding: 0 2rem; border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; background: var(--nav-bg); backdrop-filter: blur(12px); z-index: 100;
         }
         .nav-left { display: flex; align-items: center; gap: 2rem; }
         .logo { font-weight: 600; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
@@ -57,6 +71,32 @@
             background: var(--accent-hover);
             transform: translateY(-1px);
             box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+        }
+
+        .theme-toggle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--bg-subtle);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+            margin-right: 0.5rem;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-subtle);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .theme-toggle svg {
+            width: 18px;
+            height: 18px;
         }
 
         .blog-container { max-width: 1000px; margin: 0 auto; padding: 4rem 2rem; }
@@ -386,10 +426,23 @@
             <ul class="nav-links">
                 <li><a href="blog.html" class="active">Blog</a></li>
                 <li><a href="changelog.html">Changelog</a></li>
-                <li><a href="#">Docs</a></li>
+                <li><a href="contato.html">Contato</a></li>
             </ul>
         </div>
         <div class="nav-right">
+            <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
             <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -412,7 +465,18 @@
         <!-- Renderização via JS -->
     </div>
 
-    <footer>© 2026 MomAI · <a href="index.html" style="color: inherit; text-decoration: none;">Home</a></footer>
+    <footer>
+        <div class="footer-content" style="text-align: center; padding: 3rem 2rem; color: var(--text-tertiary); font-size: 0.9rem;">
+            <div style="margin-bottom: 0.5rem;">Wesley Developer Studios</div>
+            <div>© 2026 MomAI</div>
+            <div style="margin-top: 1rem; display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;">
+                <a href="https://github.com/WesleyQDev" target="_blank" style="color: var(--text-secondary); text-decoration: none;">GitHub</a>
+                <a href="https://www.youtube.com/@WesleyDev" target="_blank" style="color: var(--text-secondary); text-decoration: none;">YouTube</a>
+                <a href="https://github.com/WesleyQDev/MomAI" target="_blank" style="color: var(--text-secondary); text-decoration: none;">Repositório</a>
+                <a href="changelog.html" style="color: var(--text-secondary); text-decoration: none;">Changelog</a>
+            </div>
+        </div>
+    </footer>
 
     <script>
         const container = document.getElementById('content');
@@ -567,6 +631,20 @@
             window.scrollTo(0, 0);
             window.location.hash = post.id;
         }
+
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        html.setAttribute('data-theme', savedTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
 
         // Menu Mobile
         const menuToggle = document.getElementById('menuToggle');
