@@ -4,8 +4,13 @@ import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
 const logsDir = join(app.getPath('userData'), 'logs')
-if (!existsSync(logsDir)) {
-  mkdirSync(logsDir, { recursive: true })
+
+try {
+  if (!existsSync(logsDir)) {
+    mkdirSync(logsDir, { recursive: true })
+  }
+} catch (e) {
+  console.error('Failed to create logs directory:', e)
 }
 
 log.transports.file.resolvePathFn = () => join(logsDir, 'main.log')
@@ -14,6 +19,9 @@ log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
 
 log.variables.version = app.getVersion()
+
+log.info('[Logger] Logging initialized')
+log.info(`[Logger] Log file: ${join(logsDir, 'main.log')}`)
 
 export const logger = log
 

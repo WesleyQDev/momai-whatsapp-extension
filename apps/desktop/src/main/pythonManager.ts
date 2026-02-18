@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { spawn, execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow } from './state'
+import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow, BootstrapError } from './state'
 import { is } from '@electron-toolkit/utils'
 import { logger } from './logger'
 
@@ -22,18 +22,17 @@ interface SyncResult {
   lastChecked?: number
 }
 
-export interface BootstrapError {
-  type: 'python_not_found' | 'uv_not_found' | 'venv_failed' | 'sync_failed' | 'permission_denied' | 'startup_failed' | 'unknown'
-  message: string
-  details?: string
-}
-
 function sendErrorToRenderer(error: BootstrapError): void {
+  logger.error(`[Bootstrap] Error: ${error.type} - ${error.message}`, error.details || '')
+  
   const mainWindow = getMainWindow()
   if (mainWindow && !mainWindow.isDestroyed()) {
+    logger.info('[Bootstrap] Sending error to renderer...')
     mainWindow.webContents.send('bootstrap-error', error)
+  } else {
+    logger.warn('[Bootstrap] Main window not available, storing error for later...')
+    state.lastBootstrapError = error
   }
-  logger.error(`[Bootstrap] Error: ${error.type} - ${error.message}`, error.details || '')
 }
 
 function getSyncLock(): SyncResult | null {
@@ -79,22 +78,6 @@ async function waitForPythonExit(timeoutMs: number): Promise<boolean> {
     await delay(100)
   }
   return !state.pythonProcess || state.pythonProcess.killed || state.pythonProcess.exitCode === null
-}
-
-function checkPythonAvailable(): boolean {
-  try {
-    const result = execSync('python --version', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
-    logger.info(`[Bootstrap] Python found: ${result.trim()}`)
-    return true
-  } catch {
-    try {
-      const result = execSync('python3 --version', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
-      logger.info(`[Bootstrap] Python3 found: ${result.trim()}`)
-      return true
-    } catch {
-      return false
-    }
-  }
 }
 
 function checkWritePermission(dir: string): boolean {
@@ -151,18 +134,20 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
   if (!existsSync(pythonExe)) {
     logger.info('[Bootstrap] Ambiente não encontrado. Iniciando setup com uv...')
     
-    if (!checkPythonAvailable()) {
+    if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
+
+    if (!existsSync(uvExe)) {
       const error: BootstrapError = {
-        type: 'python_not_found',
-        message: 'Python 3.12+ is required but not found',
-        details: 'Please install Python 3.12 or later from https://www.python.org/downloads/'
+        type: 'uv_not_found',
+        message: 'uv executable not found',
+        details: `Expected at: ${uvExe}`
       }
       return error
     }
 
-    if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
-
     try {
+      logger.info(`[Bootstrap] Running: ${uvExe} venv ${venvPath} --python 3.12 --seed`)
+      logger.info('[Bootstrap] uv will download Python automatically if not found')
       await new Promise<void>((resolve, reject) => {
         const child = spawn(uvExe, ['venv', venvPath, '--python', '3.12', '--seed'], {
           shell: true,
@@ -172,18 +157,20 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
         let stderr = ''
         child.stdout?.on('data', (data) => {
           stdout += data.toString()
-          logger.debug(`[uv venv stdout] ${data.toString()}`)
+          logger.info(`[uv venv] ${data.toString().trim()}`)
         })
         child.stderr?.on('data', (data) => {
           stderr += data.toString()
-          logger.debug(`[uv venv stderr] ${data.toString()}`)
+          logger.info(`[uv venv stderr] ${data.toString().trim()}`)
         })
         child.on('close', (code) => {
           if (code === 0) {
             logger.info('[Bootstrap] Venv criado com sucesso.')
             resolve()
           } else {
-            logger.error(`[Bootstrap] uv venv failed with code ${code}: ${stderr}`)
+            logger.error(`[Bootstrap] uv venv failed with code ${code}`)
+            logger.error(`[Bootstrap] stderr: ${stderr}`)
+            logger.error(`[Bootstrap] stdout: ${stdout}`)
             reject(new Error(stderr || `uv venv failed with code ${code}`))
           }
         })
@@ -206,6 +193,7 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
   if (!syncLock || syncLock.needsSync) {
     logger.info('[Bootstrap] Sincronizando dependências do core...')
     try {
+      logger.info(`[Bootstrap] Running: ${uvExe} pip install -e ${corePath}`)
       await new Promise<void>((resolve, reject) => {
         const child = spawn(uvExe, ['pip', 'install', '--no-progress', '-e', corePath], {
           env: { ...process.env, VIRTUAL_ENV: venvPath },
@@ -213,17 +201,22 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
           stdio: 'pipe'
         })
         let stderr = ''
+        let stdout = ''
         child.stderr?.on('data', (data) => {
           stderr += data.toString()
-          logger.debug(`[uv pip stderr] ${data.toString()}`)
+          logger.info(`[uv pip stderr] ${data.toString().trim()}`)
         })
         child.stdout?.on('data', (data) => {
-          logger.debug(`[uv pip stdout] ${data.toString()}`)
+          stdout += data.toString()
+          logger.info(`[uv pip] ${data.toString().trim()}`)
         })
         child.on('close', (code) => {
           if (code === 0) {
+            logger.info('[Bootstrap] Dependências instaladas com sucesso.')
             resolve()
           } else {
+            logger.error(`[Bootstrap] uv pip failed with code ${code}`)
+            logger.error(`[Bootstrap] stderr: ${stderr}`)
             reject(new Error(stderr || `sync failed with code ${code}`))
           }
         })

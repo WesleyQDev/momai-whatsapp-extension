@@ -3,7 +3,7 @@ chcp 65001 > nul
 setlocal enabledelayedexpansion
 
 echo ============================================
-echo    MomAI Diagnostic Tool v1.0
+echo    MomAI Diagnostic Tool v1.1
 echo ============================================
 echo.
 
@@ -11,26 +11,16 @@ set PASS=0
 set FAIL=0
 set WARN=0
 
-echo [CHECK 1] Python Installation
+echo [CHECK 1] System Python (Optional - uv downloads its own)
 echo ------------------------------
 where python >nul 2>&1
 if %errorlevel% equ 0 (
-    for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYVER=%%i
-    echo [PASS] Python found: !PYVER!
-    set /a PASS+=1
-    
-    echo !PYVER! | findstr /r "3.1[2-9] 3.[2-9][0-9]" >nul
-    if !errorlevel! equ 0 (
-        echo [PASS] Python version is 3.12+
-        set /a PASS+=1
-    ) else (
-        echo [WARN] Python version may be too old. MomAI requires 3.12+
-        set /a WARN+=1
-    )
+    for /f "tokens=2 delims= " %%i in ('python --version 2^>^&1') do set PYVER=%%i
+    echo [INFO] System Python found: !PYVER!
+    echo [INFO] (MomAI can work without this - uv manages its own Python)
 ) else (
-    echo [FAIL] Python not found in PATH
-    echo        Download from: https://www.python.org/downloads/
-    set /a FAIL+=1
+    echo [INFO] No system Python found
+    echo [INFO] (This is OK - MomAI will use uv to manage Python automatically)
 )
 echo.
 
@@ -47,10 +37,16 @@ if %errorlevel% equ 0 (
         set /a WARN+=1
     )
 ) else (
-    echo [WARN] VC++ Redistributable not found in registry
-    echo        Some features may not work. Download from:
-    echo        https://aka.ms/vs/17/release/vc_redist.x64.exe
-    set /a WARN+=1
+    reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" /v Installed >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [PASS] VC++ Redistributable found (WOW6432Node)
+        set /a PASS+=1
+    ) else (
+        echo [WARN] VC++ Redistributable not found in registry
+        echo        PyAudio requires this. Download from:
+        echo        https://aka.ms/vs/17/release/vc_redist.x64.exe
+        set /a WARN+=1
+    )
 )
 echo.
 
@@ -88,8 +84,12 @@ echo.
 
 echo [CHECK 4] Disk Space
 echo ------------------------------
-for /f "tokens=3" %%a in ('dir /-C %APPDATA% 2^>nul ^| findstr /C:"bytes free"') do set FREE=%%a
-set /a FREE_GB=!FREE!/1024/1024/1024
+for /f "tokens=3" %%a in ('dir /-C %APPDATA% 2^>nul ^| findstr /C:"bytes free"') do set FREE_BYTES=%%a
+set FREE_GB=0
+if defined FREE_BYTES (
+    rem Use PowerShell for accurate calculation (handles large numbers)
+    for /f %%i in ('powershell -Command "[math]::Round(!FREE_BYTES!/1GB, 1)"') do set FREE_GB=%%i
+)
 if !FREE_GB! geq 5 (
     echo [PASS] Sufficient disk space: !FREE_GB! GB free
     set /a PASS+=1
@@ -106,9 +106,9 @@ set LOG_PATH=%APPDATA%\MomAI\logs\main.log
 if exist "!LOG_PATH!" (
     echo [INFO] Log file found at: !LOG_PATH!
     echo.
-    echo Last 20 lines of log:
+    echo Last 30 lines of log:
     echo ------------------------------
-    powershell -Command "Get-Content '!LOG_PATH!' -Tail 20"
+    powershell -Command "Get-Content '!LOG_PATH!' -Tail 30"
     echo ------------------------------
     echo.
     echo [INFO] Full log path: !LOG_PATH!
@@ -126,7 +126,8 @@ if exist "!VENV_PATH!\Scripts\python.exe" (
     
     "!VENV_PATH!\Scripts\python.exe" --version >nul 2>&1
     if !errorlevel! equ 0 (
-        echo [PASS] Virtual environment Python is working
+        for /f "tokens=2" %%i in ('"!VENV_PATH!\Scripts\python.exe" --version 2^>^&1') do set VENVVER=%%i
+        echo [PASS] Virtual environment Python working: !VENVVER!
         set /a PASS+=1
     ) else (
         echo [FAIL] Virtual environment Python is broken
@@ -135,6 +136,16 @@ if exist "!VENV_PATH!\Scripts\python.exe" (
     )
 ) else (
     echo [INFO] Virtual environment not created yet (first run?)
+)
+echo.
+
+echo [CHECK 7] Network Connectivity (GitHub API)
+echo ------------------------------
+powershell -Command "try { $r = Invoke-WebRequest -Uri 'https://api.github.com' -UseBasicParsing -TimeoutSec 5; Write-Host '[PASS] GitHub API reachable' } catch { Write-Host '[WARN] Cannot reach GitHub API - downloads may fail' }" 2>nul
+if !errorlevel! equ 0 (
+    set /a PASS+=1
+) else (
+    set /a WARN+=1
 )
 echo.
 
@@ -162,6 +173,12 @@ if !FAIL! gtr 0 (
     echo [OK] All checks passed!
     echo MomAI should work correctly on this system.
 )
+
+echo.
+echo ============================================
+echo If MomAI still doesn't start, check logs at:
+echo %APPDATA%\MomAI\logs\main.log
+echo ============================================
 echo.
 echo Press any key to exit...
 pause > nul

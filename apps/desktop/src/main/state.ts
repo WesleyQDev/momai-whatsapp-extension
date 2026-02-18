@@ -1,5 +1,13 @@
 import { BrowserWindow, Tray } from 'electron'
 
+export type BootstrapErrorType = 'python_not_found' | 'uv_not_found' | 'venv_failed' | 'sync_failed' | 'permission_denied' | 'startup_failed' | 'unknown'
+
+export interface BootstrapError {
+  type: BootstrapErrorType
+  message: string
+  details?: string
+}
+
 export interface AppState {
   pythonProcess: ReturnType<typeof import('child_process').spawn> | null
   tray: Tray | null
@@ -8,6 +16,7 @@ export interface AppState {
   isQuitting: boolean
   pythonStartTime: number
   ipcHandlersRegistered: boolean
+  lastBootstrapError: BootstrapError | null
 }
 
 export const state: AppState = {
@@ -17,7 +26,8 @@ export const state: AppState = {
   overlayWindow: null,
   isQuitting: false,
   pythonStartTime: 0,
-  ipcHandlersRegistered: false
+  ipcHandlersRegistered: false,
+  lastBootstrapError: null
 }
 
 export function getMainWindow(): BrowserWindow | null {

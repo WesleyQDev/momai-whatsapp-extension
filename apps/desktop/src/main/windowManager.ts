@@ -2,6 +2,7 @@ import { BrowserWindow, screen, shell, ipcMain, Menu, nativeImage, app, Tray, No
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { state, setMainWindow, setOverlayWindow, setTray, setIpcHandlersRegistered } from './state'
+import { logger } from './logger'
 
 export function registerIpcHandlers(): void {
   if (state.ipcHandlersRegistered) return
@@ -124,6 +125,11 @@ function createMainWindow(): BrowserWindow {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    
+    if (state.lastBootstrapError) {
+      logger.info('[WindowManager] Sending pending bootstrap error to renderer')
+      mainWindow.webContents.send('bootstrap-error', state.lastBootstrapError)
+    }
   })
 
   setupTray(mainWindow)
