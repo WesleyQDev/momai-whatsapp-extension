@@ -1128,6 +1128,17 @@ const removeMessage = useCallback(async (index: number) => {
     const newState = !isCallMode
     setIsCallMode(newState)
     setCallHistory([])
+    
+    // Se estiver desativando o call mode, para o TTS imediatamente
+    if (!newState) {
+      try {
+        await stopVoice()
+        setSpeakingIndex(null)
+      } catch (error) {
+        console.error('Erro ao parar voz:', error)
+      }
+    }
+    
     try {
       await setCallMode(newState)
     } catch (error) {
