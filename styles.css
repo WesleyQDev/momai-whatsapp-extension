@@ -453,17 +453,71 @@ p.subtitle {
     overflow: hidden;
 }
 
-/* Botão download no navbar */
-.btn-primary.btn-download {
-    background: rgba(255,255,255,0.1) !important;
-    color: var(--text) !important;
-    border: 1px solid var(--border-color);
+/* Botão de download com animação pulsante suave - apenas fora da navbar */
+.btn-group .btn-download,
+.cta-section .btn-download {
+    background: var(--text);
+    color: var(--bg) !important;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+    animation: softPulse 3s ease-in-out infinite;
 }
 
-[data-theme="light"] .btn-primary.btn-download {
-    background: rgba(0,0,0,0.08) !important;
-    color: var(--text) !important;
-    border: 1px solid var(--border-color);
+.btn-group .btn-download:hover,
+.cta-section .btn-download:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="light"] .btn-group .btn-download,
+[data-theme="light"] .cta-section .btn-download {
+    background: var(--text);
+    color: var(--bg) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    animation: softPulseLight 3s ease-in-out infinite;
+}
+
+[data-theme="light"] .btn-group .btn-download:hover,
+[data-theme="light"] .cta-section .btn-download:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes softPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4), 0 4px 20px rgba(255, 255, 255, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 0 15px rgba(255, 255, 255, 0), 0 8px 35px rgba(255, 255, 255, 0.4);
+    }
+}
+
+@keyframes softPulseLight {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.4), 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 0 15px rgba(0, 0, 0, 0), 0 8px 35px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Botão download no navbar - com mesma animação pulsante */
+.nav-right .btn-download {
+    background: var(--text) !important;
+    color: var(--bg) !important;
+    border: none;
+    animation: softPulse 3s ease-in-out infinite !important;
+    font-weight: 500;
+}
+
+.nav-right .btn-download:hover {
+    transform: translateY(-1px) !important;
+}
+
+[data-theme="light"] .nav-right .btn-download {
+    background: var(--text) !important;
+    color: var(--bg) !important;
+    border: none;
+    animation: softPulseLight 3s ease-in-out infinite !important;
 }
 
 .btn-primary::before {
