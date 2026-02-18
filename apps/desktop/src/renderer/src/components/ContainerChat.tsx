@@ -74,42 +74,50 @@ const CallModeUI = ({
       </span>
     </div>
 
-    {/* Main Content Area */}
+    {/* Main Content Area - Mostra usuário e IA separados */}
     <div 
-      className="w-full max-w-[500px] mb-8 overflow-hidden relative"
+      className="w-full max-w-[500px] mb-8 overflow-hidden relative flex flex-col items-center justify-center gap-1"
       style={{ 
-        height: '140px',
-        maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 100%)'
+        height: '80px'
       }}
     >
-      <div className="flex flex-col items-center justify-end min-h-full space-y-4 pb-2">
-        {history.map((item) => {
-          const isLast = item.id === history[history.length - 1].id
-          const cleanContent = item.content.replace(/__MOMAI_ACTIONS__[\s\S]*$/, '').trim()
-          
-          if (!cleanContent) return null
-
-          return (
-            <div
-              key={item.id}
-              className={`w-full transition-all duration-700 ease-out transform ${
-                isLast ? 'opacity-100 translate-y-0 scale-100' : 'opacity-20 -translate-y-4 scale-95 blur-[0.5px]'
-              }`}
-            >
-              <p
-                className={`text-center text-xl leading-snug px-6 break-words tracking-tight ${
-                  item.role === 'user' 
-                    ? 'text-white font-bold drop-shadow-md' 
-                    : 'text-text-muted font-medium italic'
-                }`}
+      {(() => {
+        const lastUser = history.filter(h => h.role === 'user').pop()
+        const lastAssistant = history.filter(h => h.role === 'assistant').pop()
+        
+        return (
+          <>
+            {/* Mensagem do Usuário */}
+            {lastUser && (
+              <p 
+                className="text-center text-[10px] text-white/60 font-medium px-4 w-full"
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
               >
-                {cleanContent}
+                {lastUser.content.replace(/__MOMAI_ACTIONS__[\s\S]*$/, '').trim()}
               </p>
-            </div>
-          )
-        })}
-      </div>
+            )}
+            
+            {/* Mensagem da IA - máx 2 linhas com ... */}
+            {lastAssistant && (
+              <p 
+                className="text-center text-xs text-text font-medium px-4 w-full"
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}
+              >
+                {lastAssistant.content.replace(/__MOMAI_ACTIONS__[\s\S]*$/, '').trim()}
+              </p>
+            )}
+          </>
+        )
+      })()}
     </div>
 
     {/* Footer Action */}

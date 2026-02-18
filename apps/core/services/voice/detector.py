@@ -32,7 +32,13 @@ class WakeWordDetector:
     STATE_PROCESSING = "processing"
 
     def __init__(
-        self, keyword="computador", callback=None, status_callback=None, partial_callback=None, bypass_condition=None, variants=None
+        self,
+        keyword="computador",
+        callback=None,
+        status_callback=None,
+        partial_callback=None,
+        bypass_condition=None,
+        variants=None,
     ):
         """
         Initializes the Wake Word detector using Faster-Whisper.
@@ -71,8 +77,8 @@ class WakeWordDetector:
         self.sample_rate = 16000
 
         # --- Speech detection parameters ---
-        # Energy threshold to consider a chunk as "speech"
-        self.speech_energy_threshold = 0.008
+        # Energy threshold to consider a chunk as "speech" (increased for less sensitivity)
+        self.speech_energy_threshold = 0.015
         # How many consecutive silent chunks before we consider speech ended
         # Each chunk is ~250ms (blocksize=4000 at 16kHz), so 4 chunks ≈ 1s
         self.silence_chunks_required = 4
@@ -146,6 +152,54 @@ class WakeWordDetector:
                     if not self.running:
                         break
 
+                    # Check if TTS is speaking
+                    tts_speaking = False
+                    try:
+                        import services.voice.tts as tts
+
+                        tts_speaking = tts.is_speaking()
+                    except Exception:
+                        pass
+
+                    # In call mode: interrupt TTS when user speaks
+                    # In normal mode: ignore audio when TTS is speaking
+                    if tts_speaking:
+                        try:
+                            import app_state
+
+                            in_call_mode = app_state.is_call_mode()
+                        except Exception:
+                            in_call_mode = False
+
+                        if in_call_mode:
+                            # Call mode: check if user is speaking to interrupt
+                            energy = self._get_chunk_energy(chunk)
+                            if (
+                                energy > self.speech_energy_threshold * 1.5
+                            ):  # Higher threshold for interruption
+                                # User is speaking! Stop TTS immediately
+                                try:
+                                    import services.voice.tts as tts
+
+                                    tts.stop_all()
+                                except Exception:
+                                    pass
+                                # Start listening to user
+                                self._set_state(self.STATE_LISTENING)
+                                self.speech_buffer = [chunk]
+                                self.speech_chunk_count = 1
+                                self.silence_counter = 0
+                                self.recorded_samples = len(chunk)
+                                continue
+                            else:
+                                # Just noise, ignore
+                                continue
+                        else:
+                            # Normal mode: ignore audio when TTS is speaking
+                            if self.state != self.STATE_IDLE:
+                                self._reset_state()
+                            continue
+
                     energy = self._get_chunk_energy(chunk)
                     is_speech = energy > self.speech_energy_threshold
 
@@ -166,10 +220,13 @@ class WakeWordDetector:
                         if is_speech:
                             self.speech_chunk_count += 1
                             self.silence_counter = 0
-                            
+
                             # Real-time/Partial transcription:
                             # Every ~1 second (4 chunks of 250ms), try a partial transcription
-                            if len(self.speech_buffer) % 4 == 0 and len(self.speech_buffer) >= 4:
+                            if (
+                                len(self.speech_buffer) % 4 == 0
+                                and len(self.speech_buffer) >= 4
+                            ):
                                 self._enqueue_partial_recording()
                         else:
                             self.silence_counter += 1
@@ -223,7 +280,7 @@ class WakeWordDetector:
 
         audio = np.concatenate(self.speech_buffer)
         try:
-            self.processing_queue.put_nowait((audio, False)) # False = Not partial
+            self.processing_queue.put_nowait((audio, False))  # False = Not partial
         except queue.Full:
             try:
                 self.processing_queue.get_nowait()
@@ -240,7 +297,7 @@ class WakeWordDetector:
         try:
             # We don't want to overflow the queue with partials, so we use a non-blocking put
             # and if it's full we just skip this partial (the next one will come soon)
-            self.processing_queue.put_nowait((audio, True)) # True = Partial
+            self.processing_queue.put_nowait((audio, True))  # True = Partial
         except queue.Full:
             pass
 
@@ -255,9 +312,9 @@ class WakeWordDetector:
 
             if not is_partial:
                 self._set_state(self.STATE_PROCESSING)
-            
+
             self._process_recording(audio, is_partial)
-            
+
             if not is_partial:
                 self._set_state(self.STATE_IDLE)
 
@@ -267,7 +324,9 @@ class WakeWordDetector:
             return
 
         duration = len(audio) / self.sample_rate
-        logger.debug(f"[WakeWord] Transcribing {duration:.1f}s of audio (partial={is_partial})...")
+        logger.debug(
+            f"[WakeWord] Transcribing {duration:.1f}s of audio (partial={is_partial})..."
+        )
 
         try:
             # Optimized parameters for real-time latency
@@ -275,7 +334,7 @@ class WakeWordDetector:
             segments, info = self.model.transcribe(
                 audio,
                 language="pt",
-                beam_size=1 if is_partial else 2, 
+                beam_size=1 if is_partial else 2,
                 best_of=1,
                 initial_prompt="Computador",
                 vad_filter=True,
@@ -338,7 +397,7 @@ class WakeWordDetector:
                 text == self.last_text
                 and (now - self.last_text_time) < self.text_repeat_cooldown
             )
-            
+
             if is_partial:
                 if self.partial_callback:
                     self.partial_callback(raw_text)
