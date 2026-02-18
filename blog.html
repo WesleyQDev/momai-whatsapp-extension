@@ -4,138 +4,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blog — MomAI</title>
+    <meta name="description" content="Blog da MomAI - Novidades, atualizações e artigos.">
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Biblioteca Marked para processar Markdown -->
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,slnt,wdth,wght,ROND@8..144,-10..0,25..150,400..500,0..100&family=Google+Sans+Text:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        :root {
-            --bg: #ffffff;
-            --bg-subtle: #f8f9fa;
-            --border: #e8eaed;
-            --text: #202124;
-            --text-secondary: #5f6368;
-            --text-tertiary: #9aa0a6;
-            --accent: #8B5CF6;
-            --accent-hover: #7c3aed;
-            --accent-subtle: rgba(139, 92, 246, 0.08);
-            --nav-bg: rgba(255, 255, 255, 0.92);
-        }
-
-        [data-theme="dark"] {
-            --bg: #0a0a0a;
-            --bg-subtle: #141414;
-            --border: rgba(255, 255, 255, 0.08);
-            --text: #ffffff;
-            --text-secondary: #a8a8a8;
-            --text-tertiary: #666666;
-            --accent: #8ab4f8;
-            --accent-hover: #aecbfa;
-            --accent-subtle: rgba(138, 180, 248, 0.08);
-            --nav-bg: rgba(0, 0, 0, 0.8);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-
-        nav {
-            height: 64px; display: flex; align-items: center; justify-content: space-between;
-            width: 100%; padding: 0 2rem; border-bottom: 1px solid var(--border);
-            position: sticky; top: 0; background: var(--nav-bg); backdrop-filter: blur(12px); z-index: 100;
-        }
-        .nav-left { display: flex; align-items: center; gap: 2rem; }
-        .logo { font-weight: 600; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
-        .logo img { width: 28px; height: 28px; border-radius: 6px; }
-        .nav-links { display: flex; gap: 1.5rem; list-style: none; }
-        .nav-links a { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); text-decoration: none; }
-        .nav-links a:hover, .nav-links a.active { color: var(--accent); }
-        .btn-primary { 
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--accent);
-            color: white;
-            text-decoration: none;
-            padding: 0.65rem 1.4rem;
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-primary:hover {
-            background: var(--accent-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
-        }
-
-        .theme-toggle {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border: 1px solid var(--border);
-            background: var(--bg-subtle);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            color: var(--text-secondary);
-            margin-right: 0.5rem;
-        }
-
-        .theme-toggle:hover {
-            background: var(--accent-subtle);
-            border-color: var(--accent);
-            color: var(--accent);
-        }
-
-        .theme-toggle svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .blog-container { max-width: 1000px; margin: 0 auto; padding: 4rem 2rem; }
+        /* Estilos específicos do blog */
+        .blog-container { max-width: 1100px; margin: 0 auto; padding: 4rem 2rem; }
         
-        /* Grid Layout */
+        .blog-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+        
+        .blog-header h1 {
+            font-family: 'Google Sans Flex', sans-serif;
+            font-size: 3rem;
+            font-weight: 400;
+            letter-spacing: -1px;
+            margin-bottom: 0.5rem;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .blog-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
         .post-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 2.5rem;
-            margin-top: 3rem;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
         }
 
-        /* Card Design */
         .post-card { 
-            background: var(--bg);
+            background: var(--bg-tertiary);
             border-radius: 16px;
             overflow: hidden;
-            border: 1px solid var(--border);
+            border: 1px solid var(--feature-border);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
             display: flex;
             flex-direction: column;
-            animation: slideUp 0.6s ease-out;
         }
         
         .post-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
-            border-color: var(--accent-subtle);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            border-color: rgba(138, 180, 248, 0.2);
         }
 
         .post-thumb {
             width: 100%;
             aspect-ratio: 16 / 9;
-            height: auto;
-            background: var(--bg-subtle);
+            background: var(--bg-secondary);
             overflow: hidden;
             position: relative;
-            border-bottom: 1px solid var(--border);
         }
 
         .post-thumb img {
@@ -156,148 +87,162 @@
             flex-direction: column;
         }
 
-        /* Destaque (Featured Post) - Estilo Minimalista Retangular */
-        .featured-post {
-            display: flex;
-            align-items: flex-start; /* Impede que a imagem estique se o texto for longo */
-            background: var(--bg);
-            overflow: hidden;
-            margin-bottom: 5rem;
-            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-            animation: slideUp 0.8s ease-out;
-            gap: 4rem; /* Espaço entre imagem e texto */
-        }
-
-        .featured-post:hover {
-            transform: translateY(-4px);
-        }
-
-        .featured-thumb {
-            flex: 1.5;
-            aspect-ratio: 16 / 9;
-            height: auto;
-            background: var(--bg-subtle);
-            overflow: hidden;
-            border-radius: 16px;
-        }
-
-        .featured-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.6s ease;
-        }
-
-        .featured-post:hover .featured-thumb img {
-            transform: scale(1.03);
-        }
-
-        .featured-content {
-            flex: 1;
-            padding: 0; /* Removido padding interno para alinhar com o grid */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .featured-content .post-title {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
-            letter-spacing: -0.5px;
-        }
-
-        .featured-content .post-excerpt {
-            font-size: 1.05rem;
-            -webkit-line-clamp: 4;
-            line-clamp: 4;
-            margin-bottom: 2rem;
-        }
-
         .post-date { 
             font-size: 0.75rem; 
             color: var(--text-tertiary); 
-            font-weight: 600;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 0.75rem; 
+            margin-bottom: 0.5rem; 
         }
 
         .post-title { 
-            font-size: 1.25rem; 
-            font-weight: 600; 
+            font-size: 1.1rem; 
+            font-weight: 500; 
             margin-bottom: 0.75rem; 
             line-height: 1.4;
             color: var(--text);
         }
 
-        .post-view-title {
-            font-size: 3.5rem;
-            font-weight: 700;
-            line-height: 1.1;
-            margin-bottom: 1rem;
-            letter-spacing: -1px;
-            color: var(--text);
-        }
-
         .post-excerpt { 
             color: var(--text-secondary); 
-            font-size: 0.9rem; 
+            font-size: 0.875rem; 
             line-height: 1.6;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             display: -webkit-box;
             -webkit-line-clamp: 3;
             line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            flex: 1;
         }
 
         .post-footer {
             margin-top: auto;
             font-size: 0.85rem;
-            font-weight: 600;
+            font-weight: 500;
             color: var(--accent);
+        }
+
+        /* Post em Destaque (Horizontal) */
+        .featured-post {
             display: flex;
-            align-items: center;
-            gap: 4px;
-            transition: gap 0.2s ease;
+            flex-direction: row;
+            background: var(--bg-tertiary);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--feature-border);
+            margin-bottom: 3rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .post-card:hover .post-footer, .featured-post:hover .post-footer {
-            gap: 8px;
+        .featured-post:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+            border-color: rgba(138, 180, 248, 0.3);
         }
 
-        .badge-featured {
+        .featured-post .post-thumb {
+            width: 50%;
+            aspect-ratio: auto;
+            min-height: 300px;
+        }
+
+        .featured-post .post-body {
+            width: 50%;
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .featured-post .post-title {
+            font-size: 1.75rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        .featured-post .post-excerpt {
+            font-size: 1rem;
+            -webkit-line-clamp: 4;
+            line-clamp: 4;
+        }
+
+        .featured-badge {
             display: inline-block;
-            color: var(--accent);
-            font-size: 0.9rem;
+            background: var(--gradient-primary);
+            color: white;
+            font-size: 0.7rem;
             font-weight: 600;
-            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            margin-bottom: 0.75rem;
+            width: fit-content;
         }
 
-        /* Single Post View Enhancements */
+        /* Single Post View */
         .post-view {
-            max-width: 720px;
+            max-width: 750px;
             margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        .back-button { 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            color: var(--text-secondary); 
+            text-decoration: none; 
+            font-size: 0.9rem; 
+            margin-bottom: 2rem; 
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--feature-border);
+            transition: all 0.2s;
+        }
+        
+        .back-button:hover { 
+            color: var(--accent); 
+            border-color: var(--accent);
         }
 
         .post-view-header {
-            text-align: center;
             margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--feature-border);
+        }
+
+        .post-view-title {
+            font-family: 'Google Sans Flex', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 400;
+            line-height: 1.2;
+            margin-bottom: 0.75rem;
+            letter-spacing: -1px;
+            color: var(--text);
         }
 
         .post-content { 
-            font-size: 1.125rem;
+            font-size: 1.05rem;
             line-height: 1.8;
             color: var(--text-secondary);
         }
 
         .post-content h1, .post-content h2, .post-content h3 {
             color: var(--text);
-            margin-top: 2.5rem;
+            margin-top: 2rem;
             margin-bottom: 1rem;
+        }
+
+        .post-content h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
         }
 
         .post-content p { margin-bottom: 1.2rem; }
@@ -305,126 +250,102 @@
         .post-content ul, .post-content ol { 
             margin: 1.5rem 0 2rem 0; 
             padding-left: 1.5rem;
-            color: var(--text-secondary);
         }
 
         .post-content li { 
-            margin-bottom: 0.75rem;
-            padding-left: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .post-content strong {
+            color: var(--text);
+            font-weight: 600;
         }
 
         .post-content img {
             max-width: 100%;
-            max-height: 500px;
-            width: auto;
             border-radius: 12px;
-            margin: 1.5rem auto 1rem;
-            display: block;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+            margin: 1.5rem 0;
         }
-        
-        .back-button { 
-            display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); 
-            text-decoration: none; font-size: 0.9rem; margin-bottom: 3rem; font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            background: var(--bg-subtle);
-            transition: all 0.2s;
-        }
-        .back-button:hover { 
-            color: var(--accent); 
-            background: var(--accent-subtle);
-        }
-
-        .menu-toggle {
-            display: none;
-            background: none;
-            border: none;
-            padding: 8px;
-            cursor: pointer;
-            color: var(--text-secondary);
-        }
-
-        .menu-toggle svg {
-            width: 24px;
-            height: 24px;
-        }
-
-        footer { text-align: center; padding: 2rem; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border); }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         @media (max-width: 900px) {
-            .featured-post { flex-direction: column; margin-bottom: 4rem; gap: 2rem; }
-            .featured-thumb { aspect-ratio: 16 / 9; height: auto; flex: none; }
-            .featured-content { padding: 0; }
-            .featured-content .post-title { font-size: 2rem; }
+            .featured-post {
+                flex-direction: column;
+            }
+            .featured-post .post-thumb {
+                width: 100%;
+                min-height: 200px;
+                aspect-ratio: 16 / 9;
+            }
+            .featured-post .post-body {
+                width: 100%;
+                padding: 1.5rem;
+            }
+            .featured-post .post-title {
+                font-size: 1.4rem;
+            }
         }
 
         @media (max-width: 768px) {
-            nav {
-                padding: 0 1.5rem;
-            }
-
-            .nav-links {
-                display: none;
-                position: absolute;
-                top: 64px;
-                left: 0;
-                right: 0;
-                background: white;
-                flex-direction: column;
-                gap: 0;
-                border-bottom: 1px solid var(--border);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            }
-
-            .nav-links.active {
-                display: flex;
-            }
-
-            .nav-links li {
-                width: 100%;
-            }
-
-            .nav-links a {
-                display: block;
-                padding: 1rem 1.5rem;
-                font-size: 0.95rem;
-                border-top: 1px solid var(--bg-subtle);
-            }
-
-            .menu-toggle {
-                display: block;
-            }
-
-            .nav-right .btn-primary {
-                display: none;
-            }
-
-            .post-content h1 { font-size: 2rem; margin-top: 2rem; }
-            .post-content h2 { font-size: 1.6rem; margin-top: 1.8rem; }
-            .post-content h3 { font-size: 1.3rem; margin-top: 1.5rem; }
-            .post-view-title { font-size: 2.2rem; }
-            .featured-content .post-title { font-size: 1.8rem; }
             .blog-container { padding: 2rem 1.5rem; }
-        }
-
-        @media (max-width: 480px) {
+            .blog-header h1 { font-size: 2rem; }
+            .post-grid { grid-template-columns: 1fr; gap: 1.5rem; }
             .post-view-title { font-size: 1.8rem; }
-            .post-content { font-size: 1.05rem; }
-            .post-content h1 { font-size: 1.7rem; }
-            .post-content h2 { font-size: 1.4rem; }
-            .featured-content .post-title { font-size: 1.6rem; }
+            .post-view { padding: 0 1rem; }
         }
     </style>
 </head>
 <body>
 
+    <!-- Background Effects -->
+    <div class="bg-effects">
+        <div class="bg-stars" id="bgStars"></div>
+        <div class="bg-glow bg-glow-1"></div>
+        <div class="bg-glow bg-glow-2"></div>
+        <div class="bg-glow bg-glow-3"></div>
+    </div>
+
+    <script>
+        // Generate stars
+        const bgStars = document.getElementById('bgStars');
+        const starCount = 80;
+        
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            const is4Point = Math.random() > 0.85;
+            const size = Math.random() * 3 + 1;
+            const x = Math.random() * 100;
+            const y = Math.random() * 100;
+            const delay = Math.random() * 5;
+            const duration = Math.random() * 3 + 2;
+            
+            star.className = is4Point ? 'star star-4pt' : 'star';
+            if (!is4Point) {
+                const colors = ['star-gold', 'star-pink', 'star-blue'];
+                star.classList.add(colors[Math.floor(Math.random() * colors.length)]);
+            }
+            
+            star.style.cssText = `
+                left: ${x}%;
+                top: ${y}%;
+                width: ${size}px;
+                height: ${size}px;
+                animation-delay: ${delay}s;
+                animation-duration: ${duration}s;
+            `;
+            
+            bgStars.appendChild(star);
+        }
+    </script>
+
+    <!-- Navbar -->
     <nav>
         <div class="nav-left">
-            <a href="index.html" class="logo"><img src="icon.png" alt="MomAI"> MomAI</a>
+            <a href="index.html" class="logo">
+                <img src="icon.png" alt="MomAI">
+                MomAI
+            </a>
             <ul class="nav-links">
-                <li><a href="blog.html" class="active">Blog</a></li>
+                <li><a href="blog.html">Blog</a></li>
                 <li><a href="changelog.html">Changelog</a></li>
                 <li><a href="contato.html">Contato</a></li>
             </ul>
@@ -443,13 +364,8 @@
                     <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                 </svg>
             </button>
-            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Download
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.45rem 0.9rem; font-size: 0.8rem; background: rgba(255,255,255,0.1); color: var(--text);">
+                <span>Download</span>
             </a>
             <button class="menu-toggle" aria-label="Menu" id="menuToggle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -461,157 +377,210 @@
         </div>
     </nav>
 
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        html.setAttribute('data-theme', savedTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+
+        const menuToggle = document.getElementById('menuToggle');
+        const navLinks = document.querySelector('.nav-links');
+
+        menuToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = menuToggle.querySelector('svg');
+            if (navLinks.classList.contains('active')) {
+                icon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+            } else {
+                icon.innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+            }
+        });
+
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                menuToggle.querySelector('svg').innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+            });
+        });
+    </script>
+
+    <!-- Blog Content -->
     <div class="blog-container" id="content">
+        <div class="blog-header">
+            <h1>Blog</h1>
+            <p>Fique por dentro das últimas novidades da MomAI</p>
+        </div>
         <!-- Renderização via JS -->
     </div>
 
+    <!-- Footer -->
     <footer>
-        <div class="footer-content" style="text-align: center; padding: 3rem 2rem; color: var(--text-tertiary); font-size: 0.9rem;">
-            <div style="margin-bottom: 0.5rem;">Wesley Developer Studios</div>
-            <div>© 2026 MomAI</div>
-            <div style="margin-top: 1rem; display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;">
-                <a href="https://github.com/WesleyQDev" target="_blank" style="color: var(--text-secondary); text-decoration: none;">GitHub</a>
-                <a href="https://www.youtube.com/@WesleyDev" target="_blank" style="color: var(--text-secondary); text-decoration: none;">YouTube</a>
-                <a href="https://github.com/WesleyQDev/MomAI" target="_blank" style="color: var(--text-secondary); text-decoration: none;">Repositório</a>
-                <a href="changelog.html" style="color: var(--text-secondary); text-decoration: none;">Changelog</a>
-            </div>
+        <img src="icon.png" alt="MomAI" class="footer-logo">
+        <div class="footer-org">Wesley Developer Studios</div>
+        <div class="footer-links">
+            <span>© 2026 MomAI</span>
+            <a href="https://github.com/WesleyQDev" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+            </a>
+            <a href="https://www.youtube.com/@WesleyDev" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                YouTube
+            </a>
+            <a href="https://github.com/WesleyQDev/MomAI" target="_blank">Repositório</a>
+            <a href="changelog.html">Changelog</a>
+        </div>
+        <div class="footer-copyright">
+            Desenvolvido com foco em privacidade
         </div>
     </footer>
 
     <script>
         const container = document.getElementById('content');
         let postsData = [];
-        let postFiles = [];
 
-        // Carrega a lista de posts do arquivo posts.json
-        async function fetchPostList() {
+        // Função para extrair Frontmatter
+        function parseFrontmatter(text) {
+            const frontmatter = {};
+            if (text.startsWith('---')) {
+                const endIndex = text.indexOf('---', 3);
+                if (endIndex !== -1) {
+                    const frontBlock = text.slice(3, endIndex).trim();
+                    const lines = frontBlock.split('\n');
+                    lines.forEach(line => {
+                        const colonIndex = line.indexOf(':');
+                        if (colonIndex !== -1) {
+                            const key = line.slice(0, colonIndex).trim();
+                            let value = line.slice(colonIndex + 1).trim();
+                            if ((value.startsWith('"') && value.endsWith('"')) || 
+                                (value.startsWith("'") && value.endsWith("'"))) {
+                                value = value.slice(1, -1);
+                            }
+                            frontmatter[key] = value;
+                        }
+                    });
+                }
+            }
+            return frontmatter;
+        }
+
+        function removeFrontmatter(text) {
+            if (text.startsWith('---')) {
+                const endIndex = text.indexOf('---', 3);
+                if (endIndex !== -1) {
+                    return text.slice(endIndex + 3).trim();
+                }
+            }
+            return text;
+        }
+
+        // Carrega a lista de posts
+        async function loadPosts() {
             try {
-                // Adiciona um timestamp para evitar cache no GitHub Pages
                 const res = await fetch(`posts/posts.json?t=${new Date().getTime()}`);
                 if (!res.ok) throw new Error('posts.json não encontrado');
                 const data = await res.json();
-                postFiles = data.posts || [];
-                console.log("Lista de posts carregada:", postFiles);
-            } catch (err) {
-                console.warn("Aviso: posts.json não encontrado ou inválido. Usando fallback.", err);
-                postFiles = ['lancamento.md']; // Fallback
-            }
-        }
-
-        // Função para extrair Frontmatter (metadados) do arquivo MD
-        function parseFrontmatter(text) {
-            const frontmatterRegex = /^\s*---\s*([\s\S]*?)\s*---/;
-            const match = text.match(frontmatterRegex);
-            
-            if (!match) return { content: text, title: 'Sem título' };
-
-            const yamlBlock = match[1];
-            const content = text.replace(frontmatterRegex, '').trim();
-            const metadata = {};
-
-            yamlBlock.split('\n').forEach(line => {
-                const parts = line.split(':');
-                if (parts.length >= 2) {
-                    const key = parts[0].trim().toLowerCase();
-                    const value = parts.slice(1).join(':').trim();
-                    metadata[key] = value;
-                }
-            });
-
-            return { ...metadata, content };
-        }
-
-        // Carrega os dados de todos os posts
-        async function initBlog() {
-            container.innerHTML = '<p style="text-align:center; padding: 4rem; color: var(--text-tertiary);">Sincronizando artigos...</p>';
-            
-            try {
-                await fetchPostList();
+                const postFiles = data.posts || [];
                 
-                const results = await Promise.allSettled(postFiles.map(async (filename) => {
-                    const res = await fetch(`posts/${filename}?t=${new Date().getTime()}`);
-                    if (!res.ok) throw new Error(`Falha ao carregar ${filename}`);
-                    const text = await res.text();
-                    const parsed = parseFrontmatter(text);
-                    return {
-                        id: filename.replace('.md', ''),
-                        title: parsed.title || filename,
-                        date: parsed.date || 'Recente',
-                        image: parsed.image || 'icon.png',
-                        excerpt: parsed.excerpt || 'Clique para ler este artigo completo.',
-                        content: parsed.content,
-                        featured: parsed.featured || 'false'
-                    };
+                if (postFiles.length === 0) {
+                    container.innerHTML += '<p style="text-align:center;color:var(--text-tertiary);padding:4rem;">Nenhum post encontrado.</p>';
+                    return;
+                }
+
+                // Carregar todos os posts
+                postsData = await Promise.all(postFiles.map(async (file) => {
+                    try {
+                        const res = await fetch(`posts/${file}?t=${new Date().getTime()}`);
+                        if (!res.ok) return null;
+                        const md = await res.text();
+                        
+                        const frontmatter = parseFrontmatter(md);
+                        const content = removeFrontmatter(md);
+                        
+                        return {
+                            id: file.replace('.md', ''),
+                            file: file,
+                            title: frontmatter.title || file.replace('.md', ''),
+                            date: frontmatter.date || '',
+                            excerpt: frontmatter.excerpt || '',
+                            image: frontmatter.image || '',
+                            content: content
+                        };
+                    } catch (err) {
+                        return null;
+                    }
                 }));
 
-                // Filtra apenas os que deram certo
-                postsData = results
-                    .filter(r => r.status === 'fulfilled')
-                    .map(r => r.value);
-
-                if (postsData.length === 0) {
-                    console.error("Nenhum post foi carregado com sucesso. Verifique os caminhos e o console.");
-                }
-
+                postsData = postsData.filter(p => p !== null);
                 renderList();
             } catch (err) {
-                console.error("Erro crítico no blog:", err);
-                container.innerHTML = '<p style="text-align:center;">Erro crítico ao carregar o blog.</p>';
+                container.innerHTML += `<p style="text-align:center;color:var(--text-tertiary);padding:4rem;">Erro ao carregar posts: ${err.message}</p>`;
             }
         }
 
-        // Renderiza o Grid de Cards
+        // Renderiza a lista de posts
         function renderList() {
-            if (postsData.length === 0) {
-                container.innerHTML = '<p style="text-align:center; padding: 4rem; color: var(--text-tertiary);">Nenhum artigo encontrado.</p>';
-                return;
-            }
-
-            // Busca o post marcado como destaque no Markdown (featured: true)
-            // Se nenhum estiver marcado, pega o primeiro da lista
-            let featuredIndex = postsData.findIndex(p => p.featured === 'true');
-            if (featuredIndex === -1) featuredIndex = 0;
-
-            const featured = postsData[featuredIndex];
-            const others = postsData.filter((_, index) => index !== featuredIndex);
-
-            let html = `
-                <!-- Featured Post -->
-                <div class="featured-post" onclick="openPost('${featured.id}')">
-                    <div class="featured-thumb">
-                        <img src="${featured.image || 'icon.png'}" alt="${featured.title}">
-                    </div>
-                    <div class="featured-content">
-                        <span class="badge-featured">Destaque</span>
-                        <h2 class="post-title">${featured.title}</h2>
-                        <div class="post-date">${featured.date || ''}</div>
-                        <div class="post-footer">Ler artigo completo →</div>
-                    </div>
-                </div>
-            `;
-
-            if (others.length > 0) {
-                html += '<div class="post-grid">';
-                html += others.map((post, index) => `
-                    <div class="post-card" onclick="openPost('${post.id}')" style="animation-delay: ${index * 0.1}s">
-                        <div class="post-thumb">
-                            <img src="${post.image || 'icon.png'}" alt="${post.title}">
-                        </div>
-                        <div class="post-body">
-                            <div class="post-date">${post.date || ''}</div>
-                            <h2 class="post-title">${post.title || post.id}</h2>
-                            <div class="post-footer">Ler artigo completo →</div>
-                        </div>
-                    </div>
-                `).join('');
-                html += '</div>';
-            }
+            if (postsData.length === 0) return;
             
-            container.innerHTML = html;
-            window.location.hash = '';
+            // Separa o primeiro post (destaque) dos demais
+            const featuredPost = postsData[0];
+            const otherPosts = postsData.slice(1);
+            
+            // Renderiza o post em destaque (horizontal)
+            const featuredHTML = `
+                <article class="featured-post" onclick="openPost('${featuredPost.id}')">
+                    <div class="post-thumb">
+                        ${featuredPost.image ? `<img src="${featuredPost.image}" alt="${featuredPost.title}" onerror="this.style.display='none'">` : ''}
+                    </div>
+                    <div class="post-body">
+                        <span class="featured-badge">Em Destaque</span>
+                        <div class="post-date">${featuredPost.date}</div>
+                        <h2 class="post-title">${featuredPost.title}</h2>
+                        <p class="post-excerpt">${featuredPost.excerpt || 'Clique para ler mais...'}</p>
+                        <div class="post-footer">Ler mais →</div>
+                    </div>
+                </article>
+            `;
+            
+            // Renderiza os outros posts no grid
+            const postsHTML = otherPosts.map(post => `
+                <article class="post-card" onclick="openPost('${post.id}')">
+                    <div class="post-thumb">
+                        ${post.image ? `<img src="${post.image}" alt="${post.title}" onerror="this.style.display='none'">` : ''}
+                    </div>
+                    <div class="post-body">
+                        <div class="post-date">${post.date}</div>
+                        <h2 class="post-title">${post.title}</h2>
+                        <p class="post-excerpt">${post.excerpt || 'Clique para ler mais...'}</p>
+                        <div class="post-footer">Ler mais →</div>
+                    </div>
+                </article>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="blog-header">
+                    <h1>Blog</h1>
+                    <p>Fique por dentro das últimas novidades da MomAI</p>
+                </div>
+                ${featuredHTML}
+                <div class="post-grid">${postsHTML}</div>
+            `;
         }
 
-        // Abre um post específico usando os dados já carregados
+        // Abre um post específico
         function openPost(id) {
             const post = postsData.find(p => p.id === id);
             if (!post) return;
@@ -629,108 +598,9 @@
                 </div>
             `;
             window.scrollTo(0, 0);
-            window.location.hash = post.id;
         }
 
-        // Theme Toggle
-        const themeToggle = document.getElementById('themeToggle');
-        const html = document.documentElement;
-        
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        html.setAttribute('data-theme', savedTheme);
-
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-
-        // Menu Mobile
-        const menuToggle = document.getElementById('menuToggle');
-        const navLinks = document.querySelector('.nav-links');
-
-        menuToggle.addEventListener('click', () => {
-            navLinks.classList.toggle('active');
-            const icon = menuToggle.querySelector('svg');
-            if (navLinks.classList.contains('active')) {
-                icon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
-            } else {
-                icon.innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
-            }
-        });
-
-        // Fechar menu ao clicar em links
-        navLinks.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                navLinks.classList.remove('active');
-                menuToggle.querySelector('svg').innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
-            });
-        });
-
-        // Busca automática do último release do GitHub
-        async function updateDownloadLinks() {
-            const repo = "WesleyQDev/MomAI-App";
-            const platform = navigator.platform?.toLowerCase() || "";
-            const isLinux = platform.includes('linux') || navigator.userAgent.toLowerCase().includes('linux');
-            const storageKey = isLinux ? "momai_latest_linux" : "momai_latest_win";
-            
-            const cachedUrl = sessionStorage.getItem(storageKey);
-            if (cachedUrl) {
-                applyDownloadUrl(cachedUrl, isLinux);
-                return;
-            }
-
-            try {
-                // 1. Tenta buscar o último release oficial
-                let res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
-                let data;
-
-                if (res.ok) {
-                    data = await res.json();
-                } else if (res.status === 404) {
-                    // 2. Se falhar, tenta buscar a lista e pega o primeiro (mesmo que seja prerelease)
-                    const resList = await fetch(`https://api.github.com/repos/${repo}/releases`);
-                    if (resList.ok) {
-                        const list = await resList.json();
-                        if (list && list.length > 0) data = list[0];
-                    }
-                }
-
-                if (data && data.assets) {
-                    let asset;
-                    if (isLinux) {
-                        asset = data.assets.find(a => a.name.endsWith('.AppImage')) || data.assets.find(a => a.name.endsWith('.deb'));
-                    } else {
-                        asset = data.assets.find(a => a.name.endsWith('.exe'));
-                    }
-
-                    if (asset) {
-                        const downloadUrl = asset.browser_download_url;
-                        sessionStorage.setItem(storageKey, downloadUrl);
-                        applyDownloadUrl(downloadUrl, isLinux);
-                    }
-                }
-            } catch (err) {
-                console.error("Erro ao buscar release do GitHub:", err);
-            }
-        }
-
-        function applyDownloadUrl(url, isLinux) {
-            document.querySelectorAll('.btn-download').forEach(el => {
-                el.href = url;
-                if (isLinux) {
-                    el.innerHTML = el.innerHTML.replace('Windows', 'Linux').replace('Download', 'Download para Linux');
-                } else {
-                    el.innerHTML = el.innerHTML.replace('Linux', 'Windows');
-                }
-            });
-        }
-
-        updateDownloadLinks();
-
-        // Iniciar
-        initBlog();
+        loadPosts();
     </script>
 </body>
 </html>

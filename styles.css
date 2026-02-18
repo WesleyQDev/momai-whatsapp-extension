@@ -453,6 +453,19 @@ p.subtitle {
     overflow: hidden;
 }
 
+/* Botão download no navbar */
+.btn-primary.btn-download {
+    background: rgba(255,255,255,0.1) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .btn-primary.btn-download {
+    background: rgba(0,0,0,0.08) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border-color);
+}
+
 .btn-primary::before {
     content: '';
     position: absolute;
