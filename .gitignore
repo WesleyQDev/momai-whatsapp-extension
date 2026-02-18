@@ -135,7 +135,6 @@ coverage/
 # ====================
 # Portable Binaries (Desktop)
 # ====================
-apps/desktop/bin/
 p.txt
 
 .agent/
