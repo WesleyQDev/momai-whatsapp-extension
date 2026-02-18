@@ -1022,6 +1022,10 @@ footer {
     padding: 2rem;
     text-align: center;
     transition: all 0.3s ease;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
 }
 
 .contact-card:hover {
@@ -1050,21 +1054,21 @@ footer {
     stroke-width: 1.5;
 }
 
+.contact-card-icon svg[fill="currentColor"] {
+    fill: var(--accent);
+}
+
 .contact-card h3 {
     font-size: 1rem;
     font-weight: 500;
     margin-bottom: 0.5rem;
+    color: var(--text);
 }
 
-.contact-card p, .contact-card a {
+.contact-card p {
     font-size: 0.9rem;
     color: var(--text-secondary);
-    text-decoration: none;
-    transition: color 0.15s;
-}
-
-.contact-card a:hover {
-    color: var(--accent);
+    margin: 0;
 }
 
 .contact-card .org-name {
