@@ -83,6 +83,7 @@
             </button>
             <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.45rem 0.9rem; font-size: 0.8rem; background: rgba(255,255,255,0.1); color: var(--text);">
                 <span>Download</span>
+                <span class="version-badge" id="navVersion" style="margin-left: 6px; font-size: 0.7rem; opacity: 0.7;"></span>
             </a>
             <button class="menu-toggle" aria-label="Menu" id="menuToggle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -134,10 +135,14 @@
             const platform = navigator.platform?.toLowerCase() || "";
             const isLinux = platform.includes('linux') || navigator.userAgent.toLowerCase().includes('linux');
             const storageKey = isLinux ? "momai_latest_linux" : "momai_latest_win";
+            const versionKey = "momai_latest_version";
             
             const cachedUrl = sessionStorage.getItem(storageKey);
-            if (cachedUrl) {
+            const cachedVersion = sessionStorage.getItem(versionKey);
+            
+            if (cachedUrl && cachedVersion) {
                 applyDownloadUrl(cachedUrl, isLinux);
+                displayVersion(cachedVersion);
                 return;
             }
 
@@ -165,12 +170,23 @@
 
                     if (asset) {
                         const downloadUrl = asset.browser_download_url;
+                        const version = data.tag_name || data.name || '';
                         sessionStorage.setItem(storageKey, downloadUrl);
+                        sessionStorage.setItem(versionKey, version);
                         applyDownloadUrl(downloadUrl, isLinux);
+                        displayVersion(version);
                     }
                 }
             } catch (err) {
                 console.error("Erro ao buscar release do GitHub:", err);
+            }
+        }
+
+        function displayVersion(version) {
+            const cleanVersion = version.replace(/^v/, '');
+            const navVersion = document.getElementById('navVersion');
+            if (navVersion && cleanVersion) {
+                navVersion.textContent = `v${cleanVersion}`;
             }
         }
 
