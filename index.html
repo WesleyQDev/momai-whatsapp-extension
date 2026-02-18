@@ -74,6 +74,69 @@
             z-index: -1;
         }
 
+        .bg-stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .star {
+            position: absolute;
+            background: radial-gradient(circle, #f0f0f0 0%, transparent 70%);
+            border-radius: 50%;
+            animation: twinkle 3s ease-in-out infinite;
+        }
+
+        .star-4pt {
+            background: transparent;
+            width: 12px;
+            height: 12px;
+            animation: twinkle-4pt 4s ease-in-out infinite;
+        }
+
+        .star-4pt::before,
+        .star-4pt::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, #d3d3d3, #f5f5f5);
+            border-radius: 50%;
+        }
+
+        .star-4pt::before {
+            width: 100%;
+            height: 20%;
+        }
+
+        .star-4pt::after {
+            width: 20%;
+            height: 100%;
+        }
+
+        .star-gold {
+            background: radial-gradient(circle, #e8e8e8 0%, transparent 70%);
+        }
+
+        .star-pink {
+            background: radial-gradient(circle, #c0c0c0 0%, transparent 70%);
+        }
+
+        .star-blue {
+            background: radial-gradient(circle, #a8a8a8 0%, transparent 70%);
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        @keyframes twinkle-4pt {
+            0%, 100% { opacity: 0.4; transform: scale(1) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.3) rotate(45deg); }
+        }
+
         .bg-glow {
             position: absolute;
             width: 600px;
@@ -120,8 +183,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            max-width: 1100px;
-            margin: 0 auto;
+            width: 100%;
             padding: 0 2rem;
             position: sticky;
             top: 0;
@@ -686,20 +748,57 @@
         /* ---- Footer ---- */
         footer {
             text-align: center;
-            padding: 2rem;
-            font-size: 0.8rem;
+            padding: 4rem 2rem;
+            font-size: 1rem;
             color: var(--text-tertiary);
             border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
         }
 
-        footer a {
+        .footer-logo {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            margin-bottom: 1rem;
+        }
+
+        .footer-org {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
             transition: color 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        footer a:hover {
+        .footer-links a:hover {
             color: var(--accent);
+        }
+
+        .footer-links svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .footer-copyright {
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
         }
 
         /* ---- Floating Logo ---- */
@@ -887,10 +986,44 @@
 
     <!-- Background Effects -->
     <div class="bg-effects">
+        <div class="bg-stars" id="bgStars"></div>
         <div class="bg-glow bg-glow-1"></div>
         <div class="bg-glow bg-glow-2"></div>
         <div class="bg-glow bg-glow-3"></div>
     </div>
+
+    <script>
+        // Generate stars like Sailor Moon
+        const bgStars = document.getElementById('bgStars');
+        const starCount = 80;
+        
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            const is4Point = Math.random() > 0.85;
+            const size = Math.random() * 3 + 1;
+            const x = Math.random() * 100;
+            const y = Math.random() * 100;
+            const delay = Math.random() * 5;
+            const duration = Math.random() * 3 + 2;
+            
+            star.className = is4Point ? 'star star-4pt' : 'star';
+            if (!is4Point) {
+                const colors = ['star-gold', 'star-pink', 'star-blue'];
+                star.classList.add(colors[Math.floor(Math.random() * colors.length)]);
+            }
+            
+            star.style.cssText = `
+                left: ${x}%;
+                top: ${y}%;
+                width: ${size}px;
+                height: ${size}px;
+                animation-delay: ${delay}s;
+                animation-duration: ${duration}s;
+            `;
+            
+            bgStars.appendChild(star);
+        }
+    </script>
 
     <!-- Navbar -->
     <nav>
@@ -1153,7 +1286,27 @@
 
     <!-- Footer -->
     <footer>
-        © 2026 MomAI · <a href="changelog.html">Changelog</a> · Desenvolvido com foco em privacidade
+        <img src="icon.png" alt="MomAI" class="footer-logo">
+        <div class="footer-org">© 2026 Wesley Developer Studios</div>
+        <div class="footer-links">
+            <a href="https://github.com/WesleyQDev" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+            </a>
+            <a href="https://www.youtube.com/@WesleyQDev" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                YouTube
+            </a>
+            <a href="https://github.com/WesleyQDev/MomAI" target="_blank">Repositório</a>
+            <a href="changelog.html">Changelog</a>
+        </div>
+        <div class="footer-copyright">
+            MomAI · Desenvolvido com foco em privacidade
+        </div>
     </footer>
 
 </body>
