@@ -3,15 +3,29 @@ chcp 65001 > nul
 setlocal enabledelayedexpansion
 
 echo ============================================
-echo    MomAI Diagnostic Tool v1.1
+echo    MomAI Diagnostic Tool v1.2
 echo ============================================
+echo.
+echo NOTE: MomAI does NOT require Python to be installed.
+echo        The 'uv' tool downloads Python automatically.
 echo.
 
 set PASS=0
 set FAIL=0
 set WARN=0
 
-echo [CHECK 1] System Python (Optional - uv downloads its own)
+echo [CHECK 1] Internet Connectivity (Required for first run)
+echo ------------------------------
+powershell -Command "try { $r = Invoke-WebRequest -Uri 'https://api.github.com' -UseBasicParsing -TimeoutSec 10; Write-Host '[PASS] Internet connection OK' } catch { Write-Host '[FAIL] No internet connection - uv cannot download Python' }" 2>nul
+if !errorlevel! equ 0 (
+    set /a PASS+=1
+) else (
+    set /a FAIL+=1
+    echo        First run requires internet to download Python (~30MB)
+)
+echo.
+
+echo [CHECK 2] System Python (Optional - uv manages its own)
 echo ------------------------------
 where python >nul 2>&1
 if %errorlevel% equ 0 (
@@ -24,7 +38,7 @@ if %errorlevel% equ 0 (
 )
 echo.
 
-echo [CHECK 2] Visual C++ Redistributable
+echo [CHECK 3] Visual C++ Redistributable
 echo ------------------------------
 reg query "HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" /v Installed >nul 2>&1
 if %errorlevel% equ 0 (
@@ -50,7 +64,7 @@ if %errorlevel% equ 0 (
 )
 echo.
 
-echo [CHECK 3] User Data Directory
+echo [CHECK 4] User Data Directory
 echo ------------------------------
 set APPDATA_PATH=%APPDATA%\MomAI
 if exist "!APPDATA_PATH!" (
@@ -82,7 +96,7 @@ if exist "!APPDATA_PATH!" (
 )
 echo.
 
-echo [CHECK 4] Disk Space
+echo [CHECK 5] Disk Space
 echo ------------------------------
 for /f "tokens=3" %%a in ('dir /-C %APPDATA% 2^>nul ^| findstr /C:"bytes free"') do set FREE_BYTES=%%a
 set FREE_GB=0
@@ -100,7 +114,7 @@ if !FREE_GB! geq 5 (
 )
 echo.
 
-echo [CHECK 5] Previous Error Logs
+echo [CHECK 6] Previous Error Logs
 echo ------------------------------
 set LOG_PATH=%APPDATA%\MomAI\logs\main.log
 if exist "!LOG_PATH!" (
@@ -117,7 +131,7 @@ if exist "!LOG_PATH!" (
 )
 echo.
 
-echo [CHECK 6] Python Virtual Environment
+echo [CHECK 7] Python Virtual Environment
 echo ------------------------------
 set VENV_PATH=%APPDATA%\MomAI\python_env
 if exist "!VENV_PATH!\Scripts\python.exe" (
@@ -139,16 +153,6 @@ if exist "!VENV_PATH!\Scripts\python.exe" (
 )
 echo.
 
-echo [CHECK 7] Network Connectivity (GitHub API)
-echo ------------------------------
-powershell -Command "try { $r = Invoke-WebRequest -Uri 'https://api.github.com' -UseBasicParsing -TimeoutSec 5; Write-Host '[PASS] GitHub API reachable' } catch { Write-Host '[WARN] Cannot reach GitHub API - downloads may fail' }" 2>nul
-if !errorlevel! equ 0 (
-    set /a PASS+=1
-) else (
-    set /a WARN+=1
-)
-echo.
-
 echo ============================================
 echo    DIAGNOSTIC SUMMARY
 echo ============================================
@@ -162,7 +166,7 @@ if !FAIL! gtr 0 (
     echo [CRITICAL] Some checks failed. Please fix the issues above.
     echo.
     echo Common solutions:
-    echo  1. Install Python 3.12+ from python.org
+    echo  1. Ensure internet connection for first run
     echo  2. Install VC++ Redistributable from Microsoft
     echo  3. Add MomAI folder to antivirus exceptions
     echo  4. Run MomAI as administrator

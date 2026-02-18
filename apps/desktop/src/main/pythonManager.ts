@@ -122,11 +122,20 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     return error
   }
 
+  if (!existsSync(uvExe)) {
+    const error: BootstrapError = {
+      type: 'uv_not_found',
+      message: 'uv executable not found',
+      details: `Expected at: ${uvExe}. This is a installation error.`
+    }
+    return error
+  }
+
   if (!checkWritePermission(userDataPath)) {
     const error: BootstrapError = {
       type: 'permission_denied',
       message: 'Cannot write to user data directory',
-      details: `Path: ${userDataPath}`
+      details: `Path: ${userDataPath}. Check antivirus or run as administrator.`
     }
     return error
   }
