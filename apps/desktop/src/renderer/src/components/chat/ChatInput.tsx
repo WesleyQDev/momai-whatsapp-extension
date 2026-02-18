@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { StatusData, fetchSettings, updateSettingsPartial } from '../../services/api'
+import { StatusData, fetchSettings, updateSettingsPartial, quickTranscribe } from '../../services/api'
 import { useI18n } from '../../i18n'
 import { 
   PaperAirplaneIcon, 
@@ -63,6 +63,7 @@ export default function ChatInput({
     wake_word_enabled: true,
     tts_enabled: false
   })
+  const [isQuickRecording, setIsQuickRecording] = useState(false)
 
   // Sync local text with external text
   useEffect(() => {
@@ -149,6 +150,22 @@ export default function ChatInput({
     if (!localText.trim() || isLoading || isModeChanging || !isBrainReady || isBrainLoading) return
     onSend(localText)
     setLocalText('')
+  }
+
+  const handleMicClick = async () => {
+    if (isQuickRecording) return
+
+    setIsQuickRecording(true)
+    try {
+      const result = await quickTranscribe()
+      if (result.success && result.text.trim()) {
+        onSend(result.text.trim())
+      }
+    } catch (error) {
+      console.error('Erro na transcrição rápida:', error)
+    } finally {
+      setIsQuickRecording(false)
+    }
   }
 
   const toggleSetting = async (key: 'wake_word_enabled' | 'tts_enabled') => {
@@ -248,7 +265,28 @@ export default function ChatInput({
               </div>
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center gap-1">
+              {/* Botão de Microfone - Transcrição rápida (à esquerda do call mode) */}
+              {!isLoading && !localText.trim() && (
+                <button
+                  type="button"
+                  onClick={handleMicClick}
+                  disabled={isLoading || isModeChanging || !isBrainReady || isBrainLoading || isQuickRecording}
+                  className={`flex items-center justify-center rounded-full w-8 h-8 transition-all duration-200 ${
+                    isQuickRecording
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : 'bg-transparent text-text-muted hover:text-text hover:bg-white/5'
+                  }`}
+                  title={isQuickRecording ? 'Escutando...' : 'Gravar mensagem de voz'}
+                >
+                  {isQuickRecording ? (
+                    <span className="text-[10px] font-bold">...</span>
+                  ) : (
+                    <MicrophoneIcon className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+
               {isLoading ? (
                 <button
                   type="button"

@@ -355,6 +355,22 @@ export async function setCallMode(enabled: boolean): Promise<void> {
   if (!response.ok) throw new Error('Erro ao definir modo chamada')
 }
 
+// --- QUICK VOICE TRANSCRIPTION ---
+
+export interface QuickTranscriptionResponse {
+  text: string
+  success: boolean
+}
+
+export async function quickTranscribe(): Promise<QuickTranscriptionResponse> {
+  const response = await fetch(`${API_URL}/voice/quick-transcribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  if (!response.ok) throw new Error('Erro ao transcrever audio')
+  return response.json()
+}
+
 // --- EXTERNAL MEMORY ---
 
 export interface NoteSummary {

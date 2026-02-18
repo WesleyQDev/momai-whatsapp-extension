@@ -17,6 +17,7 @@ def include_routes():
         settings,
         setup,
         status,
+        voice,
         ws,
     )
 
@@ -31,6 +32,7 @@ def include_routes():
     api_router.include_router(extensions.router)
     api_router.include_router(gaming.router)
     api_router.include_router(hardware.router)
+    api_router.include_router(voice.router)
     api_router.include_router(ws.router)
 
 

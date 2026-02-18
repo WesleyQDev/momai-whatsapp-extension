@@ -11,6 +11,10 @@ from faster_whisper import WhisperModel
 # Configure logger
 logger = logging.getLogger("uvicorn.error")
 
+# Import once at module level for performance
+import app_state
+import services.voice.tts as tts
+
 
 class WakeWordDetector:
     """
@@ -155,8 +159,6 @@ class WakeWordDetector:
                     # Check if TTS is speaking
                     tts_speaking = False
                     try:
-                        import services.voice.tts as tts
-
                         tts_speaking = tts.is_speaking()
                     except Exception:
                         pass
@@ -165,8 +167,6 @@ class WakeWordDetector:
                     # In normal mode: ignore audio when TTS is speaking
                     if tts_speaking:
                         try:
-                            import app_state
-
                             in_call_mode = app_state.is_call_mode()
                         except Exception:
                             in_call_mode = False
@@ -179,8 +179,6 @@ class WakeWordDetector:
                             ):  # Higher threshold for interruption
                                 # User is speaking! Stop TTS immediately
                                 try:
-                                    import services.voice.tts as tts
-
                                     tts.stop_all()
                                 except Exception:
                                     pass
@@ -461,8 +459,6 @@ class WakeWordDetector:
     def _stop_tts(self):
         """Stop any ongoing TTS playback."""
         try:
-            import services.voice.tts as tts
-
             if tts.is_speaking():
                 logger.info("[WakeWord] Interruption! Stopping TTS.")
                 tts.stop_all()
