@@ -30,12 +30,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Windows
-        # run: pnpm --filter desktop build:win
-        run: |
-          cd apps/desktop
-          npm run prebuild
-          npx electron-vite build
-          npx electron-builder --win
+        run: pnpm --filter desktop build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { spawn, execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow, BootstrapError } from './state'
+import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow, BootstrapError, BootstrapErrorType } from './state'
 import { is } from '@electron-toolkit/utils'
 import { logger } from './logger'
 
@@ -291,6 +291,7 @@ export async function startPythonBackend(): Promise<void> {
     logger.info(`[Electron] Python executable: ${pythonExe}`)
 
     const env = buildEnv(venvPath, dataDir, '')
+    let stderrBuffer = ''
 
     setPythonStartTime(Date.now())
     const pythonProcess = spawn(pythonExe, ['main.py'], {
@@ -309,6 +310,7 @@ export async function startPythonBackend(): Promise<void> {
 
     pythonProcess.stderr?.setEncoding('utf8')
     pythonProcess.stderr?.on('data', (data: string) => {
+      stderrBuffer += data
       const lines = data
         .split(/\r?\n/)
         .map((l) => l.trim())
@@ -333,10 +335,21 @@ export async function startPythonBackend(): Promise<void> {
       if (!state.isQuitting && code !== 0) {
         logger.warn('[Python] Processo morreu de forma inesperada. Limpando llama-server...')
         killAllLlamaServers()
+
+        let errorType: BootstrapErrorType = 'startup_failed'
+        let errorMessage = `Python backend crashed with code ${code}`
+        let errorDetails = 'Check logs for more details'
+
+        if (stderrBuffer.includes('Microsoft Visual C++ Redistributable') || stderrBuffer.includes('c10.dll')) {
+          errorType = 'missing_vc_redist'
+          errorMessage = 'Microsoft Visual C++ Redistributable is missing'
+          errorDetails = 'This application requires the Visual C++ Redistributable to run AI models. Please install it from: https://aka.ms/vs/17/release/vc_redist.x64.exe'
+        }
+
         const error: BootstrapError = {
-          type: 'startup_failed',
-          message: `Python backend crashed with code ${code}`,
-          details: 'Check logs for more details'
+          type: errorType,
+          message: errorMessage,
+          details: errorDetails
         }
         sendErrorToRenderer(error)
       }

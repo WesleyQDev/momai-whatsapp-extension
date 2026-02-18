@@ -119,5 +119,23 @@ FunctionEnd
     RMDir /r "$APPDATA\\${PRODUCT_NAME}\\data"
     RMDir /r "$APPDATA\\MomAI\\data"
   ${EndIf}
+
+  # --- VC Redist Check and Install ---
+  DetailPrint "Verificando Microsoft Visual C++ Redistributable..."
+  
+  # Check if VC++ 2015-2022 x64 is already installed using the registry
+  # The Key {36f11681-4328-403d-8877-f273ed29c4dd} relates to 2015-2022 redist
+  ReadRegStr $0 HKLM "SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" "Installed"
+  
+  ${If} $0 == "1"
+    DetailPrint "Visual C++ Redistributable ja instalado."
+  ${Else}
+    DetailPrint "Visual C++ Redistributable nao encontrado. Instalando..."
+    File "/oname=$PLUGINSDIR\vc_redist.x64.exe" "${BUILD_RESOURCES_DIR}\..\bin\vc_redist.x64.exe"
+    
+    # Run silently: /install /quiet /norestart
+    ExecWait '"$PLUGINSDIR\vc_redist.x64.exe" /install /quiet /norestart' $1
+    DetailPrint "Instalacao do VC Redist concluida com codigo $1"
+  ${EndIf}
 !macroend
 !endif

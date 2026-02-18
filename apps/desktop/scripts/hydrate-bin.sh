@@ -34,4 +34,9 @@ mkdir -p "$BIN_DIR/python"
 tar -xzf "$PY_TAR" -C "$BIN_DIR/python" --strip-components=1
 rm "$PY_TAR"
 
-echo "[MomAI] Hydration complete! UV and Python are ready in apps/desktop/bin"
+# 3. Download Visual C++ Redistributable
+echo "[MomAI] Downloading Visual C++ Redistributable..."
+VC_URL="https://aka.ms/vs/17/release/vc_redist.x64.exe"
+curl -L "$VC_URL" -o "$BIN_DIR/vc_redist.x64.exe"
+
+echo "[MomAI] Hydration complete! UV, Python and VC Redist are ready in apps/desktop/bin"

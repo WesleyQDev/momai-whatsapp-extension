@@ -61,4 +61,16 @@ if (Test-Path $extractedPath) {
 
 Remove-Item -Recurse -Force $pyExtractDir -ErrorAction SilentlyContinue
 
-Write-Host "[MomAI] Hydration complete! UV and Python are ready in apps/desktop/bin" -ForegroundColor Green
+# 3. Download Visual C++ Redistributable (Optional but recommended for inclusion)
+Write-Host "[MomAI] Downloading Visual C++ Redistributable..." -ForegroundColor Cyan
+$vcUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+$vcExe = Join-Path $binDir "vc_redist.x64.exe"
+try {
+    curl.exe -L $vcUrl -o "$vcExe"
+    if ($LASTEXITCODE -ne 0) { throw "Curl failed with exit code $LASTEXITCODE" }
+    Write-Host "[MomAI] VC Redist ready in $vcExe" -ForegroundColor Green
+} catch {
+    Write-Warning "[MomAI] Failed to download VC Redist: $($_.Exception.Message)"
+}
+
+Write-Host "[MomAI] Hydration complete! UV, Python and VC Redist are ready in apps/desktop/bin" -ForegroundColor Green
