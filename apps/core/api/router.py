@@ -3,10 +3,10 @@ from fastapi import APIRouter
 api_router = APIRouter()
 
 
-# Import routes lazily to speed up startup
 def include_routes():
     from api.routes import (
         chat,
+        diagnostic,
         extensions,
         gaming,
         hardware,
@@ -34,6 +34,7 @@ def include_routes():
     api_router.include_router(hardware.router)
     api_router.include_router(voice.router)
     api_router.include_router(ws.router)
+    api_router.include_router(diagnostic.router)
 
 
 include_routes()

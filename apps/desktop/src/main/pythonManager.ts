@@ -2,8 +2,9 @@ import { app } from 'electron'
 import { spawn, execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { state, setPythonProcess, setPythonStartTime, setIsQuitting } from './state'
+import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow } from './state'
 import { is } from '@electron-toolkit/utils'
+import { logger } from './logger'
 
 const userDataPath = app.getPath('userData')
 const SYNC_LOCK_FILE = join(userDataPath, '.sync.lock')
@@ -19,6 +20,20 @@ interface SyncResult {
   success: boolean
   needsSync: boolean
   lastChecked?: number
+}
+
+export interface BootstrapError {
+  type: 'python_not_found' | 'uv_not_found' | 'venv_failed' | 'sync_failed' | 'permission_denied' | 'startup_failed' | 'unknown'
+  message: string
+  details?: string
+}
+
+function sendErrorToRenderer(error: BootstrapError): void {
+  const mainWindow = getMainWindow()
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('bootstrap-error', error)
+  }
+  logger.error(`[Bootstrap] Error: ${error.type} - ${error.message}`, error.details || '')
 }
 
 function getSyncLock(): SyncResult | null {
@@ -63,10 +78,38 @@ async function waitForPythonExit(timeoutMs: number): Promise<boolean> {
     }
     await delay(100)
   }
-  return !state.pythonProcess || state.pythonProcess.killed || state.pythonProcess.exitCode !== null
+  return !state.pythonProcess || state.pythonProcess.killed || state.pythonProcess.exitCode === null
 }
 
-async function bootstrapPython(): Promise<BootstrapResult> {
+function checkPythonAvailable(): boolean {
+  try {
+    const result = execSync('python --version', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+    logger.info(`[Bootstrap] Python found: ${result.trim()}`)
+    return true
+  } catch {
+    try {
+      const result = execSync('python3 --version', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+      logger.info(`[Bootstrap] Python3 found: ${result.trim()}`)
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
+function checkWritePermission(dir: string): boolean {
+  try {
+    const testFile = join(dir, '.write_test')
+    writeFileSync(testFile, 'test')
+    const { unlinkSync } = require('fs')
+    unlinkSync(testFile)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
   const isDev = is.dev && process.env['ELECTRON_RENDERER_URL']
 
   const corePath = isDev
@@ -83,28 +126,85 @@ async function bootstrapPython(): Promise<BootstrapResult> {
     ? 'uv'
     : join(process.resourcesPath, 'bin', process.platform === 'win32' ? 'uv.exe' : 'uv')
 
-  console.log(`[Bootstrap] Verificando ambiente em: ${venvPath}`)
+  logger.info(`[Bootstrap] Verificando ambiente em: ${venvPath}`)
+  logger.info(`[Bootstrap] Core path: ${corePath}`)
+  logger.info(`[Bootstrap] UV path: ${uvExe}`)
+
+  if (!existsSync(corePath)) {
+    const error: BootstrapError = {
+      type: 'startup_failed',
+      message: 'Core directory not found',
+      details: `Expected path: ${corePath}`
+    }
+    return error
+  }
+
+  if (!checkWritePermission(userDataPath)) {
+    const error: BootstrapError = {
+      type: 'permission_denied',
+      message: 'Cannot write to user data directory',
+      details: `Path: ${userDataPath}`
+    }
+    return error
+  }
 
   if (!existsSync(pythonExe)) {
-    console.log('[Bootstrap] Ambiente não encontrado. Iniciando setup com uv...')
+    logger.info('[Bootstrap] Ambiente não encontrado. Iniciando setup com uv...')
+    
+    if (!checkPythonAvailable()) {
+      const error: BootstrapError = {
+        type: 'python_not_found',
+        message: 'Python 3.12+ is required but not found',
+        details: 'Please install Python 3.12 or later from https://www.python.org/downloads/'
+      }
+      return error
+    }
+
     if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
 
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(uvExe, ['venv', venvPath, '--python', '3.12', '--seed'], {
-        shell: true,
-        stdio: 'inherit'
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn(uvExe, ['venv', venvPath, '--python', '3.12', '--seed'], {
+          shell: true,
+          stdio: 'pipe'
+        })
+        let stdout = ''
+        let stderr = ''
+        child.stdout?.on('data', (data) => {
+          stdout += data.toString()
+          logger.debug(`[uv venv stdout] ${data.toString()}`)
+        })
+        child.stderr?.on('data', (data) => {
+          stderr += data.toString()
+          logger.debug(`[uv venv stderr] ${data.toString()}`)
+        })
+        child.on('close', (code) => {
+          if (code === 0) {
+            logger.info('[Bootstrap] Venv criado com sucesso.')
+            resolve()
+          } else {
+            logger.error(`[Bootstrap] uv venv failed with code ${code}: ${stderr}`)
+            reject(new Error(stderr || `uv venv failed with code ${code}`))
+          }
+        })
+        child.on('error', (err) => {
+          logger.error('[Bootstrap] uv venv spawn error:', err)
+          reject(err)
+        })
       })
-      child.on('close', (code) =>
-        code === 0 ? resolve() : reject(new Error(`uv venv failed with ${code}`))
-      )
-      child.on('error', reject)
-    })
-    console.log('[Bootstrap] Venv criado.')
+    } catch (err: any) {
+      const error: BootstrapError = {
+        type: 'venv_failed',
+        message: 'Failed to create Python virtual environment',
+        details: err.message || String(err)
+      }
+      return error
+    }
   }
 
   const syncLock = getSyncLock()
   if (!syncLock || syncLock.needsSync) {
-    console.log('[Bootstrap] Sincronizando dependências do core...')
+    logger.info('[Bootstrap] Sincronizando dependências do core...')
     try {
       await new Promise<void>((resolve, reject) => {
         const child = spawn(uvExe, ['pip', 'install', '--no-progress', '-e', corePath], {
@@ -115,20 +215,34 @@ async function bootstrapPython(): Promise<BootstrapResult> {
         let stderr = ''
         child.stderr?.on('data', (data) => {
           stderr += data.toString()
+          logger.debug(`[uv pip stderr] ${data.toString()}`)
         })
-        child.on('close', (code) =>
-          code === 0 ? resolve() : reject(new Error(stderr || `sync failed with ${code}`))
-        )
+        child.stdout?.on('data', (data) => {
+          logger.debug(`[uv pip stdout] ${data.toString()}`)
+        })
+        child.on('close', (code) => {
+          if (code === 0) {
+            resolve()
+          } else {
+            reject(new Error(stderr || `sync failed with code ${code}`))
+          }
+        })
         child.on('error', reject)
       })
-      console.log('[Bootstrap] Dependências sincronizadas com sucesso.')
+      logger.info('[Bootstrap] Dependências sincronizadas com sucesso.')
       setSyncLock(true)
     } catch (err: any) {
-      console.error('[Bootstrap] Erro ao sincronizar dependências:', err.message || err)
+      logger.error('[Bootstrap] Erro ao sincronizar dependências:', err.message || err)
       setSyncLock(false)
+      const error: BootstrapError = {
+        type: 'sync_failed',
+        message: 'Failed to install Python dependencies',
+        details: err.message || String(err)
+      }
+      return error
     }
   } else {
-    console.log('[Bootstrap] Sincronização ignorada (verificado recentemente).')
+    logger.info('[Bootstrap] Sincronização ignorada (verificado recentemente).')
   }
 
   return { pythonExe, corePath, uvExe, venvPath }
@@ -158,13 +272,21 @@ function buildEnv(venvPath: string, dataDir: string, uvExe: string) {
 
 export async function startPythonBackend(): Promise<void> {
   try {
-    const { pythonExe, corePath, venvPath } = await bootstrapPython()
+    const result = await bootstrapPython()
+    
+    if ('type' in result) {
+      sendErrorToRenderer(result)
+      return
+    }
+    
+    const { pythonExe, corePath, venvPath } = result
     const dataDir = join(userDataPath, 'data')
     if (!existsSync(dataDir)) {
       mkdirSync(dataDir, { recursive: true })
     }
 
-    console.log(`[Electron] Iniciando backend Python em: ${corePath}`)
+    logger.info(`[Electron] Iniciando backend Python em: ${corePath}`)
+    logger.info(`[Electron] Python executable: ${pythonExe}`)
 
     const env = buildEnv(venvPath, dataDir, '')
 
@@ -180,7 +302,7 @@ export async function startPythonBackend(): Promise<void> {
 
     pythonProcess.stdout?.setEncoding('utf8')
     pythonProcess.stdout?.on('data', (data) => {
-      process.stdout.write(`[Python]: ${data}`)
+      logger.info(`[Python] ${data.trim()}`)
     })
 
     pythonProcess.stderr?.setEncoding('utf8')
@@ -196,44 +318,62 @@ export async function startPythonBackend(): Promise<void> {
           lower.includes('warning') ||
           lower.includes("couldn't access the hub")
         ) {
-          process.stdout.write(`[Python]: ${line}\n`)
+          logger.info(`[Python] ${line}`)
         } else {
-          process.stderr.write(`[Python Error]: ${line}\n`)
+          logger.error(`[Python] ${line}`)
         }
       }
     })
 
     pythonProcess.on('close', (code) => {
-      console.log(`[Python] Processo encerrado com código ${code}`)
+      logger.info(`[Python] Processo encerrado com código ${code}`)
       setPythonProcess(null)
       if (!state.isQuitting && code !== 0) {
-        console.warn('[Python] Processo morreu de forma inesperada. Limpando llama-serve...')
+        logger.warn('[Python] Processo morreu de forma inesperada. Limpando llama-server...')
         killAllLlamaServers()
+        const error: BootstrapError = {
+          type: 'startup_failed',
+          message: `Python backend crashed with code ${code}`,
+          details: 'Check logs for more details'
+        }
+        sendErrorToRenderer(error)
       }
     })
 
     pythonProcess.on('error', (err) => {
-      console.error('[Python] Erro no processo:', err)
+      logger.error('[Python] Erro no processo:', err)
       setPythonProcess(null)
+      const error: BootstrapError = {
+        type: 'startup_failed',
+        message: 'Failed to start Python backend',
+        details: err.message
+      }
+      sendErrorToRenderer(error)
     })
-  } catch (err) {
-    console.error('[Electron] Falha ao iniciar backend:', err)
+  } catch (err: any) {
+    logger.error('[Electron] Falha ao iniciar backend:', err)
+    const error: BootstrapError = {
+      type: 'unknown',
+      message: 'Unexpected error during startup',
+      details: err.message || String(err)
+    }
+    sendErrorToRenderer(error)
   }
 }
 
 async function killPythonBackend(): Promise<void> {
   if (!state.pythonProcess || !state.pythonProcess.pid) {
-    console.log('[Electron] Python process não está rodando.')
+    logger.info('[Electron] Python process não está rodando.')
     return
   }
 
   const pid = state.pythonProcess.pid
-  console.log(`[Electron] Encerrando Python (PID ${pid})...`)
+  logger.info(`[Electron] Encerrando Python (PID ${pid})...`)
 
   try {
     state.pythonProcess.kill('SIGTERM')
     if (await waitForPythonExit(2000)) {
-      console.log('[Electron] Python encerrado graciosamente.')
+      logger.info('[Electron] Python encerrado graciosamente.')
       return
     }
 
@@ -248,11 +388,11 @@ async function killPythonBackend(): Promise<void> {
     }
 
     if (await waitForPythonExit(1000)) {
-      console.log('[Electron] Python encerrado.')
+      logger.info('[Electron] Python encerrado.')
       return
     }
   } catch (err) {
-    console.error('[Electron] Erro durante shutdown de Python:', err)
+    logger.error('[Electron] Erro durante shutdown de Python:', err)
   } finally {
     setPythonProcess(null)
   }

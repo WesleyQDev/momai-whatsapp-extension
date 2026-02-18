@@ -1,8 +1,9 @@
-import { app, globalShortcut, BrowserWindow, ipcMain } from 'electron'
+import { app, globalShortcut, BrowserWindow, ipcMain, shell } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { state, setIsQuitting } from './state'
 import { registerIpcHandlers, createWindow, showOrCreateWindow } from './windowManager'
 import { startPythonBackend, shutdownPython } from './pythonManager'
+import { logger, getLogsPath } from './logger'
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 
@@ -14,6 +15,24 @@ if (!gotSingleInstanceLock) {
   })
 }
 
+process.on('uncaughtException', (error) => {
+  logger.error('[Electron] Uncaught Exception:', error)
+})
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('[Electron] Unhandled Rejection:', reason)
+})
+
+ipcMain.handle('get-logs-path', () => getLogsPath())
+ipcMain.handle('open-logs-folder', () => shell.openPath(getLogsPath()))
+
+ipcMain.on('report-bootstrap-error', (_, error: string) => {
+  logger.error('[Bootstrap] Error reported from renderer:', error)
+  if (state.mainWindow && !state.mainWindow.isDestroyed()) {
+    state.mainWindow.webContents.send('bootstrap-failed', error)
+  }
+})
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.wesleyqdev.momai')
 
@@ -21,7 +40,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('ping', () => logger.info('pong'))
   registerIpcHandlers()
 
   createWindow()
@@ -55,12 +74,12 @@ app.on('will-quit', async (event) => {
   setIsQuitting(true)
   event.preventDefault()
 
-  console.log('[Electron] will-quit event triggered. Iniciando shutdown...')
+  logger.info('[Electron] will-quit event triggered. Iniciando shutdown...')
   globalShortcut.unregisterAll()
 
   await shutdownPython()
 
-  console.log('[Electron] Shutdown completo.')
+  logger.info('[Electron] Shutdown completo.')
   app.quit()
 })
 

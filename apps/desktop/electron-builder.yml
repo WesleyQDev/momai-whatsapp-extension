@@ -47,6 +47,8 @@ extraResources:
       - '!**/models/*'
   - from: 'bin'
     to: 'bin'
+  - from: 'build/diagnostic.bat'
+    to: 'diagnostic.bat'
 npmRebuild: false
 publish:
   provider: generic

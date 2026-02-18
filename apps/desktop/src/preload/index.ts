@@ -1,16 +1,19 @@
 import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Custom APIs for renderer
 const api = {
   minimize: (): void => electronAPI.ipcRenderer.send('window-minimize'),
   maximize: (): void => electronAPI.ipcRenderer.send('window-maximize'),
-  close: (): void => electronAPI.ipcRenderer.send('window-close')
+  close: (): void => electronAPI.ipcRenderer.send('window-close'),
+  getLogsPath: (): Promise<string> => electronAPI.ipcRenderer.invoke('get-logs-path'),
+  openLogsFolder: (): Promise<void> => electronAPI.ipcRenderer.invoke('open-logs-folder'),
+  onBootstrapError: (callback: (error: { type: string; message: string; details?: string }) => void) => {
+    const handler = (_: any, error: { type: string; message: string; details?: string }) => callback(error)
+    electronAPI.ipcRenderer.on('bootstrap-error', handler)
+    return () => electronAPI.ipcRenderer.removeListener('bootstrap-error', handler)
+  }
 }
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
