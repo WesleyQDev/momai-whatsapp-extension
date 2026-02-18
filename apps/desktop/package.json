@@ -14,7 +14,7 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "start": "electron-vite preview",
     "dev": "chcp 65001 > nul && electron-vite dev",
-    "prebuild": "powershell -ExecutionPolicy Bypass -File scripts/hydrate-bin.ps1",
+    "prebuild": "node -e \"const isWin = process.platform === 'win32'; const cmd = isWin ? 'powershell -ExecutionPolicy Bypass -File scripts/hydrate-bin.ps1' : 'bash scripts/hydrate-bin.sh'; require('child_process').execSync(cmd, {stdio: 'inherit'})\"",
     "build": "npm run prebuild && npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",

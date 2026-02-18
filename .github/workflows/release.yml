@@ -30,7 +30,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Windows
-        run: pnpm --filter desktop build:win
+        # run: pnpm --filter desktop build:win
+        run: |
+          cd apps/desktop
+          npm run prebuild
+          npx electron-vite build
+          npx electron-builder --win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -44,49 +49,49 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
-  build-linux:
-    name: Build Linux
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libarchive-tools
-
-      - name: Build Linux
-        run: pnpm --filter desktop build:linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-artifacts
-          path: |
-            apps/desktop/dist/*.AppImage
-            apps/desktop/dist/*.deb
-            apps/desktop/dist/*.yml
-          if-no-files-found: warn
-          retention-days: 5
+#   build-linux:
+#     name: Build Linux
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+# 
+#       - name: Setup pnpm
+#         uses: pnpm/action-setup@v4
+# 
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'pnpm'
+# 
+#       - name: Install dependencies
+#         run: pnpm install --frozen-lockfile
+# 
+#       - name: Install system dependencies
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y libarchive-tools
+# 
+#       - name: Build Linux
+#         run: pnpm --filter desktop build:linux
+#         env:
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# 
+#       - name: Upload Linux artifacts
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: linux-artifacts
+#           path: |
+#             apps/desktop/dist/*.AppImage
+#             apps/desktop/dist/*.deb
+#             apps/desktop/dist/*.yml
+#           if-no-files-found: warn
+#           retention-days: 5
 
   release:
     name: Create GitHub Release
-    needs: [build-win, build-linux]
+    needs: [build-win]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -102,11 +107,11 @@ jobs:
           name: win-artifacts
           path: dist/win
 
-      - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-artifacts
-          path: dist/linux
+#      - name: Download Linux artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: linux-artifacts
+#          path: dist/linux
 
       - name: Get version from tag
         id: version
@@ -149,7 +154,7 @@ jobs:
 
           # Coleta todos os arquivos para upload
           FILES=""
-          for f in dist/win/*.exe dist/win/latest.yml dist/linux/*.AppImage dist/linux/*.deb dist/linux/latest-linux.yml; do
+          for f in dist/win/*.exe dist/win/latest.yml; do
             [ -f "$f" ] && FILES="$FILES $f"
           done
 
