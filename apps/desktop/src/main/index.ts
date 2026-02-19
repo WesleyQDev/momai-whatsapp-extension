@@ -5,6 +5,7 @@ import { registerIpcHandlers, createWindow, toggleWindow } from './windowManager
 import { startPythonBackend, shutdownPython } from './pythonManager'
 import { logger, getLogsPath } from './logger'
 
+app.name = 'MomAI'
 logger.info(`[Electron] Starting MomAI... ${app.getVersion()}`)
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()

@@ -88,14 +88,15 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
     loadDynamic()
   }, [isBrainReady])
 
-  const userName = settings?.user_name || 'Senhor'
+  const userName = settings?.user_name || ''
+  const showSeparator = userName && userName !== ''
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 select-none">
       {/* Header */}
-      <div className="flex flex-col items-center mb-6">
-        <h2 className="text-2xl font-bold text-text tracking-tight">
-          Olá, <span className="text-accent">{userName}</span>
+      <div className="flex flex-col items-center mb-6 text-center">
+        <h2 className="text-2xl font-bold text-text tracking-tight h-8">
+          Olá{showSeparator ? ', ' : ''}<span className="text-accent">{userName}</span>
         </h2>
         <p className="text-[13px] text-text-muted/60 font-medium">Como posso te ajudar hoje?</p>
       </div>

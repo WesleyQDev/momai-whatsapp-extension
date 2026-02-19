@@ -57,7 +57,10 @@ __pycache__/
 .Python
 # build/ <- Allowing build folders for Electron
 !apps/desktop/build/
-!apps/desktop/bin/
+
+# Hydrated binaries (downloaded at build time, not tracked)
+apps/desktop/bin/python/
+apps/desktop/bin/vc_redist*
 develop-eggs/
 dist/
 downloads/

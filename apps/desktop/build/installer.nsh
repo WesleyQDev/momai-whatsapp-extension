@@ -150,7 +150,24 @@ FunctionEnd
 
 !macro customInstall
   ${If} $MomAIClearData == ${BST_CHECKED}
-    RMDir /r "$APPDATA\${PRODUCT_NAME}\data"
+    DetailPrint "Limpando dados locais e liberando arquivos..."
+    
+    # Try to kill processes that might be locking the database files
+    # We use cmd /c to run taskkill silently (errors ignored if process not running)
+    # Check for both MomAI.exe and desktop.exe just in case
+    ExecWait 'cmd.exe /C "taskkill /F /IM ${PRODUCT_NAME}.exe /T >nul 2>&1 & taskkill /F /IM llama-server.exe /T >nul 2>&1 & taskkill /F /IM desktop.exe /T >nul 2>&1"' $1
+    Sleep 1000
+    
+    # Delete the current folder
+    RMDir /r "$APPDATA\${PRODUCT_NAME}"
+    
+    # Also delete the old "desktop" folder if it exists (legacy name from package.json)
+    RMDir /r "$APPDATA\desktop"
+    
+    # Recreate the directory so the installation can proceed normally
+    CreateDirectory "$APPDATA\${PRODUCT_NAME}"
+    
+    DetailPrint "Limpeza de dados concluida."
   ${EndIf}
 
   # --- VC Redist Check and Install ---
@@ -183,9 +200,9 @@ FunctionEnd
     DetailPrint "Visual C++ Redistributable nao encontrado. Instalando..."
     
     # Check if VC++ installer file exists
-    IfFileExists "${BUILD_RESOURCES_DIR}\..\..\bin\vc_redist.x64.exe" 0 vc_redist_skip
+    IfFileExists "${BUILD_RESOURCES_DIR}\..\bin\vc_redist.x64.exe" 0 vc_redist_skip
       
-      File "/oname=$PLUGINSDIR\vc_redist.x64.exe" "${BUILD_RESOURCES_DIR}\..\..\bin\vc_redist.x64.exe"
+      File "/oname=$PLUGINSDIR\vc_redist.x64.exe" "${BUILD_RESOURCES_DIR}\..\bin\vc_redist.x64.exe"
       
       # Run silently: /install /quiet /norestart
       ExecWait '"$PLUGINSDIR\vc_redist.x64.exe" /install /quiet /norestart' $1
