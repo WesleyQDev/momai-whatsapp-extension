@@ -50,7 +50,7 @@ importers:
         specifier: ^5.4.3
         version: 5.4.3
       electron-updater:
-        specifier: ^6.8.3
+        specifier: 6.8.3
         version: 6.8.3
       react-markdown:
         specifier: ^10.1.0
