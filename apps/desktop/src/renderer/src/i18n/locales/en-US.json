@@ -31,7 +31,7 @@
   "common.on": "On",
   "common.off": "Off",
   "common.today": "Today",
-  "chatInput.placeholder": "Send a message to MomAI...",
+  "chatInput.placeholder": "Type a message or say 'Luna' to speak...",
   "chatInput.voz": "Voice",
   "chatInput.opcoesVoz": "Voice Options",
   "chatInput.reconhecimento": "Recognition",

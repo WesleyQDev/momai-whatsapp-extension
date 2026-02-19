@@ -15,7 +15,7 @@ import TutorialTour from './components/floating/TutorialTour'
 import logo from './assets/icon.png'
 
 import MainViewRenderer from './components/MainViewRenderer'
-import { fetchExtensions, fetchSettings } from './services/api'
+import { fetchExtensions, fetchSettings, SettingsData } from './services/api'
 import { useI18n } from './i18n'
 
 function App(): React.JSX.Element {
@@ -34,6 +34,7 @@ function App(): React.JSX.Element {
   const [isCompact, setIsCompact] = useState(window.innerWidth < 850)
   const [extensions, setExtensions] = useState<any[]>([])
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [settings, setSettings] = useState<SettingsData | null>(null)
 
   // Overlay Helper
   useEffect(() => {
@@ -85,14 +86,15 @@ function App(): React.JSX.Element {
 
     const syncLocale = async () => {
       try {
-        const settings = await fetchSettings()
-        if (settings.locale) {
-          setLocale(settings.locale as any)
+        const data = await fetchSettings()
+        setSettings(data)
+        if (data.locale) {
+          setLocale(data.locale as any)
         }
         
-        if (!settings.onboarding_completed) {
+        if (!data.onboarding_completed) {
           setShowOnboarding(true)
-        }/* else if (!settings.tutorial_completed) {
+        }/* else if (!data.tutorial_completed) {
           setShowTutorial(true)
         }*/
         setSettingsLoaded(true)
@@ -103,6 +105,17 @@ function App(): React.JSX.Element {
 
     syncLocale()
   }, [isOnline, settingsLoaded, setLocale])
+
+  // Sincroniza configurações via evento global
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (e.detail) {
+        setSettings(e.detail)
+      }
+    }
+    window.addEventListener('momai_settings_sync', handleSync)
+    return () => window.removeEventListener('momai_settings_sync', handleSync)
+  }, [])
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('momai_theme') || 'dark'
@@ -247,12 +260,53 @@ function App(): React.JSX.Element {
                         className="w-20 h-20 object-contain relative z-10 drop-shadow-2xl"
                       />
                     </div>
-                    <span className="text-text/20 text-xs font-medium tracking-[0.3em] uppercase mt-2">
-                      Personal Assistant
-                    </span>
-                    <span className="text-accent/30 text-[9px] font-black uppercase tracking-[0.1em] mt-0.5">
-                      Wake Word: LUNA
-                    </span>
+
+                    {settings?.wake_word_enabled && (
+                      <div className="relative flex flex-col items-center mt-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        {/* Pontinhos brilhantes flutuantes */}
+                        <div className="absolute -inset-6 pointer-events-none">
+                          <div
+                            className="absolute top-1/2 left-0 w-1 h-1 rounded-full bg-accent/60 animate-pulse"
+                            style={{ animationDuration: '1.5s' }}
+                          />
+                          <div
+                            className="absolute top-1/2 right-0 w-1 h-1 rounded-full bg-accent/60 animate-pulse"
+                            style={{ animationDuration: '1.5s', animationDelay: '0.3s' }}
+                          />
+                          <div
+                            className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-accent/40 animate-ping"
+                            style={{ animationDuration: '2s' }}
+                          />
+                          <div
+                            className="absolute bottom-0 left-1/2 w-1 h-1 rounded-full bg-accent/50 animate-pulse"
+                            style={{ animationDuration: '1.8s', animationDelay: '0.5s' }}
+                          />
+                          <div
+                            className="absolute top-1/4 left-1/4 w-0.5 h-0.5 rounded-full bg-accent/70 animate-ping"
+                            style={{ animationDuration: '2.5s' }}
+                          />
+                          <div
+                            className="absolute top-3/4 right-1/4 w-0.5 h-0.5 rounded-full bg-accent/70 animate-ping"
+                            style={{ animationDuration: '2.5s', animationDelay: '1s' }}
+                          />
+                        </div>
+
+                        {/* Texto com brilho suave e efeito de profundidade */}
+                        <div className="relative mt-2">
+                          <div
+                            className="absolute -inset-3 bg-accent/20 blur-2xl animate-pulse"
+                            style={{ animationDuration: '3s' }}
+                          />
+                          <span className="relative text-sm font-medium text-text-muted/80 whitespace-nowrap">
+                            Tente dizer{' '}
+                            <span className="text-accent font-bold text-lg drop-shadow-[0_0_12px_rgba(var(--accent-rgb),0.6)]">
+                              &quot;Luna&quot;
+                            </span>
+                            ..
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex-1 rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative flex flex-col">

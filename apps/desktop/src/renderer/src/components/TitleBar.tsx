@@ -28,7 +28,7 @@ export default function TitleBar({}: TitleBarProps) {
     >
       <div className="px-3 text-xs text-text-muted font-bold tracking-tight flex items-center gap-2">
         <img src={icon} alt="Icon" className="w-4 h-4" />
-        MomAI v0.1-alpha
+        MomAI
       </div>
 
       <div

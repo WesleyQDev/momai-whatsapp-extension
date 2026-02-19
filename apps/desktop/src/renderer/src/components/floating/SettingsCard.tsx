@@ -170,7 +170,9 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
 
   const saveSettings = async (newSettings: typeof settings) => {
     try {
-      return await api.patch('/settings', newSettings)
+      const res = await api.patch('/settings', newSettings)
+      window.dispatchEvent(new CustomEvent('momai_settings_sync', { detail: newSettings }))
+      return res
     } catch (error) {
       console.error('Erro ao salvar:', error)
       throw error

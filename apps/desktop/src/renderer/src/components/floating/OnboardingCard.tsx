@@ -60,12 +60,14 @@ export default function OnboardingCard({ onFinish }: OnboardingCardProps) {
     if (!name.trim()) return
     setIsSaving(true)
     try {
-      await api.patch('/settings', {
+      const payload = {
         user_name: name,
         tts_voice: selectedVoice,
         onboarding_completed: true,
         locale: selectedLang === 'p' ? 'pt-BR' : 'en-US'
-      })
+      }
+      await api.patch('/settings', payload)
+      window.dispatchEvent(new CustomEvent('momai_settings_sync', { detail: payload }))
       onFinish()
     } catch (error) {
       console.error('Erro ao salvar onboarding:', error)

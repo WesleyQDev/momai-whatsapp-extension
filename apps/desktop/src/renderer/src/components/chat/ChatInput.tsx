@@ -266,7 +266,7 @@ export default function ChatInput({
             </div>
 
             <div className="flex items-center gap-1">
-              {/* Botão de Microfone - Transcrição rápida (à esquerda do call mode) */}
+              {/* Botão de Microfone - Transcrição rápida */}
               {!isLoading && !localText.trim() && (
                 <button
                   type="button"
