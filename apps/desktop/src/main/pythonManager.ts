@@ -2,13 +2,14 @@ import { app } from 'electron'
 import { spawn, execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { createConnection } from 'net'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, unlinkSync } from 'fs'
 import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow, BootstrapError, BootstrapErrorType } from './state'
 import { is } from '@electron-toolkit/utils'
 import { logger } from './logger'
 
 const userDataPath = app.getPath('userData')
 const SYNC_LOCK_FILE = join(userDataPath, '.sync.lock')
+const INIT_PROGRESS_REGEX = /\[Init (\d+)%\]\s+[^:]+:\s+(.+)/
 
 interface BootstrapResult {
   pythonExe: string
@@ -51,12 +52,31 @@ function waitForPort(port: number, host: string, timeout = 60000): Promise<void>
         reject(new Error(`Timeout waiting for port ${port}`))
         return
       }
+      
+      // Stop waiting if the process died
+      if (!isPythonRunning()) {
+        reject(new Error('Python process exited while waiting for port'))
+        return
+      }
+
       const sock = createConnection(port, host)
+      sock.setTimeout(500) // Don't hang on connection attempt
+
+      const cleanup = () => {
+        sock.removeAllListeners()
+        sock.destroy()
+      }
+      
       sock.on('connect', () => {
-        sock.end()
+        cleanup()
         resolve()
       })
       sock.on('error', () => {
+        cleanup()
+        setTimeout(check, 1000)
+      })
+      sock.on('timeout', () => {
+        cleanup()
         setTimeout(check, 1000)
       })
     }
@@ -79,9 +99,9 @@ function getSyncLock(corePath: string): SyncResult | null {
       }
     }
 
-    // Backup: 24h limit if we can't check file stats properly
-    const oneDay = 24 * 60 * 60 * 1000
-    if (Date.now() - data.lastChecked < oneDay) {
+    // Backup: 7 day limit if we can't check file stats properly
+    const oneWeek = 7 * 24 * 60 * 60 * 1000
+    if (Date.now() - data.lastChecked < oneWeek) {
       return { success: true, needsSync: false, lastChecked: data.lastChecked }
     }
     return null
@@ -98,8 +118,15 @@ function setSyncLock(success: boolean): void {
 
 function killAllLlamaServers(): void {
   try {
-    execSync('taskkill /f /im llama-server.exe', { stdio: 'ignore' })
-  } catch {}
+    if (process.platform === 'win32') {
+      execSync('taskkill /f /im llama-server.exe', { stdio: 'ignore' })
+    } else {
+      // macOS/Linux: -f matches full process name, default signal is SIGTERM (safer)
+      execSync('pkill -f llama-server', { stdio: 'ignore' })
+    }
+  } catch {
+    // Silently ignore errors if process doesn't exist
+  }
 }
 
 function delay(ms: number): Promise<void> {
@@ -118,14 +145,13 @@ async function waitForPythonExit(timeoutMs: number): Promise<boolean> {
     }
     await delay(100)
   }
-  return !state.pythonProcess || state.pythonProcess.killed || state.pythonProcess.exitCode === null
+  return false
 }
 
 function checkWritePermission(dir: string): boolean {
   try {
     const testFile = join(dir, '.write_test')
     writeFileSync(testFile, 'test')
-    const { unlinkSync } = require('fs')
     unlinkSync(testFile)
     return true
   } catch {
@@ -187,17 +213,7 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     logger.info('[Bootstrap] Ambiente não encontrado. Iniciando setup com uv...')
     sendInitProgress('Criando ambiente isolado...', 5)
 
-    
     if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
-
-    if (!isUvCommand && !existsSync(uvExe)) {
-      const error: BootstrapError = {
-        type: 'uv_not_found',
-        message: 'uv executable not found',
-        details: `Expected at: ${uvExe}`
-      }
-      return error
-    }
 
     try {
       logger.info(`[Bootstrap] Running: ${uvExe} venv ${venvPath} --python 3.12 --seed`)
@@ -273,6 +289,7 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
           } else {
             logger.error(`[Bootstrap] uv pip failed with code ${code}`)
             logger.error(`[Bootstrap] stderr: ${stderr}`)
+            logger.error(`[Bootstrap] stdout: ${stdout}`)
             reject(new Error(stderr || `sync failed with code ${code}`))
           }
         })
@@ -319,6 +336,8 @@ function buildEnv(venvPath: string, dataDir: string, uvExe: string) {
   }
 }
 
+let restartAttempts = 0
+
 export async function startPythonBackend(): Promise<void> {
   try {
     const result = await bootstrapPython()
@@ -337,7 +356,8 @@ export async function startPythonBackend(): Promise<void> {
     logger.info(`[Electron] Iniciando backend Python em: ${corePath}`)
     logger.info(`[Electron] Python executable: ${pythonExe}`)
 
-    const env = buildEnv(venvPath, dataDir, '')
+    const { uvExe } = result
+    const env = buildEnv(venvPath, dataDir, uvExe)
     let stderrBuffer = ''
 
     setPythonStartTime(Date.now())
@@ -355,7 +375,7 @@ export async function startPythonBackend(): Promise<void> {
       logger.info(`[Python] ${line}`)
 
       // Parse init progress from Python stdout: [Init 10%] api: message
-      const initMatch = line.match(/\[Init (\d+)%\]\s+[^:]+:\s+(.+)/)
+      const initMatch = line.match(INIT_PROGRESS_REGEX)
       if (initMatch) {
         const progress = parseInt(initMatch[1], 10)
         const message = initMatch[2]
@@ -370,6 +390,10 @@ export async function startPythonBackend(): Promise<void> {
     waitForPort(port, host, 60000)
       .then(() => {
         logger.info(`[Electron] Backend HTTP server is online on ${host}:${port}`)
+        
+        // Backend considered "stable" enough to reset retry counter after it's online
+        restartAttempts = 0
+        
         const window = getMainWindow()
         if (window && !window.isDestroyed()) {
           window.webContents.send('backend-online')
@@ -382,19 +406,28 @@ export async function startPythonBackend(): Promise<void> {
 
     pythonProcess.stderr?.setEncoding('utf8')
     pythonProcess.stderr?.on('data', (data: string) => {
-      stderrBuffer += data
+      // Limita o buffer para evitar estouro de memória (mantém os últimos 100kb de erros)
+      stderrBuffer = (stderrBuffer + data).slice(-100000)
       const lines = data
         .split(/\r?\n/)
         .map((l) => l.trim())
         .filter((l) => l.length > 0)
       for (const line of lines) {
         const lower = line.toLowerCase()
-        if (
-          lower.startsWith('info:') ||
-          lower.includes('warning') ||
+        // Improved log classification
+        const isInfo = 
+          lower.startsWith('info:') || 
+          lower.startsWith('successfully') ||
+          lower.includes('using loop:') ||
+          lower.includes('awaiting initialization') ||
           lower.includes("couldn't access the hub")
-        ) {
+          
+        const isWarning = lower.includes('warning')
+        
+        if (isInfo) {
           logger.info(`[Python] ${line}`)
+        } else if (isWarning) {
+          logger.warn(`[Python] ${line}`)
         } else {
           logger.error(`[Python] ${line}`)
         }
@@ -402,9 +435,20 @@ export async function startPythonBackend(): Promise<void> {
     })
 
     pythonProcess.on('close', (code) => {
-      logger.info(`[Python] Processo encerrado com código ${code}`)
+      const runDuration = Date.now() - (state.pythonStartTime || 0)
+      logger.info(`[Python] Processo encerrado com código ${code} (Duração: ${runDuration}ms)`)
       setPythonProcess(null)
+
       if (!state.isQuitting && code !== 0) {
+        // Auto-retry once if it crashed during the initial setup/boot phase
+        // If it got past the port check (online), restartAttempts would be 0
+        if (restartAttempts < 1) {
+          restartAttempts++
+          logger.warn(`[Python] Crash detectado durante boot (Código: ${code}). Tentando reiniciar (Tentativa ${restartAttempts})...`)
+          setTimeout(() => startPythonBackend(), 2000)
+          return
+        }
+
         logger.warn('[Python] Processo morreu de forma inesperada. Limpando llama-server...')
         killAllLlamaServers()
 
@@ -423,6 +467,9 @@ export async function startPythonBackend(): Promise<void> {
           message: errorMessage,
           details: errorDetails
         }
+        
+        // Reset counter before sending error so manual retries from UI can work
+        restartAttempts = 0
         sendErrorToRenderer(error)
       }
     })
