@@ -13,9 +13,9 @@ asarUnpack:
   - resources/**
 win:
   executableName: MomAI
-  artifactName: MomAI Installer.${ext}
+  artifactName: MomAI-Installer.${ext}
 nsis:
-  artifactName: MomAI Installer.${ext}
+  artifactName: MomAI-Installer.${ext}
   shortcutName: MomAI
   uninstallDisplayName: MomAI
   createDesktopShortcut: always

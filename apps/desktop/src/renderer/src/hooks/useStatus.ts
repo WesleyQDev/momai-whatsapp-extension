@@ -140,7 +140,7 @@ export function useStatus() {
       clearInterval(statusInterval)
       if (initInterval) clearInterval(initInterval)
     }
-  }, [checkStatus, checkInitProgress, isBooting, initProgress])
+  }, [checkStatus, checkInitProgress, isBooting, initProgress, backendOnline])
 
   return {
     statusInfo,
