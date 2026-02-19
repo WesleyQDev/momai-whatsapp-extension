@@ -24,6 +24,29 @@ const api = {
     const handler = () => callback()
     electronAPI.ipcRenderer.on('backend-online', handler)
     return () => electronAPI.ipcRenderer.removeListener('backend-online', handler)
+  },
+  checkForUpdates: (): Promise<any> => electronAPI.ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: (): Promise<any> => electronAPI.ipcRenderer.invoke('download-update'),
+  quitAndInstallUpdate: (): Promise<void> => electronAPI.ipcRenderer.invoke('quit-and-install-update'),
+  onUpdateAvailable: (callback: (info: any) => void) => {
+    const handler = (_: any, info: any) => callback(info)
+    electronAPI.ipcRenderer.on('update-available', handler)
+    return () => electronAPI.ipcRenderer.removeListener('update-available', handler)
+  },
+  onUpdateProgress: (callback: (progress: any) => void) => {
+    const handler = (_: any, progress: any) => callback(progress)
+    electronAPI.ipcRenderer.on('update-progress', handler)
+    return () => electronAPI.ipcRenderer.removeListener('update-progress', handler)
+  },
+  onUpdateDownloaded: (callback: (info: any) => void) => {
+    const handler = (_: any, info: any) => callback(info)
+    electronAPI.ipcRenderer.on('update-downloaded', handler)
+    return () => electronAPI.ipcRenderer.removeListener('update-downloaded', handler)
+  },
+  onUpdateError: (callback: (error: string) => void) => {
+    const handler = (_: any, error: string) => callback(error)
+    electronAPI.ipcRenderer.on('update-error', handler)
+    return () => electronAPI.ipcRenderer.removeListener('update-error', handler)
   }
 }
 

@@ -13,9 +13,9 @@ asarUnpack:
   - resources/**
 win:
   executableName: MomAI
-  artifactName: MomAI-Installer.${ext}
+  artifactName: MomAI Installer.${ext}
 nsis:
-  artifactName: MomAI-Installer.${ext}
+  artifactName: MomAI Installer.${ext}
   shortcutName: MomAI
   uninstallDisplayName: MomAI
   createDesktopShortcut: always
@@ -38,7 +38,7 @@ linux:
   target:
     - AppImage
     - deb
-  maintainer: electronjs.org
+  maintainer: WesleyQDev
   category: Utility
 appImage:
   artifactName: MomAI-${version}.${ext}
@@ -55,5 +55,6 @@ extraResources:
     to: 'diagnostic.bat'
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: WesleyQDev
+  repo: MomAI-App

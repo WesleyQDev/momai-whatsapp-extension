@@ -12,6 +12,15 @@ declare global {
       onBootstrapError: (
         callback: (error: { type: string; message: string; details?: string }) => void
       ) => () => void
+      onInitProgress: (callback: (data: { message: string; progress: number }) => void) => () => void
+      onBackendOnline: (callback: () => void) => () => void
+      checkForUpdates: () => Promise<any>
+      downloadUpdate: () => Promise<any>
+      quitAndInstallUpdate: () => Promise<void>
+      onUpdateAvailable: (callback: (info: any) => void) => () => void
+      onUpdateProgress: (callback: (progress: any) => void) => () => void
+      onUpdateDownloaded: (callback: (info: any) => void) => () => void
+      onUpdateError: (callback: (error: string) => void) => () => void
     }
   }
 }

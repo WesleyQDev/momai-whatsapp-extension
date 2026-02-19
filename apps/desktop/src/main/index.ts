@@ -4,6 +4,7 @@ import { state, setIsQuitting } from './state'
 import { registerIpcHandlers, createWindow, toggleWindow } from './windowManager'
 import { startPythonBackend, shutdownPython } from './pythonManager'
 import { logger, getLogsPath } from './logger'
+import { setupUpdater } from './updater'
 
 app.name = 'MomAI'
 logger.info(`[Electron] Starting MomAI... ${app.getVersion()}`)
@@ -46,6 +47,7 @@ app.whenReady().then(() => {
   })
 
   registerIpcHandlers()
+  setupUpdater()
 
   createWindow()
   startPythonBackend()

@@ -12,6 +12,7 @@ import RemindersSidebar from './components/chat/RemindersSidebar'
 import ConfirmationCard from './components/floating/ConfirmationCard'
 import OnboardingCard from './components/floating/OnboardingCard'
 import TutorialTour from './components/floating/TutorialTour'
+import AutoUpdateCard from './components/floating/AutoUpdateCard'
 import logo from './assets/icon.png'
 
 import MainViewRenderer from './components/MainViewRenderer'
@@ -369,6 +370,7 @@ function App(): React.JSX.Element {
       />
 
       {/* Update Notification */}
+      <AutoUpdateCard />
       {hasUpdate && !showSettings && (
         <UpdateToast
           installedVersion={statusInfo?.setup.installed_version}
