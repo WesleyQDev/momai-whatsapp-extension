@@ -594,14 +594,13 @@ export default function NotesView() {
         className="hidden"
         onChange={(e) => handleImport(e.target.files)}
       />
-      {/* @ts-ignore */}
       <input
         ref={folderInputRef}
         type="file"
-        webkitdirectory=""
         multiple
         className="hidden"
         onChange={(e) => handleImport(e.target.files)}
+        {...({ webkitdirectory: '' } as any)}
       />
 
       {deleteConfirmId && (
