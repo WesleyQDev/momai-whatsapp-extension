@@ -129,6 +129,6 @@ jobs:
             --repo "$REPO" \
             --title "MomAI $VERSION" \
             --latest \
-            $FILES
+            dist/win/*
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
