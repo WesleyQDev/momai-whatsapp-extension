@@ -41,6 +41,7 @@ jobs:
           path: |
             apps/desktop/dist/*.exe
             apps/desktop/dist/*.yml
+            apps/desktop/dist/*.blockmap
           if-no-files-found: error
           retention-days: 5
 
@@ -113,7 +114,7 @@ jobs:
           REPO="WesleyQDev/MomAI-App"
 
           # Coleta arquivos de forma mais robusta
-          FILES=$(find dist/win -type f \( -name "*.exe" -o -name "latest.yml" \) | tr '\n' ' ')
+          FILES=$(find dist/win -type f -print | tr '\n' ' ')
 
           if [ -z "$FILES" ]; then
             echo "❌ Nenhum arquivo encontrado em dist/win!"
