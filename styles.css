@@ -5,7 +5,9 @@
     --text: #ffffff;
     --text-secondary: #a8a8a8;
     --text-tertiary: #666666;
+    --text-muted: #a8a8a8;
     --accent: #8ab4f8;
+    --accent-rgb: 138, 180, 248;
     --accent-hover: #aecbfa;
     --accent-glow: rgba(138, 180, 248, 0.15);
     --gradient-primary: linear-gradient(135deg, #8ab4f8 0%, #c58af9 50%, #f981d3 100%);
@@ -22,7 +24,9 @@
     --text: #1a1a1a;
     --text-secondary: #5f6368;
     --text-tertiary: #9aa0a6;
+    --text-muted: #5f6368;
     --accent: #1a73e8;
+    --accent-rgb: 26, 115, 232;
     --accent-hover: #1557b0;
     --accent-glow: rgba(26, 115, 232, 0.1);
     --gradient-primary: linear-gradient(135deg, #1a73e8 0%, #9333ea 50%, #db2777 100%);
@@ -686,6 +690,95 @@ p.subtitle {
     font-size: 0.875rem;
     color: var(--text-secondary);
     line-height: 1.65;
+}
+
+/* ---- Luna Feature Card ---- */
+.feature-luna {
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.08) 0%, var(--bg-tertiary) 100%);
+    border-color: rgba(var(--accent-rgb), 0.25);
+}
+
+.feature-luna::before {
+    opacity: 0.5;
+}
+
+.feature-luna:hover {
+    border-color: rgba(var(--accent-rgb), 0.4);
+    box-shadow: 0 20px 40px rgba(var(--accent-rgb), 0.1);
+}
+
+.luna-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(var(--accent-rgb), 0.2) 0%, transparent 70%);
+    filter: blur(40px);
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+}
+
+.feature-luna:hover .luna-glow {
+    opacity: 1;
+    animation: lunaPulse 3s ease-in-out infinite;
+}
+
+@keyframes lunaPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
+    50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.5; }
+}
+
+.luna-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+}
+
+.feature-luna:hover .luna-particles {
+    opacity: 1;
+}
+
+.luna-particles span {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: rgba(var(--accent-rgb), 0.6);
+    border-radius: 50%;
+    animation: lunaFloat 4s ease-in-out infinite;
+}
+
+.luna-particles span:nth-child(1) { top: 20%; left: 15%; animation-delay: 0s; }
+.luna-particles span:nth-child(2) { top: 60%; left: 10%; animation-delay: 0.5s; }
+.luna-particles span:nth-child(3) { top: 30%; right: 15%; animation-delay: 1s; }
+.luna-particles span:nth-child(4) { top: 70%; right: 10%; animation-delay: 1.5s; }
+.luna-particles span:nth-child(5) { bottom: 25%; left: 50%; animation-delay: 2s; }
+
+@keyframes lunaFloat {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+    50% { transform: translateY(-10px) scale(1.2); opacity: 0.7; }
+}
+
+.luna-icon {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: rgba(var(--accent-rgb), 0.3);
+    position: relative;
+    z-index: 1;
+}
+
+.luna-icon svg {
+    stroke: var(--accent);
+    filter: drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.5));
+}
+
+.luna-highlight {
+    color: var(--accent);
+    font-weight: 600;
+    text-shadow: 0 0 20px rgba(var(--accent-rgb), 0.4);
 }
 
 /* ---- How It Works ---- */
