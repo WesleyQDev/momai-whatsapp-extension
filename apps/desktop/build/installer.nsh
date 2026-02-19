@@ -7,6 +7,7 @@ Var MomAIClearData
 Var MomAICheckbox
 Var MomAIStartCheckbox
 Var MomAIStartApp
+Var MomAIIconHandle
 
 !macro customHeader
   BrandingText "MomAI Installer"
@@ -49,7 +50,7 @@ Function MomAIWelcomePage
 
   ${NSD_CreateIcon} 0 0 80u 80u ""
   Pop $0
-  ${NSD_SetIcon} $0 "$PLUGINSDIR\momai.ico"
+  ${NSD_SetIcon} $0 "$PLUGINSDIR\momai.ico" $MomAIIconHandle
 
   ${NSD_CreateLabel} 90u 6u 210u 24u "Bem-vindo ao MomAI"
   Pop $0

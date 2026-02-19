@@ -26,7 +26,7 @@ try {
 
 # 2. Download Portable Python (python-build-standalone)
 Write-Host "[MomAI] Downloading Portable Python 3.12..." -ForegroundColor Cyan
-$pyUrl = "https://github.com/astral-sh/python-build-standalone/releases/download/20250115/cpython-3.12.8+20250115-x86_64-pc-windows-msvc-shared-pgo.tar.gz"
+$pyUrl = "https://github.com/astral-sh/python-build-standalone/releases/download/20250115/cpython-3.12.8%2B20250115-x86_64-pc-windows-msvc-shared-install_only.tar.gz"
 $pyTar = Join-Path $binDir "python.tar.gz"
 
 try {
