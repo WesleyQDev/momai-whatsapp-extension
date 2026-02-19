@@ -42,22 +42,33 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
   }, [])
 
   useEffect(() => {
+    // Tenta carregar do cache para aparecer instantâneo
+    const cachedName = localStorage.getItem('momai_user_name')
+    if (cachedName && !settings) {
+      setSettings(prev => prev ? prev : { user_name: cachedName } as any)
+    }
+
     const loadSettings = async () => {
-      if (statusInfo?.status !== 'ok') return
       try {
         const data = await fetchSettings()
         setSettings(data)
+        if (data.user_name) {
+          localStorage.setItem('momai_user_name', data.user_name)
+        }
       } catch (err) {
         console.error('Erro ao carregar configurações para boas-vindas:', err)
       }
     }
     loadSettings()
-  }, [statusInfo?.status])
+  }, [statusInfo?.status]) // Mantém statusInfo como gatilho, mas roda no mount inicial tb
 
   useEffect(() => {
     const handleSync = (e: any) => {
       if (e.detail) {
         setSettings(e.detail)
+        if (e.detail.user_name) {
+          localStorage.setItem('momai_user_name', e.detail.user_name)
+        }
       }
     }
     window.addEventListener('momai_settings_sync', handleSync)
