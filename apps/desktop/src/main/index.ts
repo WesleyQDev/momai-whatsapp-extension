@@ -1,7 +1,7 @@
 import { app, globalShortcut, BrowserWindow, ipcMain, shell } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { state, setIsQuitting } from './state'
-import { registerIpcHandlers, createWindow, showOrCreateWindow, toggleWindow } from './windowManager'
+import { registerIpcHandlers, createWindow, toggleWindow } from './windowManager'
 import { startPythonBackend, shutdownPython } from './pythonManager'
 import { logger, getLogsPath } from './logger'
 
@@ -15,7 +15,7 @@ if (!gotSingleInstanceLock) {
 } else {
   app.on('second-instance', () => {
     logger.info('[Electron] Second instance requested, showing window...')
-    showOrCreateWindow()
+    createWindow()
   })
 }
 

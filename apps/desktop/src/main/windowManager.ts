@@ -1,58 +1,78 @@
-import { BrowserWindow, screen, shell, ipcMain, Menu, nativeImage, app, Tray, Notification } from 'electron'
+import {
+  BrowserWindow,
+  screen,
+  shell,
+  ipcMain,
+  Menu,
+  nativeImage,
+  app,
+  Tray,
+  Notification
+} from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { state, setMainWindow, setOverlayWindow, setTray, setIpcHandlersRegistered } from './state'
+import {
+  state,
+  setMainWindow,
+  setOverlayWindow,
+  setTray,
+  setIpcHandlersRegistered,
+  setIsQuitting
+} from './state'
 import { logger } from './logger'
+import { shutdownPython, startPythonBackend } from './pythonManager'
+
+const ICON_PATH = join(__dirname, '../../resources/icon.png')
+
+function getMainWindow(): BrowserWindow | null {
+  return state.mainWindow && !state.mainWindow.isDestroyed() ? state.mainWindow : null
+}
 
 export function registerIpcHandlers(): void {
   if (state.ipcHandlersRegistered) return
   setIpcHandlersRegistered(true)
 
   ipcMain.on('window-minimize', () => {
-    state.mainWindow?.minimize()
+    getMainWindow()?.minimize()
   })
 
   ipcMain.on('window-maximize', () => {
-    if (!state.mainWindow || state.mainWindow.isDestroyed()) return
-    if (state.mainWindow.isMaximized()) {
-      state.mainWindow.unmaximize()
+    const win = getMainWindow()
+    if (!win) return
+    if (win.isMaximized()) {
+      win.unmaximize()
     } else {
-      state.mainWindow.maximize()
+      win.maximize()
     }
   })
 
-  ipcMain.on('window-close', () => app.quit())
+  ipcMain.on('window-close', () => {
+    setIsQuitting(true)
+    app.quit()
+  })
 
   ipcMain.on('show-notification', (_, { title, body }) => {
+    if (!Notification.isSupported()) return
     new Notification({
       title,
       body,
-      icon: join(__dirname, '../../resources/icon.png')
+      icon: ICON_PATH
     }).show()
   })
 
   ipcMain.handle('get-window-state', () => {
-    if (!state.mainWindow || state.mainWindow.isDestroyed()) {
+    const win = getMainWindow()
+    if (!win) {
       return { minimized: false, visible: false }
     }
     return {
-      minimized: state.mainWindow.isMinimized(),
-      visible: state.mainWindow.isVisible()
+      minimized: win.isMinimized(),
+      visible: win.isVisible()
     }
   })
 
   ipcMain.on('open-overlay', (_, data) => {
-    if (!state.overlayWindow || state.overlayWindow.isDestroyed()) {
-      createOverlayWindow()
-    }
-
-    if (state.overlayWindow) {
-      const primaryDisplay = screen.getPrimaryDisplay()
-      const { width } = primaryDisplay.workAreaSize
-      state.overlayWindow.setPosition(width - 480, 50)
-      state.overlayWindow.showInactive()
-      state.overlayWindow.webContents.send('update-overlay-content', data)
-    }
+    createOverlayWindow(data)
   })
 
   ipcMain.on('close-overlay', () => {
@@ -62,45 +82,66 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.on('overlay-action', (_, action) => {
-    if (!state.mainWindow || state.mainWindow.isDestroyed()) return
-    state.mainWindow.webContents.send('trigger-action', action)
+    const win = getMainWindow()
+    if (!win) return
+    win.webContents.send('trigger-action', action)
   })
 
   ipcMain.on('app-ready', () => {
-    if (!state.mainWindow || state.mainWindow.isDestroyed()) return
-    state.mainWindow.setResizable(true)
-    state.mainWindow.setMinimumSize(450, 670)
-    state.mainWindow.maximize()
+    const win = getMainWindow()
+    if (!win) return
+    win.setResizable(true)
+    win.setMinimumSize(450, 670)
+    win.maximize()
   })
 }
 
-export function createOverlayWindow(): void {
-  if (state.overlayWindow && !state.overlayWindow.isDestroyed()) {
-    return
+export function createOverlayWindow(data?: any): void {
+  let isNew = false
+
+  if (!state.overlayWindow || state.overlayWindow.isDestroyed()) {
+    isNew = true
+    const overlayWindow = new BrowserWindow({
+      width: 450,
+      height: 670,
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      hasShadow: false,
+      skipTaskbar: true,
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false
+      }
+    })
+
+    setOverlayWindow(overlayWindow)
+
+    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+      overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/#/overlay`)
+    } else {
+      overlayWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'overlay' })
+    }
   }
 
-  const overlayWindow = new BrowserWindow({
-    width: 450,
-    height: 670,
-    show: false,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    resizable: false,
-    hasShadow: false,
-    skipTaskbar: true,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+  const overlayWin = state.overlayWindow
+  if (overlayWin) {
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { width } = primaryDisplay.workAreaSize
+    overlayWin.setPosition(width - 480, 50)
+    overlayWin.showInactive()
+
+    const sendData = (): void => {
+      if (data) overlayWin.webContents.send('update-overlay-content', data)
     }
-  })
 
-  setOverlayWindow(overlayWindow)
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/#/overlay`)
-  } else {
-    overlayWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'overlay' })
+    if (isNew || overlayWin.webContents.isLoading()) {
+      overlayWin.webContents.once('did-finish-load', sendData)
+    } else {
+      sendData()
+    }
   }
 }
 
@@ -112,9 +153,11 @@ function createMainWindow(): BrowserWindow {
     frame: false,
     resizable: false,
     center: true,
-    icon: join(__dirname, '../../resources/icon.png'),
+    icon: ICON_PATH,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon: nativeImage.createFromPath(join(__dirname, '../../resources/icon.png')) } : {}),
+    ...(process.platform === 'linux'
+      ? { icon: nativeImage.createFromPath(ICON_PATH) }
+      : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -125,19 +168,52 @@ function createMainWindow(): BrowserWindow {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    
+
     if (state.lastBootstrapError) {
       logger.info('[WindowManager] Sending pending bootstrap error to renderer')
       mainWindow.webContents.send('bootstrap-error', state.lastBootstrapError)
     }
   })
 
-  setupTray(mainWindow)
-  setupContextMenu(mainWindow)
+  setupTray()
+  setupContextMenu()
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
+  })
+
+  // Tratamento de CTRL+R: em dev reinicia frontend+backend, em prod bloqueia
+  mainWindow.webContents.on('before-input-event', async (event, input) => {
+    // CTRL+R ou F5
+    const isReloadKey = (input.control && input.key.toLowerCase() === 'r') || input.key === 'F5'
+    const isHardReload = input.control && input.shift && input.key.toLowerCase() === 'r'
+
+    if (isReloadKey || isHardReload) {
+      event.preventDefault()
+
+      if (is.dev) {
+        // Em desenvolvimento: reinicia o backend Python e recarrega o frontend
+        logger.info(
+          '[WindowManager] CTRL+R detectado em modo DEV - reiniciando backend e frontend...'
+        )
+        try {
+          await shutdownPython()
+          // Reset do estado para permitir reinicialização
+          setIsQuitting(false)
+          logger.info('[WindowManager] Backend Python encerrado, iniciando novamente...')
+          await startPythonBackend()
+          logger.info('[WindowManager] Backend Python reiniciado, recarregando frontend...')
+          mainWindow.webContents.reload()
+        } catch (error) {
+          logger.error('[WindowManager] Erro ao reiniciar backend:', error)
+          mainWindow.webContents.reload()
+        }
+      } else {
+        // Em produção: apenas bloqueia o reload para evitar loop de splash
+        logger.info('[WindowManager] CTRL+R bloqueado em modo produção')
+      }
+    }
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -149,19 +225,21 @@ function createMainWindow(): BrowserWindow {
   return mainWindow
 }
 
-function setupTray(window: BrowserWindow): void {
+function setupTray(): void {
   if (state.tray) return
 
-  const iconPath = join(__dirname, '../../resources/icon.png')
-  const tray = new Tray(nativeImage.createFromPath(iconPath))
+  const tray = new Tray(nativeImage.createFromPath(ICON_PATH))
   tray.setToolTip('MomAI')
 
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Abrir',
       click: () => {
-        window.show()
-        window.focus()
+        const win = getMainWindow()
+        if (win) {
+          win.show()
+          win.focus()
+        }
       }
     },
     {
@@ -173,19 +251,25 @@ function setupTray(window: BrowserWindow): void {
   tray.setContextMenu(contextMenu)
 
   tray.on('click', () => {
-    if (window.isVisible()) {
-      window.hide()
+    const win = getMainWindow()
+    if (!win) return
+
+    if (win.isVisible()) {
+      win.hide()
     } else {
-      window.show()
-      window.focus()
+      win.show()
+      win.focus()
     }
   })
 
   setTray(tray)
 }
 
-function setupContextMenu(window: BrowserWindow): void {
-  window.webContents.on('context-menu', (_event, params) => {
+function setupContextMenu(): void {
+  const win = getMainWindow()
+  if (!win) return
+
+  win.webContents.on('context-menu', (_event, params) => {
     const contextMenuTemplate: Electron.MenuItemConstructorOptions[] = []
 
     if (params.selectionText) {
@@ -195,12 +279,19 @@ function setupContextMenu(window: BrowserWindow): void {
       )
     }
 
-    contextMenuTemplate.push(
-      { label: 'Recortar', role: 'cut', accelerator: 'CmdOrCtrl+X' },
-      { label: 'Colar', role: 'paste', accelerator: 'CmdOrCtrl+V' },
-      { type: 'separator' },
-      { label: 'Selecionar Tudo', role: 'selectAll', accelerator: 'CmdOrCtrl+A' }
-    )
+    if (params.isEditable) {
+      contextMenuTemplate.push(
+        { label: 'Recortar', role: 'cut', accelerator: 'CmdOrCtrl+X' },
+        { label: 'Colar', role: 'paste', accelerator: 'CmdOrCtrl+V' },
+        { type: 'separator' }
+      )
+    }
+
+    contextMenuTemplate.push({
+      label: 'Selecionar Tudo',
+      role: 'selectAll',
+      accelerator: 'CmdOrCtrl+A'
+    })
 
     const contextMenu = Menu.buildFromTemplate(contextMenuTemplate)
     contextMenu.popup()
@@ -208,33 +299,31 @@ function setupContextMenu(window: BrowserWindow): void {
 }
 
 export function createWindow(): void {
-  if (state.mainWindow && !state.mainWindow.isDestroyed()) {
-    if (state.mainWindow.isMinimized()) state.mainWindow.restore()
-    state.mainWindow.show()
-    state.mainWindow.focus()
-    state.mainWindow.maximize()
+  const win = getMainWindow()
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+    win.maximize()
     return
   }
   createMainWindow()
 }
 
-export function showOrCreateWindow(): void {
-  createWindow()
-}
-
 export function toggleWindow(): void {
-  if (state.mainWindow && !state.mainWindow.isDestroyed()) {
-    if (state.mainWindow.isVisible() && state.mainWindow.isFocused()) {
-      state.mainWindow.hide()
+  const win = getMainWindow()
+  if (win) {
+    if (win.isVisible() && win.isFocused()) {
+      win.hide()
     } else {
-      if (state.mainWindow.isMinimized()) state.mainWindow.restore()
-      state.mainWindow.show()
-      state.mainWindow.focus()
-      state.mainWindow.setSize(450, 670)
-      state.mainWindow.center()
-      state.mainWindow.webContents.send('focus-input')
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+      win.setSize(450, 670)
+      win.center()
+      win.webContents.send('focus-input')
     }
   } else {
-    createMainWindow()
+    createWindow()
   }
 }

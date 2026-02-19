@@ -250,6 +250,9 @@ function App(): React.JSX.Element {
                     <span className="text-text/20 text-xs font-medium tracking-[0.3em] uppercase mt-2">
                       Personal Assistant
                     </span>
+                    <span className="text-accent/30 text-[9px] font-black uppercase tracking-[0.1em] mt-0.5">
+                      Wake Word: LUNA
+                    </span>
                   </div>
 
                   <div className="flex-1 rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative flex flex-col">

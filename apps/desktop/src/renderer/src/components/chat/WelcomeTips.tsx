@@ -43,6 +43,7 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
 
   useEffect(() => {
     const loadSettings = async () => {
+      if (statusInfo?.status !== 'ok') return
       try {
         const data = await fetchSettings()
         setSettings(data)
@@ -51,7 +52,7 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
       }
     }
     loadSettings()
-  }, [])
+  }, [statusInfo?.status])
 
   useEffect(() => {
     const loadDynamic = async () => {
@@ -86,6 +87,26 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
           Olá, <span className="text-accent">{userName}</span>
         </h2>
         <p className="text-[13px] text-text-muted/60 font-medium">Como posso te ajudar hoje?</p>
+
+        {settings?.wake_word_enabled && (
+          <div className="mt-4 flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 animate-in fade-in slide-in-from-top-2 duration-700">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              className="text-accent"
+            >
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            </svg>
+            <span className="text-[10px] font-black text-accent uppercase tracking-widest">
+              Diga &quot;LUNA&quot; para me chamar
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="w-full max-w-sm flex flex-col gap-2">
