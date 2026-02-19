@@ -13,6 +13,7 @@
     "typecheck": "turbo run typecheck",
     "format": "turbo run format",
     "docs": "cd apps/docs && mint dev",
+    "docs:internal": "pnpm --filter internal-docs start",
     "preinstall": "npx only-allow pnpm"
   },
   "keywords": [],

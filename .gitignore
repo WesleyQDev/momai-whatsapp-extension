@@ -115,6 +115,14 @@ apps/core/models/
 apps/core/vosk-model-*/
 
 # ====================
+# Docusaurus (Internal Docs)
+# ====================
+.docusaurus/
+.cache-loader
+/apps/internal-docs/build/
+/apps/internal-docs/.docusaurus/
+
+# ====================
 # Outros
 # ====================
 *.local

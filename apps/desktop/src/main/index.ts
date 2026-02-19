@@ -5,10 +5,10 @@ import { registerIpcHandlers, createWindow, showOrCreateWindow } from './windowM
 import { startPythonBackend, shutdownPython } from './pythonManager'
 import { logger, getLogsPath } from './logger'
 
-logger.info('[Electron] Starting MomAI...')
-logger.info(`[Electron] Version: ${app.getVersion()}`)
-logger.info(`[Electron] Platform: ${process.platform}`)
-logger.info(`[Electron] userData: ${app.getPath('userData')}`)
+logger.info(`[Electron] Starting MomAI... ${app.getVersion()}`)
+// logger.info(`[Electron] Version: ${app.getVersion()}`)
+// logger.info(`[Electron] Platform: ${process.platform}`)
+// logger.info(`[Electron] userData: ${app.getPath('userData')}`)
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 
