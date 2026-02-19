@@ -1013,17 +1013,17 @@ async def generate(message: ChatMessage):
                         if had_tool_call:
                             stream_decided = True
                             yield f"data: {json.dumps({'token': filtered_content})}\n\n"
-                            print(
-                                f"[STREAM] Yielding (had_tool_call): {filtered_content[:50]}..."
-                            )
+                            # print(
+                            #     f"[STREAM] Yielding (had_tool_call): {filtered_content[:50]}..."
+                            # )
                             full_content += filtered_content
                             tts_buffer += filtered_content
                             continue
 
                         prebuffer += filtered_content
-                        print(
-                            f"[STREAM] prebuffer: {len(prebuffer)} chars, limit: {prebuffer_limit}"
-                        )
+                        # print(
+                        #     f"[STREAM] prebuffer: {len(prebuffer)} chars, limit: {prebuffer_limit}"
+                        # )
                         if len(prebuffer) >= prebuffer_limit:
                             decision = await _build_missing_capability_card(
                                 message.content,
@@ -1039,15 +1039,15 @@ async def generate(message: ChatMessage):
                             else:
                                 stream_decided = True
                                 yield f"data: {json.dumps({'token': prebuffer})}\n\n"
-                                print(
-                                    f"[STREAM] Yielding (prebuffer): {prebuffer[:50]}..."
-                                )
+                                # print(
+                                #     f"[STREAM] Yielding (prebuffer): {prebuffer[:50]}..."
+                                # )
                                 full_content += prebuffer
                                 tts_buffer += prebuffer
                                 prebuffer = ""
                     elif not stream_suppressed:
                         yield f"data: {json.dumps({'token': filtered_content})}\n\n"
-                        print(f"[STREAM] Yielding (else): {filtered_content[:50]}...")
+                        # print(f"[STREAM] Yielding (else): {filtered_content[:50]}...")
                         full_content += filtered_content
                         tts_buffer += filtered_content
 

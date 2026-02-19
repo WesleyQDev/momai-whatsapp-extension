@@ -864,30 +864,32 @@ export function useChat() {
     }
 
     const scheduleReconnect = () => {
-      if (isUnmounting || reconnectAttempts >= maxReconnectAttempts) return
-
-      reconnectAttempts++
-      const delay = Math.min(500 * Math.pow(1.5, reconnectAttempts - 1), 10000) // Backoff mais rápido: 500ms -> 10s
-
-      // Suprimir log durante boot
-      if (!isBooting || reconnectAttempts > 3) {
-        console.log(
-          `Reconectando WebSocket em ${(delay / 1000).toFixed(1)}s... (tentativa ${reconnectAttempts})`
-        )
+      if (isUnmounting) return
+      if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++
+        const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 10000)
+        reconnectTimeout = setTimeout(connect, delay)
       }
-
-      reconnectTimeout = setTimeout(connect, delay)
     }
 
-    connect()
+    // Connect only if backend is actually online (notifies from Main)
+    // @ts-ignore
+    const removeOnlineListener = window.api?.onBackendOnline?.(() => {
+      console.log('[useChat] Backend notified as online. Connecting WebSocket...')
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        connect()
+      }
+    })
 
     return () => {
       isUnmounting = true
-      clearTimeout(bootTimeout)
       if (reconnectTimeout) clearTimeout(reconnectTimeout)
+      clearTimeout(bootTimeout)
       if (ws) ws.close()
+      if (removeOnlineListener) removeOnlineListener()
     }
-  }, []) // Removida dependência graphState para estabilidade
+  }, [])
+ // Removida dependência graphState para estabilidade
 
   const sendMessage = useCallback(
     async (overrideText?: string, isSilent: boolean = false) => {

@@ -1,14 +1,11 @@
 import { app, globalShortcut, BrowserWindow, ipcMain, shell } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { state, setIsQuitting } from './state'
-import { registerIpcHandlers, createWindow, showOrCreateWindow } from './windowManager'
+import { registerIpcHandlers, createWindow, showOrCreateWindow, toggleWindow } from './windowManager'
 import { startPythonBackend, shutdownPython } from './pythonManager'
 import { logger, getLogsPath } from './logger'
 
 logger.info(`[Electron] Starting MomAI... ${app.getVersion()}`)
-// logger.info(`[Electron] Version: ${app.getVersion()}`)
-// logger.info(`[Electron] Platform: ${process.platform}`)
-// logger.info(`[Electron] userData: ${app.getPath('userData')}`)
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 
@@ -47,29 +44,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  ipcMain.on('ping', () => logger.info('pong'))
   registerIpcHandlers()
 
   createWindow()
   startPythonBackend()
 
-  globalShortcut.register('Alt+Space', () => {
-    const windows = BrowserWindow.getAllWindows()
-    if (windows.length > 0) {
-      const win = windows[0]
-      if (win.isVisible() && win.isFocused()) {
-        win.hide()
-      } else {
-        win.show()
-        win.focus()
-        win.setSize(450, 670)
-        win.center()
-        win.webContents.send('focus-input')
-      }
-    } else {
-      createWindow()
-    }
-  })
+  globalShortcut.register('Alt+Space', toggleWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

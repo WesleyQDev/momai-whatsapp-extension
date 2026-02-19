@@ -11,6 +11,16 @@ const api = {
     const handler = (_: any, error: { type: string; message: string; details?: string }) => callback(error)
     electronAPI.ipcRenderer.on('bootstrap-error', handler)
     return () => electronAPI.ipcRenderer.removeListener('bootstrap-error', handler)
+  },
+  onInitProgress: (callback: (data: { message: string; progress: number }) => void) => {
+    const handler = (_: any, data: { message: string; progress: number }) => callback(data)
+    electronAPI.ipcRenderer.on('init-progress', handler)
+    return () => electronAPI.ipcRenderer.removeListener('init-progress', handler)
+  },
+  onBackendOnline: (callback: () => void) => {
+    const handler = () => callback()
+    electronAPI.ipcRenderer.on('backend-online', handler)
+    return () => electronAPI.ipcRenderer.removeListener('backend-online', handler)
   }
 }
 

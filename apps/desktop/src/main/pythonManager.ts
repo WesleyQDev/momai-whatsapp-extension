@@ -1,7 +1,8 @@
 import { app } from 'electron'
 import { spawn, execSync } from 'child_process'
 import { join, resolve } from 'path'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { createConnection } from 'net'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs'
 import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow, BootstrapError, BootstrapErrorType } from './state'
 import { is } from '@electron-toolkit/utils'
 import { logger } from './logger'
@@ -35,12 +36,52 @@ function sendErrorToRenderer(error: BootstrapError): void {
   }
 }
 
-function getSyncLock(): SyncResult | null {
+function sendInitProgress(message: string, progress: number): void {
+  const mainWindow = getMainWindow()
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('init-progress', { message, progress })
+  }
+}
+
+function waitForPort(port: number, host: string, timeout = 60000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now()
+    const check = () => {
+      if (Date.now() - start > timeout) {
+        reject(new Error(`Timeout waiting for port ${port}`))
+        return
+      }
+      const sock = createConnection(port, host)
+      sock.on('connect', () => {
+        sock.end()
+        resolve()
+      })
+      sock.on('error', () => {
+        setTimeout(check, 1000)
+      })
+    }
+    check()
+  })
+}
+
+
+function getSyncLock(corePath: string): SyncResult | null {
   try {
     if (!existsSync(SYNC_LOCK_FILE)) return null
     const data = JSON.parse(readFileSync(SYNC_LOCK_FILE, 'utf-8'))
-    const oneHour = 60 * 60 * 1000
-    if (Date.now() - data.lastChecked < oneHour) {
+
+    // Check if pyproject.toml was modified since last successful check
+    const pyprojectPath = join(corePath, 'pyproject.toml')
+    if (existsSync(pyprojectPath)) {
+      const stats = statSync(pyprojectPath)
+      if (stats.mtimeMs <= data.lastChecked) {
+        return { success: true, needsSync: false, lastChecked: data.lastChecked }
+      }
+    }
+
+    // Backup: 24h limit if we can't check file stats properly
+    const oneDay = 24 * 60 * 60 * 1000
+    if (Date.now() - data.lastChecked < oneDay) {
       return { success: true, needsSync: false, lastChecked: data.lastChecked }
     }
     return null
@@ -122,7 +163,9 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     return error
   }
 
-  if (!existsSync(uvExe)) {
+  const isUvCommand = !uvExe.includes('/') && !uvExe.includes('\\')
+
+  if (!isUvCommand && !existsSync(uvExe)) {
     const error: BootstrapError = {
       type: 'uv_not_found',
       message: 'uv executable not found',
@@ -142,10 +185,12 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
 
   if (!existsSync(pythonExe)) {
     logger.info('[Bootstrap] Ambiente não encontrado. Iniciando setup com uv...')
+    sendInitProgress('Criando ambiente isolado...', 5)
+
     
     if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
 
-    if (!existsSync(uvExe)) {
+    if (!isUvCommand && !existsSync(uvExe)) {
       const error: BootstrapError = {
         type: 'uv_not_found',
         message: 'uv executable not found',
@@ -198,9 +243,11 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     }
   }
 
-  const syncLock = getSyncLock()
+  const syncLock = getSyncLock(corePath)
   if (!syncLock || syncLock.needsSync) {
     logger.info('[Bootstrap] Sincronizando dependências do core...')
+    sendInitProgress('Instalando dependências...', 15)
+
     try {
       logger.info(`[Bootstrap] Running: ${uvExe} pip install -e ${corePath}`)
       await new Promise<void>((resolve, reject) => {
@@ -302,11 +349,36 @@ export async function startPythonBackend(): Promise<void> {
     })
 
     setPythonProcess(pythonProcess)
-
     pythonProcess.stdout?.setEncoding('utf8')
     pythonProcess.stdout?.on('data', (data) => {
-      logger.info(`[Python] ${data.trim()}`)
+      const line = data.trim()
+      logger.info(`[Python] ${line}`)
+
+      // Parse init progress from Python stdout: [Init 10%] api: message
+      const initMatch = line.match(/\[Init (\d+)%\]\s+[^:]+:\s+(.+)/)
+      if (initMatch) {
+        const progress = parseInt(initMatch[1], 10)
+        const message = initMatch[2]
+        sendInitProgress(message, progress)
+      }
     })
+
+    // Wait for the server to be up before notifying renderer to start HTTP requests
+    const host = process.env.HOST || '127.0.0.1'
+    const port = parseInt(process.env.PORT || '8000')
+
+    waitForPort(port, host, 60000)
+      .then(() => {
+        logger.info(`[Electron] Backend HTTP server is online on ${host}:${port}`)
+        const window = getMainWindow()
+        if (window && !window.isDestroyed()) {
+          window.webContents.send('backend-online')
+        }
+      })
+      .catch((err) => {
+        logger.error(`[Electron] Failed to detect backend port: ${err.message}`)
+      })
+
 
     pythonProcess.stderr?.setEncoding('utf8')
     pythonProcess.stderr?.on('data', (data: string) => {

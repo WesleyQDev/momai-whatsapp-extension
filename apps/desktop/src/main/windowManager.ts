@@ -219,12 +219,22 @@ export function createWindow(): void {
 }
 
 export function showOrCreateWindow(): void {
+  createWindow()
+}
+
+export function toggleWindow(): void {
   if (state.mainWindow && !state.mainWindow.isDestroyed()) {
-    if (state.mainWindow.isMinimized()) state.mainWindow.restore()
-    state.mainWindow.show()
-    state.mainWindow.focus()
-    state.mainWindow.maximize()
-    return
+    if (state.mainWindow.isVisible() && state.mainWindow.isFocused()) {
+      state.mainWindow.hide()
+    } else {
+      if (state.mainWindow.isMinimized()) state.mainWindow.restore()
+      state.mainWindow.show()
+      state.mainWindow.focus()
+      state.mainWindow.setSize(450, 670)
+      state.mainWindow.center()
+      state.mainWindow.webContents.send('focus-input')
+    }
+  } else {
+    createMainWindow()
   }
-  createMainWindow()
 }

@@ -13,6 +13,7 @@ export function useStatus() {
   const [isBooting, setIsBooting] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
   const [hasReceivedWSEvent, setHasReceivedWSEvent] = useState(false)
+  const [backendOnline, setBackendOnline] = useState(false)
 
   const isBrainReady = statusInfo?.brain_ready ?? false
   const isBrainLoading = statusInfo?.is_loading ?? false
@@ -79,7 +80,28 @@ export function useStatus() {
     }
 
     window.addEventListener('momai_init_progress', handleInitProgress)
-    return () => window.removeEventListener('momai_init_progress', handleInitProgress)
+    
+    // Listen for Core IPC progress (faster than WS/HTTP polling)
+    // @ts-ignore
+    const removeIpcListener = window.api?.onInitProgress?.((data) => {
+      setInitMessage(data.message)
+      setInitProgress((prev) => Math.max(prev, data.progress))
+      if (data.progress >= 100) {
+        setIsBooting(false)
+      }
+    })
+
+    // Listen for backend ready signal
+    // @ts-ignore
+    const removeOnlineListener = window.api?.onBackendOnline?.(() => {
+      setBackendOnline(true)
+    })
+
+    return () => {
+      window.removeEventListener('momai_init_progress', handleInitProgress)
+      if (removeIpcListener) removeIpcListener()
+      if (removeOnlineListener) removeOnlineListener()
+    }
   }, [])
 
   const changeMode = async (mode: string) => {
@@ -101,13 +123,15 @@ export function useStatus() {
     let initInterval: NodeJS.Timeout
 
     const startPolling = () => {
+      if (!backendOnline) return
+
       checkStatus()
       checkInitProgress()
       const pollInterval = isBooting ? 2000 : 8000
       statusInterval = setInterval(checkStatus, pollInterval)
     }
 
-    if (isBooting && initProgress < 100) {
+    if (backendOnline && isBooting && initProgress < 100) {
       initInterval = setInterval(checkInitProgress, 1500)
     }
 
