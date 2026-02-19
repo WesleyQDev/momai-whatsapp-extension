@@ -194,12 +194,12 @@ export async function fetchChatHistory(threadId: string = 'default'): Promise<Me
   const response = await fetch(`${API_URL}/chat/history?thread_id=${threadId}`)
   if (!response.ok) throw new Error('Erro ao buscar histórico')
   const messages = await response.json()
-  
+
   return messages.map((msg: any) => ({
     ...msg,
     sources: msg.sources ? JSON.parse(msg.sources) : undefined,
     snippets: msg.snippets ? JSON.parse(msg.snippets) : undefined,
-    cards: msg.cards ? JSON.parse(msg.cards) : undefined,
+    cards: msg.cards ? JSON.parse(msg.cards) : undefined
   }))
 }
 
@@ -272,11 +272,7 @@ export async function uninstallExtension(id: string): Promise<void> {
   if (!response.ok) throw new Error('Erro ao desinstalar extensão')
 }
 
-export async function sendExtensionAction(
-  id: string,
-  action: string,
-  payload: any
-): Promise<any> {
+export async function sendExtensionAction(id: string, action: string, payload: any): Promise<any> {
   const response = await fetch(`${API_URL}/extensions/${id}/action`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

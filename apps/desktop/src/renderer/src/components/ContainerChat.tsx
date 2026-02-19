@@ -36,9 +36,13 @@ const CallModeUI = ({
     {/* Visual Center Piece */}
     <div className="relative w-24 h-24 mb-8 flex items-center justify-center">
       {/* Dynamic Glows */}
-      <div className={`absolute inset-0 bg-accent/20 rounded-full blur-2xl transition-all duration-700 ${status !== 'idle' ? 'opacity-100 scale-150' : 'opacity-20 scale-100'}`} />
-      <div className={`absolute inset-2 bg-accent/10 rounded-full blur-xl transition-all duration-1000 ${status === 'listening' ? 'opacity-100 scale-110' : 'opacity-0 scale-90'}`} />
-      
+      <div
+        className={`absolute inset-0 bg-accent/20 rounded-full blur-2xl transition-all duration-700 ${status !== 'idle' ? 'opacity-100 scale-150' : 'opacity-20 scale-100'}`}
+      />
+      <div
+        className={`absolute inset-2 bg-accent/10 rounded-full blur-xl transition-all duration-1000 ${status === 'listening' ? 'opacity-100 scale-110' : 'opacity-0 scale-90'}`}
+      />
+
       {/* Animated Rings */}
       {status === 'listening' && (
         <>
@@ -48,15 +52,27 @@ const CallModeUI = ({
       )}
 
       {/* Core Icon Container */}
-      <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 z-10 backdrop-blur-md shadow-2xl ${
-        status === 'processing' 
-          ? 'bg-accent/30 border-2 border-accent animate-pulse shadow-accent/40' 
-          : 'bg-accent/20 border-2 border-accent/40 shadow-accent/10'
-      }`}>
+      <div
+        className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 z-10 backdrop-blur-md shadow-2xl ${
+          status === 'processing'
+            ? 'bg-accent/30 border-2 border-accent animate-pulse shadow-accent/40'
+            : 'bg-accent/20 border-2 border-accent/40 shadow-accent/10'
+        }`}
+      >
         {status === 'processing' ? (
           <div className="w-10 h-10 border-4 border-white/10 border-t-white rounded-full animate-spin" />
         ) : (
-          <svg width="36" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+          <svg
+            width="36"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-white"
+          >
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
             <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
             <line x1="12" y1="19" x2="12" y2="22" />
@@ -67,29 +83,35 @@ const CallModeUI = ({
 
     {/* Status Message */}
     <div className="h-6 mb-8 text-center flex flex-col justify-center">
-      <span className={`text-[11px] font-black uppercase tracking-[0.5em] transition-all duration-500 ${
-        status === 'listening' ? 'text-accent animate-pulse' : 'text-text-muted/40'
-      }`}>
-        {status === 'listening' ? 'Escutando' : status === 'processing' ? 'Processando' : 'Aguardando'}
+      <span
+        className={`text-[11px] font-black uppercase tracking-[0.5em] transition-all duration-500 ${
+          status === 'listening' ? 'text-accent animate-pulse' : 'text-text-muted/40'
+        }`}
+      >
+        {status === 'listening'
+          ? 'Escutando'
+          : status === 'processing'
+            ? 'Processando'
+            : 'Aguardando'}
       </span>
     </div>
 
     {/* Main Content Area - Mostra usuário e IA separados */}
-    <div 
+    <div
       className="w-full max-w-[500px] mb-8 overflow-hidden relative flex flex-col items-center justify-center gap-1"
-      style={{ 
+      style={{
         height: '80px'
       }}
     >
       {(() => {
-        const lastUser = history.filter(h => h.role === 'user').pop()
-        const lastAssistant = history.filter(h => h.role === 'assistant').pop()
-        
+        const lastUser = history.filter((h) => h.role === 'user').pop()
+        const lastAssistant = history.filter((h) => h.role === 'assistant').pop()
+
         return (
           <>
             {/* Mensagem do Usuário */}
             {lastUser && (
-              <p 
+              <p
                 className="text-center text-[10px] text-white/60 font-medium px-4 w-full"
                 style={{
                   overflow: 'hidden',
@@ -100,10 +122,10 @@ const CallModeUI = ({
                 {lastUser.content.replace(/__MOMAI_ACTIONS__[\s\S]*$/, '').trim()}
               </p>
             )}
-            
+
             {/* Mensagem da IA - máx 2 linhas com ... */}
             {lastAssistant && (
-              <p 
+              <p
                 className="text-center text-xs text-text font-medium px-4 w-full"
                 style={{
                   display: '-webkit-box',

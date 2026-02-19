@@ -7,8 +7,11 @@ const api = {
   close: (): void => electronAPI.ipcRenderer.send('window-close'),
   getLogsPath: (): Promise<string> => electronAPI.ipcRenderer.invoke('get-logs-path'),
   openLogsFolder: (): Promise<void> => electronAPI.ipcRenderer.invoke('open-logs-folder'),
-  onBootstrapError: (callback: (error: { type: string; message: string; details?: string }) => void) => {
-    const handler = (_: any, error: { type: string; message: string; details?: string }) => callback(error)
+  onBootstrapError: (
+    callback: (error: { type: string; message: string; details?: string }) => void
+  ) => {
+    const handler = (_: any, error: { type: string; message: string; details?: string }) =>
+      callback(error)
     electronAPI.ipcRenderer.on('bootstrap-error', handler)
     return () => electronAPI.ipcRenderer.removeListener('bootstrap-error', handler)
   },

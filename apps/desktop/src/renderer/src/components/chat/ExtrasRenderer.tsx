@@ -55,7 +55,11 @@ function SourceItem({ source }: { source: Source }) {
       return null
     }
   })()
-  const domain = isNote ? 'Memória Local' : (urlObj ? urlObj.hostname.replace('www.', '') : source.url)
+  const domain = isNote
+    ? 'Memória Local'
+    : urlObj
+      ? urlObj.hostname.replace('www.', '')
+      : source.url
   const hasValidTitle = source.title && source.title.length > 3 && source.title !== domain
   const displayTitle = hasValidTitle ? source.title : domain
 
@@ -66,14 +70,30 @@ function SourceItem({ source }: { source: Source }) {
       rel="noopener noreferrer"
       className="group flex items-start gap-3 p-2 -ml-2 rounded-xl hover:bg-accent/5 transition-all duration-300"
     >
-      <div className={`w-8 h-8 rounded-lg ${isNote ? 'bg-purple-500/10' : 'bg-zinc-100 dark:bg-white/5'} flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-accent/10 transition-all duration-300`}>
+      <div
+        className={`w-8 h-8 rounded-lg ${isNote ? 'bg-purple-500/10' : 'bg-zinc-100 dark:bg-white/5'} flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-accent/10 transition-all duration-300`}
+      >
         {isNote ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-purple-500 group-hover:text-accent transition-colors">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            className="text-purple-500 group-hover:text-accent transition-colors"
+          >
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           </svg>
         ) : (
-          <svg className="w-4 h-4 text-zinc-400 group-hover:text-accent transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg
+            className="w-4 h-4 text-zinc-400 group-hover:text-accent transition-colors"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" />
           </svg>
@@ -102,9 +122,7 @@ function SnippetItem({ snippet }: { snippet: Snippet }) {
         </div>
       )}
       <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-[13px] font-semibold text-text truncate">
-          {snippet.title}
-        </span>
+        <span className="text-[13px] font-semibold text-text truncate">{snippet.title}</span>
         {snippet.content && (
           <span className="text-[12px] text-zinc-500 dark:text-zinc-400 line-clamp-3 mt-0.5 leading-snug">
             {snippet.content}
@@ -139,11 +157,7 @@ function CardItem({ card }: { card: Card }) {
             {card.description}
           </span>
         )}
-        {card.price && (
-          <span className="text-[14px] font-bold text-accent mt-1">
-            {card.price}
-          </span>
-        )}
+        {card.price && <span className="text-[14px] font-bold text-accent mt-1">{card.price}</span>}
         {card.link && (
           <a
             href={card.link}

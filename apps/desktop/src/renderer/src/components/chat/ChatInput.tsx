@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { StatusData, fetchSettings, updateSettingsPartial, quickTranscribe } from '../../services/api'
+import {
+  StatusData,
+  fetchSettings,
+  updateSettingsPartial,
+  quickTranscribe
+} from '../../services/api'
 import { useI18n } from '../../i18n'
-import { 
-  PaperAirplaneIcon, 
-  StopIcon, 
+import {
+  PaperAirplaneIcon,
+  StopIcon,
   MicrophoneIcon,
   SpeakerWaveIcon
 } from '@heroicons/react/24/solid'
@@ -29,12 +34,12 @@ const WaveIcon = ({ className }: { className?: string }) => (
 )
 
 const ParamsIcon = ({ className }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
     className={className}
   >
     <path d="M4 10h16M4 16h16" />
@@ -233,7 +238,9 @@ export default function ChatInput({
                         voiceSettings.wake_word_enabled ? 'bg-accent/5 text-accent' : ''
                       }`}
                     >
-                      <MicrophoneIcon className={`w-4 h-4 ${voiceSettings.wake_word_enabled ? 'text-accent' : 'text-text-muted opacity-50'}`} />
+                      <MicrophoneIcon
+                        className={`w-4 h-4 ${voiceSettings.wake_word_enabled ? 'text-accent' : 'text-text-muted opacity-50'}`}
+                      />
                       <div className="flex flex-col items-start flex-1">
                         <span className="text-[11px] font-bold">
                           {t('chatInput.reconhecimento')}
@@ -242,9 +249,11 @@ export default function ChatInput({
                           {t('chatInput.reconhecimentoDesc')}
                         </span>
                       </div>
-                      <div className={`w-1.5 h-1.5 rounded-full ${voiceSettings.wake_word_enabled ? 'bg-accent' : 'bg-white/10'}`} />
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${voiceSettings.wake_word_enabled ? 'bg-accent' : 'bg-white/10'}`}
+                      />
                     </button>
-                    
+
                     <button
                       type="button"
                       onClick={() => toggleSetting('tts_enabled')}
@@ -253,12 +262,18 @@ export default function ChatInput({
                         voiceSettings.tts_enabled ? 'bg-accent/5 text-accent' : ''
                       }`}
                     >
-                      <SpeakerWaveIcon className={`w-4 h-4 ${voiceSettings.tts_enabled ? 'text-accent' : 'text-text-muted opacity-50'}`} />
+                      <SpeakerWaveIcon
+                        className={`w-4 h-4 ${voiceSettings.tts_enabled ? 'text-accent' : 'text-text-muted opacity-50'}`}
+                      />
                       <div className="flex flex-col items-start flex-1">
                         <span className="text-[11px] font-bold">{t('chatInput.falar')}</span>
-                        <span className="text-[9px] text-text-muted opacity-70">{t('chatInput.falarDesc')}</span>
+                        <span className="text-[9px] text-text-muted opacity-70">
+                          {t('chatInput.falarDesc')}
+                        </span>
                       </div>
-                      <div className={`w-1.5 h-1.5 rounded-full ${voiceSettings.tts_enabled ? 'bg-accent' : 'bg-white/10'}`} />
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${voiceSettings.tts_enabled ? 'bg-accent' : 'bg-white/10'}`}
+                      />
                     </button>
                   </div>
                 )}
@@ -271,7 +286,13 @@ export default function ChatInput({
                 <button
                   type="button"
                   onClick={handleMicClick}
-                  disabled={isLoading || isModeChanging || !isBrainReady || isBrainLoading || isQuickRecording}
+                  disabled={
+                    isLoading ||
+                    isModeChanging ||
+                    !isBrainReady ||
+                    isBrainLoading ||
+                    isQuickRecording
+                  }
                   className={`flex items-center justify-center rounded-full w-8 h-8 transition-all duration-200 ${
                     isQuickRecording
                       ? 'bg-red-500 text-white animate-pulse'
@@ -308,8 +329,8 @@ export default function ChatInput({
                 <button
                   type="button"
                   className={`rounded-full w-8 h-8 flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
-                    isCallMode 
-                      ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' 
+                    isCallMode
+                      ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
                       : 'bg-white/5 text-text-muted hover:text-text hover:bg-white/10 border border-border/10'
                   }`}
                   onClick={onToggleCallMode}

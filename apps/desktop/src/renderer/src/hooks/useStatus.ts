@@ -80,7 +80,7 @@ export function useStatus() {
     }
 
     window.addEventListener('momai_init_progress', handleInitProgress)
-    
+
     // Listen for Core IPC progress (faster than WS/HTTP polling)
     // @ts-ignore
     const removeIpcListener = window.api?.onInitProgress?.((data) => {

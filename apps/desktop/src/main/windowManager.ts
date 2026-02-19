@@ -155,9 +155,7 @@ function createMainWindow(): BrowserWindow {
     center: true,
     icon: ICON_PATH,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux'
-      ? { icon: nativeImage.createFromPath(ICON_PATH) }
-      : {}),
+    ...(process.platform === 'linux' ? { icon: nativeImage.createFromPath(ICON_PATH) } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false

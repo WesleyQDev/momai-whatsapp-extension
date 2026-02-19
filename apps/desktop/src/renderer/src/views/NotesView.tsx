@@ -32,7 +32,7 @@ import ConfirmationCard from '../components/floating/ConfirmationCard'
 
 export default function NotesView() {
   const { t } = useI18n()
-  
+
   // State
   const [notes, setNotes] = useState<NoteSummary[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -43,13 +43,15 @@ export default function NotesView() {
   const [error, setError] = useState<string | null>(null)
   const [filterText, setFilterText] = useState('')
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  
+
   // Context Menu & Renaming State
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, noteId: string } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(
+    null
+  )
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
-  
+
   // Delete Confirmation State
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
@@ -65,7 +67,7 @@ export default function NotesView() {
     const query = filterText.trim().toLowerCase()
     if (!query) return notes
     return notes.filter((note) =>
-      [(note.title || ''), note.preview || ''].some((value) => value.toLowerCase().includes(query))
+      [note.title || '', note.preview || ''].some((value) => value.toLowerCase().includes(query))
     )
   }, [filterText, notes])
 
@@ -101,7 +103,9 @@ export default function NotesView() {
     }
   }
 
-  useEffect(() => { loadNotes() }, [])
+  useEffect(() => {
+    loadNotes()
+  }, [])
 
   // Auto-Save Logic
   useEffect(() => {
@@ -109,7 +113,7 @@ export default function NotesView() {
     if (title === lastSaved.current.title && content === lastSaved.current.content) return
 
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    
+
     const currentId = activeId
     saveTimer.current = window.setTimeout(async () => {
       try {
@@ -118,7 +122,13 @@ export default function NotesView() {
         if (activeId === currentId) {
           lastSaved.current = { title: updated.title, content: updated.content }
         }
-        setNotes(prev => prev.map(n => n.id === updated.id ? { ...n, title: updated.title, updated_at: new Date().toISOString() } : n))
+        setNotes((prev) =>
+          prev.map((n) =>
+            n.id === updated.id
+              ? { ...n, title: updated.title, updated_at: new Date().toISOString() }
+              : n
+          )
+        )
       } catch (err) {
         setError(t('notes.errors.save'))
       } finally {
@@ -126,7 +136,9 @@ export default function NotesView() {
       }
     }, 1000)
 
-    return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current) }
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    }
   }, [activeId, title, content, isLoading])
 
   const handleCreateNote = async () => {
@@ -134,9 +146,11 @@ export default function NotesView() {
     setFilterText('')
     try {
       const note = await createMemoryNote(t('notes.newNoteTitleDefault'), '')
-      setNotes(prev => [note, ...prev])
+      setNotes((prev) => [note, ...prev])
       await selectNote(note.id)
-    } catch (err) { setError(t('notes.errors.create')) }
+    } catch (err) {
+      setError(t('notes.errors.create'))
+    }
   }
 
   const handleDeleteNote = (id?: string) => {
@@ -152,13 +166,19 @@ export default function NotesView() {
     setError(null)
     try {
       await deleteMemoryNote(targetId)
-      const updated = notes.filter(n => n.id !== targetId)
+      const updated = notes.filter((n) => n.id !== targetId)
       setNotes(updated)
       if (activeId === targetId) {
         if (updated.length > 0) await selectNote(updated[0].id)
-        else { setActiveId(null); setTitle(''); setContent(''); }
+        else {
+          setActiveId(null)
+          setTitle('')
+          setContent('')
+        }
       }
-    } catch (err) { setError(t('notes.errors.delete')) }
+    } catch (err) {
+      setError(t('notes.errors.delete'))
+    }
   }
 
   // --- Context Menu Handlers ---
@@ -177,19 +197,19 @@ export default function NotesView() {
 
   const handleFinishRename = async () => {
     if (!renamingId) return
-    if (!renameValue.trim() || renameValue === notes.find(n => n.id === renamingId)?.title) {
+    if (!renameValue.trim() || renameValue === notes.find((n) => n.id === renamingId)?.title) {
       setRenamingId(null)
       return
     }
-    
+
     try {
       // Optimistic update
-      setNotes(prev => prev.map(n => n.id === renamingId ? { ...n, title: renameValue } : n))
+      setNotes((prev) => prev.map((n) => (n.id === renamingId ? { ...n, title: renameValue } : n)))
       if (activeId === renamingId) {
         setTitle(renameValue)
         lastSaved.current.title = renameValue
       }
-      
+
       await updateMemoryNote(renamingId, { title: renameValue })
     } catch (err) {
       setError(t('notes.errors.save'))
@@ -237,181 +257,212 @@ export default function NotesView() {
       { tag: tags.emphasis, fontStyle: 'italic' },
       { tag: tags.strikethrough, textDecoration: 'line-through', opacity: '0.6' },
       { tag: tags.quote, color: 'rgb(var(--text-muted))', fontStyle: 'italic' },
-      { tag: tags.monospace, color: accentColor, backgroundColor: 'rgb(var(--accent) / 0.1)', borderRadius: '4px', padding: '1px 4px' },
-      { tag: [tags.processingInstruction, tags.punctuation, tags.meta, tags.modifier], class: 'cm-md-marker' },
+      {
+        tag: tags.monospace,
+        color: accentColor,
+        backgroundColor: 'rgb(var(--accent) / 0.1)',
+        borderRadius: '4px',
+        padding: '1px 4px'
+      },
+      {
+        tag: [tags.processingInstruction, tags.punctuation, tags.meta, tags.modifier],
+        class: 'cm-md-marker'
+      },
       { tag: tags.link, textDecoration: 'underline', color: accentColor, opacity: '0.9' },
-      { tag: tags.url, textDecoration: 'underline', opacity: '0.5' },
+      { tag: tags.url, textDecoration: 'underline', opacity: '0.5' }
     ])
   }, [])
 
-  const editorExtensions = useMemo(() => [
-    markdown(),
-    syntaxHighlighting(markdownHighlighting),
-    EditorView.lineWrapping,
-    EditorView.theme({
-      '&': { 
-        backgroundColor: 'transparent !important',
-        height: '100%'
-      },
-      '&.cm-focused': {
-        outline: 'none'
-      },
-      '.cm-scroller': {
-        fontFamily: 'inherit',
-        fontSize: '16px',
-        lineHeight: '1.7',
-        overflow: 'auto',
-        padding: '20px 0'
-      },
-      '.cm-content': {
-        color: 'rgb(var(--text-primary))',
-        caretColor: 'rgb(var(--text-primary)) !important',
-        backgroundColor: 'transparent !important',
-        padding: '0 32px !important' // Fixed padding to prevent clipping
-      },
-      '.cm-line': {
-        padding: '2px 0'
-      },
-      // MARKER HIDING: Completely hide markers on inactive lines
-      '.cm-md-marker': {
-        display: 'none !important'
-      },
-      // MARKER REVEALING: Show only on active line with soft opacity
-      '.cm-activeLine .cm-md-marker': {
-        display: 'inline !important',
-        opacity: '0.4',
-        marginRight: '0.1em'
-      },
-      // HEADER SIZES: Force sizes with high specificity
-      '.cm-h1': { fontSize: '1.8em !important', fontWeight: '800 !important' },
-      '.cm-h2': { fontSize: '1.5em !important', fontWeight: '700 !important' },
-      '.cm-h3': { fontSize: '1.25em !important', fontWeight: '700 !important' },
-      '.cm-h4': { fontSize: '1.1em !important', fontWeight: '600 !important' },
-      
-      // ALIGNMENT FIX: Pull text back exactly one space width to align perfectly
-      '.cm-line:not(.cm-activeLine) .cm-h1, .cm-line:not(.cm-activeLine) .cm-h2, .cm-line:not(.cm-activeLine) .cm-h3, .cm-line:not(.cm-activeLine) .cm-h4': {
-        marginLeft: '-0.32em !important', 
-        display: 'inline-block'
-      },
-      
-      // Blockquote visual cue
-      '.cm-quote': {
-        borderLeft: '3px solid rgb(var(--accent) / 0.3)',
-        paddingLeft: '1rem',
-        display: 'inline-block',
-        width: '100%'
-      },
-      '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { 
-        backgroundColor: 'rgb(var(--accent) / 0.2) !important'
-      },
-      '.cm-cursor': { borderLeftColor: 'rgb(var(--text-primary)) !important', borderLeftWidth: '2px' },
-      '.cm-activeLine': { backgroundColor: 'transparent' },
-      '.cm-gutters': { display: 'none' }
-    })
-  ], [markdownHighlighting])
+  const editorExtensions = useMemo(
+    () => [
+      markdown(),
+      syntaxHighlighting(markdownHighlighting),
+      EditorView.lineWrapping,
+      EditorView.theme({
+        '&': {
+          backgroundColor: 'transparent !important',
+          height: '100%'
+        },
+        '&.cm-focused': {
+          outline: 'none'
+        },
+        '.cm-scroller': {
+          fontFamily: 'inherit',
+          fontSize: '16px',
+          lineHeight: '1.7',
+          overflow: 'auto',
+          padding: '20px 0'
+        },
+        '.cm-content': {
+          color: 'rgb(var(--text-primary))',
+          caretColor: 'rgb(var(--text-primary)) !important',
+          backgroundColor: 'transparent !important',
+          padding: '0 32px !important' // Fixed padding to prevent clipping
+        },
+        '.cm-line': {
+          padding: '2px 0'
+        },
+        // MARKER HIDING: Completely hide markers on inactive lines
+        '.cm-md-marker': {
+          display: 'none !important'
+        },
+        // MARKER REVEALING: Show only on active line with soft opacity
+        '.cm-activeLine .cm-md-marker': {
+          display: 'inline !important',
+          opacity: '0.4',
+          marginRight: '0.1em'
+        },
+        // HEADER SIZES: Force sizes with high specificity
+        '.cm-h1': { fontSize: '1.8em !important', fontWeight: '800 !important' },
+        '.cm-h2': { fontSize: '1.5em !important', fontWeight: '700 !important' },
+        '.cm-h3': { fontSize: '1.25em !important', fontWeight: '700 !important' },
+        '.cm-h4': { fontSize: '1.1em !important', fontWeight: '600 !important' },
+
+        // ALIGNMENT FIX: Pull text back exactly one space width to align perfectly
+        '.cm-line:not(.cm-activeLine) .cm-h1, .cm-line:not(.cm-activeLine) .cm-h2, .cm-line:not(.cm-activeLine) .cm-h3, .cm-line:not(.cm-activeLine) .cm-h4':
+          {
+            marginLeft: '-0.32em !important',
+            display: 'inline-block'
+          },
+
+        // Blockquote visual cue
+        '.cm-quote': {
+          borderLeft: '3px solid rgb(var(--accent) / 0.3)',
+          paddingLeft: '1rem',
+          display: 'inline-block',
+          width: '100%'
+        },
+        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+          backgroundColor: 'rgb(var(--accent) / 0.2) !important'
+        },
+        '.cm-cursor': {
+          borderLeftColor: 'rgb(var(--text-primary)) !important',
+          borderLeftWidth: '2px'
+        },
+        '.cm-activeLine': { backgroundColor: 'transparent' },
+        '.cm-gutters': { display: 'none' }
+      })
+    ],
+    [markdownHighlighting]
+  )
 
   return (
-    <div 
+    <div
       className="flex-1 h-full bg-bg text-text flex font-sans overflow-hidden transition-colors duration-300"
       onClick={() => setContextMenu(null)}
     >
-      
       {/* 1. Sidebar - Minimalist & Functional */}
       {!isSidebarCollapsed && (
         <aside className="w-72 border-r border-border/5 bg-sidebar flex flex-col shrink-0 transition-all duration-300">
-          
           {/* Sidebar Header: Search & Toolbar */}
           <div className="p-3 space-y-2">
-             <div className="relative group">
-                 <input 
-                   value={filterText}
-                   onChange={e => setFilterText(e.target.value)}
-                   placeholder="Buscar notas..."
-                   className="w-full bg-input/50 hover:bg-input border border-transparent focus:border-border/20 rounded-lg pl-9 pr-3 py-2 text-xs font-medium focus:outline-none transition-all placeholder:text-text-muted/40"
-                 />
-                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted/40 group-focus-within:text-accent transition-colors" />
-             </div>
-             
-             {/* Toolbar Actions */}
-             <div className="flex items-center gap-1">
-                <button 
-                  onClick={handleCreateNote}
-                  className="p-2 text-text-muted hover:text-accent hover:bg-white/5 rounded-lg transition-all"
-                  title={t('notes.newNote')}
-                >
-                  <PencilSquareIcon className="w-5 h-5 stroke-[1.5]" />
-                </button>
-                
-                <div className="w-px h-4 bg-border/10 mx-1"></div>
+            <div className="relative group">
+              <input
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                placeholder="Buscar notas..."
+                className="w-full bg-input/50 hover:bg-input border border-transparent focus:border-border/20 rounded-lg pl-9 pr-3 py-2 text-xs font-medium focus:outline-none transition-all placeholder:text-text-muted/40"
+              />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted/40 group-focus-within:text-accent transition-colors" />
+            </div>
 
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-text-muted hover:text-text hover:bg-white/5 rounded-lg transition-all"
-                  title={t('notes.importFiles')}
-                >
-                  <DocumentPlusIcon className="w-5 h-5 stroke-[1.5]" />
-                </button>
-                <button 
-                  onClick={() => folderInputRef.current?.click()}
-                  className="p-2 text-text-muted hover:text-text hover:bg-white/5 rounded-lg transition-all"
-                  title={t('notes.importFolder')}
-                >
-                  <FolderPlusIcon className="w-5 h-5 stroke-[1.5]" />
-                </button>
-             </div>
+            {/* Toolbar Actions */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleCreateNote}
+                className="p-2 text-text-muted hover:text-accent hover:bg-white/5 rounded-lg transition-all"
+                title={t('notes.newNote')}
+              >
+                <PencilSquareIcon className="w-5 h-5 stroke-[1.5]" />
+              </button>
+
+              <div className="w-px h-4 bg-border/10 mx-1"></div>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-text-muted hover:text-text hover:bg-white/5 rounded-lg transition-all"
+                title={t('notes.importFiles')}
+              >
+                <DocumentPlusIcon className="w-5 h-5 stroke-[1.5]" />
+              </button>
+              <button
+                onClick={() => folderInputRef.current?.click()}
+                className="p-2 text-text-muted hover:text-text hover:bg-white/5 rounded-lg transition-all"
+                title={t('notes.importFolder')}
+              >
+                <FolderPlusIcon className="w-5 h-5 stroke-[1.5]" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4 space-y-0.5" onClick={() => setContextMenu(null)}>
+          <div
+            className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4 space-y-0.5"
+            onClick={() => setContextMenu(null)}
+          >
             {isLoading && notes.length === 0 ? (
               <div className="p-4 text-center text-xs opacity-30 italic">{t('notes.loading')}</div>
-            ) : filteredNotes.map(note => (
-              <div key={note.id} onContextMenu={(e) => handleContextMenu(e, note.id)}>
-                {renamingId === note.id ? (
-                  <input
-                    ref={renameInputRef}
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onBlur={handleFinishRename}
-                    onKeyDown={handleKeyDownRename}
-                    className="w-full bg-input border border-accent/50 rounded-lg px-3 py-2 text-[13px] font-medium text-text outline-none mb-0.5"
-                    autoFocus
-                  />
-                ) : (
-                  <button 
-                    onClick={() => selectNote(note.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group relative border border-transparent ${
-                      note.id === activeId 
-                        ? 'bg-accent/10 text-accent font-semibold' 
-                        : 'text-text-muted hover:bg-white/5 hover:text-text'
-                    }`}
-                  >
-                    <div className="text-[13px] truncate">{note.title || t('notes.untitled')}</div>
-                    {/* Minimalist active indicator */}
-                    {note.id === activeId && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3/5 bg-accent rounded-r-full"></div>}
-                  </button>
-                )}
-              </div>
-            ))}
+            ) : (
+              filteredNotes.map((note) => (
+                <div key={note.id} onContextMenu={(e) => handleContextMenu(e, note.id)}>
+                  {renamingId === note.id ? (
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={handleFinishRename}
+                      onKeyDown={handleKeyDownRename}
+                      className="w-full bg-input border border-accent/50 rounded-lg px-3 py-2 text-[13px] font-medium text-text outline-none mb-0.5"
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      onClick={() => selectNote(note.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group relative border border-transparent ${
+                        note.id === activeId
+                          ? 'bg-accent/10 text-accent font-semibold'
+                          : 'text-text-muted hover:bg-white/5 hover:text-text'
+                      }`}
+                    >
+                      <div className="text-[13px] truncate">
+                        {note.title || t('notes.untitled')}
+                      </div>
+                      {/* Minimalist active indicator */}
+                      {note.id === activeId && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3/5 bg-accent rounded-r-full"></div>
+                      )}
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </aside>
       )}
 
       {/* Context Menu Component */}
       {contextMenu && (
-        <div 
+        <div
           className="fixed z-50 bg-card border border-border/10 rounded-lg shadow-xl py-1 min-w-[140px] flex flex-col animate-context-menu"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button 
-            onClick={() => handleStartRename(contextMenu.noteId, notes.find(n => n.id === contextMenu.noteId)?.title || '')}
+          <button
+            onClick={() =>
+              handleStartRename(
+                contextMenu.noteId,
+                notes.find((n) => n.id === contextMenu.noteId)?.title || ''
+              )
+            }
             className="text-left px-3 py-2 text-xs text-text hover:bg-white/5 flex items-center gap-2"
           >
             <PencilIcon className="w-3.5 h-3.5 opacity-70" />
             Renomear
           </button>
-          <button 
-            onClick={() => { handleDeleteNote(contextMenu.noteId); setContextMenu(null); }}
+          <button
+            onClick={() => {
+              handleDeleteNote(contextMenu.noteId)
+              setContextMenu(null)
+            }}
             className="text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
           >
             <TrashIcon className="w-3.5 h-3.5 opacity-70" />
@@ -421,110 +472,147 @@ export default function NotesView() {
       )}
 
       {/* 2. Main Editor Content */}
-      <main className="flex-1 flex flex-col bg-bg relative transition-colors duration-300" onClick={() => setContextMenu(null)}>
+      <main
+        className="flex-1 flex flex-col bg-bg relative transition-colors duration-300"
+        onClick={() => setContextMenu(null)}
+      >
         <header className="h-14 border-b border-border/5 flex items-center px-6 justify-between gap-6 bg-bg/50 backdrop-blur-sm z-20">
           <div className="flex items-center gap-3 flex-1 overflow-hidden">
-             <button 
+            <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className="p-1.5 text-text-muted hover:text-text transition-colors rounded-md hover:bg-white/5"
-             >
-                {isSidebarCollapsed ? <ArrowsPointingOutIcon className="w-4 h-4" /> : <ArrowsPointingInIcon className="w-4 h-4" />}
-             </button>
-             
-             <div className="h-4 w-px bg-border/10"></div>
-             
-             <div className="flex items-center gap-2 text-[11px] font-medium text-text-muted/60 tracking-wide overflow-hidden whitespace-nowrap">
-                <span className="opacity-50 hover:opacity-100 transition-opacity cursor-default">MomAI</span>
-                <ChevronRightIcon className="w-3 h-3 opacity-30" />
-                <span className="opacity-50 hover:opacity-100 transition-opacity cursor-default">{t('notes.sidebar.title')}</span>
-                {activeId && (
-                  <>
-                    <ChevronRightIcon className="w-3 h-3 opacity-30" />
-                    <span className="font-bold px-1.5 py-0.5 truncate max-w-[300px] text-text">{title || t('notes.untitled')}</span>
-                  </>
-                )}
-             </div>
+            >
+              {isSidebarCollapsed ? (
+                <ArrowsPointingOutIcon className="w-4 h-4" />
+              ) : (
+                <ArrowsPointingInIcon className="w-4 h-4" />
+              )}
+            </button>
+
+            <div className="h-4 w-px bg-border/10"></div>
+
+            <div className="flex items-center gap-2 text-[11px] font-medium text-text-muted/60 tracking-wide overflow-hidden whitespace-nowrap">
+              <span className="opacity-50 hover:opacity-100 transition-opacity cursor-default">
+                MomAI
+              </span>
+              <ChevronRightIcon className="w-3 h-3 opacity-30" />
+              <span className="opacity-50 hover:opacity-100 transition-opacity cursor-default">
+                {t('notes.sidebar.title')}
+              </span>
+              {activeId && (
+                <>
+                  <ChevronRightIcon className="w-3 h-3 opacity-30" />
+                  <span className="font-bold px-1.5 py-0.5 truncate max-w-[300px] text-text">
+                    {title || t('notes.untitled')}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
-              {/* Saving Indicator */}
-              {activeId && (
-                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-500 ${isSaving ? 'bg-accent/10 text-accent' : 'bg-transparent text-text-muted/30'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${isSaving ? 'bg-accent animate-pulse' : 'bg-current'}`}></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{isSaving ? t('notes.syncing') : 'Saved'}</span>
-                  </div>
-              )}
-
-              <div className="flex items-center gap-3">
-                 {activeId && (
-                   <button 
-                    onClick={() => handleDeleteNote(activeId)} 
-                    className="p-1.5 text-text-muted hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
-                    title={t('notes.deleteTooltip')}
-                   >
-                      <TrashIcon className="w-4 h-4" />
-                   </button>
-                 )}
+            {/* Saving Indicator */}
+            {activeId && (
+              <div
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-500 ${isSaving ? 'bg-accent/10 text-accent' : 'bg-transparent text-text-muted/30'}`}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${isSaving ? 'bg-accent animate-pulse' : 'bg-current'}`}
+                ></div>
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  {isSaving ? t('notes.syncing') : 'Saved'}
+                </span>
               </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              {activeId && (
+                <button
+                  onClick={() => handleDeleteNote(activeId)}
+                  className="p-1.5 text-text-muted hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
+                  title={t('notes.deleteTooltip')}
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Error Notification */}
         {error && (
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-2 rounded-lg text-xs font-medium backdrop-blur-md shadow-xl">
-             {error}
+            {error}
           </div>
         )}
 
         <div className="flex-1 relative overflow-hidden flex mt-4 h-full">
-           {activeId ? (
-              <div className="flex-1 overflow-y-auto custom-scrollbar w-full">
-                <div className="max-w-4xl mx-auto py-4 px-8 flex flex-col min-h-full">
-                   <input
-                     value={title}
-                     onChange={(e) => setTitle(e.target.value)}
-                     placeholder={t('notes.untitled')}
-                     className="w-full bg-transparent text-4xl font-bold text-text mb-4 outline-none placeholder:text-text-muted/20 border-none p-0"
-                   />
-                   <div className="h-px bg-border/20 w-full mb-4 shrink-0"></div>
-                   <CodeMirror
-                     value={content}
-                     onChange={(value) => setContent(value)}
-                     extensions={editorExtensions}
-                     basicSetup={{
-                       lineNumbers: false,
-                       foldGutter: false,
-                        highlightActiveLine: true,
-                       highlightSelectionMatches: false,
-                       bracketMatching: false,
-                       closeBrackets: false
-                     }}
-                      onCreateEditor={(view) => { 
-                        editorViewRef.current = view
-                      }}
-                     className="w-full bg-transparent"
-                   />
-                </div>
+          {activeId ? (
+            <div className="flex-1 overflow-y-auto custom-scrollbar w-full">
+              <div className="max-w-4xl mx-auto py-4 px-8 flex flex-col min-h-full">
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t('notes.untitled')}
+                  className="w-full bg-transparent text-4xl font-bold text-text mb-4 outline-none placeholder:text-text-muted/20 border-none p-0"
+                />
+                <div className="h-px bg-border/20 w-full mb-4 shrink-0"></div>
+                <CodeMirror
+                  value={content}
+                  onChange={(value) => setContent(value)}
+                  extensions={editorExtensions}
+                  basicSetup={{
+                    lineNumbers: false,
+                    foldGutter: false,
+                    highlightActiveLine: true,
+                    highlightSelectionMatches: false,
+                    bracketMatching: false,
+                    closeBrackets: false
+                  }}
+                  onCreateEditor={(view) => {
+                    editorViewRef.current = view
+                  }}
+                  className="w-full bg-transparent"
+                />
               </div>
-           ) : (
-             <div className="flex-1 flex flex-col items-center justify-center opacity-10">
-                <InboxIcon className="w-20 h-20 mb-4" />
-                <span className="text-[10px] font-black uppercase tracking-[0.5em]">{t('notes.emptySelect')}</span>
-             </div>
-           )}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center opacity-10">
+              <InboxIcon className="w-20 h-20 mb-4" />
+              <span className="text-[10px] font-black uppercase tracking-[0.5em]">
+                {t('notes.emptySelect')}
+              </span>
+            </div>
+          )}
         </div>
       </main>
 
-      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => handleImport(e.target.files)} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => handleImport(e.target.files)}
+      />
       {/* @ts-ignore */}
-      <input ref={folderInputRef} type="file" webkitdirectory="" multiple className="hidden" onChange={e => handleImport(e.target.files)} />
+      <input
+        ref={folderInputRef}
+        type="file"
+        webkitdirectory=""
+        multiple
+        className="hidden"
+        onChange={(e) => handleImport(e.target.files)}
+      />
 
       {deleteConfirmId && (
         <ConfirmationCard
           title={t('notes.confirmDelete')}
-          message={t('notes.confirmDeleteMessage') || 'Tem certeza que deseja excluir esta nota? Esta ação não pode ser desfeita.'}
+          message={
+            t('notes.confirmDeleteMessage') ||
+            'Tem certeza que deseja excluir esta nota? Esta ação não pode ser desfeita.'
+          }
           options={['Confirmar', 'Cancelar']}
-          onSelect={(opt) => opt === 'Confirmar' ? confirmDeleteNote() : setDeleteConfirmId(null)}
+          onSelect={(opt) => (opt === 'Confirmar' ? confirmDeleteNote() : setDeleteConfirmId(null))}
           onCancel={() => setDeleteConfirmId(null)}
         />
       )}

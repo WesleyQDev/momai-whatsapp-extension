@@ -60,7 +60,7 @@ export default function RemindersSidebar({ onNavigate }: RemindersSidebarProps) 
 
   const today = new Date()
   const todayReminders = reminders
-    .filter(r => {
+    .filter((r) => {
       const occurrence = getOccurrenceForDate(r, today, today)
       return occurrence !== null
     })
@@ -148,7 +148,7 @@ export default function RemindersSidebar({ onNavigate }: RemindersSidebarProps) 
 
       {todayReminders.length > 0 && onNavigate && (
         <div className="p-3 border-t border-border/10">
-          <button 
+          <button
             onClick={onNavigate}
             className="w-full py-2 flex items-center justify-center gap-2 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
           >

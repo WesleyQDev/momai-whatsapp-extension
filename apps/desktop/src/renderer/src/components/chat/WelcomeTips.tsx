@@ -45,7 +45,7 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
     // Tenta carregar do cache para aparecer instantâneo
     const cachedName = localStorage.getItem('momai_user_name')
     if (cachedName && !settings) {
-      setSettings(prev => prev ? prev : { user_name: cachedName } as any)
+      setSettings((prev) => (prev ? prev : ({ user_name: cachedName } as any)))
     }
 
     const loadSettings = async () => {
@@ -107,7 +107,8 @@ export default function WelcomeTips({ onSendMessage, statusInfo }: WelcomeTipsPr
       {/* Header */}
       <div className="flex flex-col items-center mb-6 text-center">
         <h2 className="text-2xl font-bold text-text tracking-tight h-8">
-          Olá{showSeparator ? ', ' : ''}<span className="text-accent">{userName}</span>
+          Olá{showSeparator ? ', ' : ''}
+          <span className="text-accent">{userName}</span>
         </h2>
         <p className="text-[13px] text-text-muted/60 font-medium">Como posso te ajudar hoje?</p>
       </div>

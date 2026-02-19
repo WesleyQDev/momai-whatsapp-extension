@@ -1,5 +1,3 @@
-
-
 export interface UIComponent {
   type: 'container' | 'text' | 'button' | 'input' | 'list'
   props?: Record<string, any>

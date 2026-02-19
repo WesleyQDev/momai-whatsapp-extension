@@ -1,6 +1,14 @@
 import { BrowserWindow, Tray } from 'electron'
 
-export type BootstrapErrorType = 'python_not_found' | 'uv_not_found' | 'venv_failed' | 'sync_failed' | 'permission_denied' | 'startup_failed' | 'missing_vc_redist' | 'unknown'
+export type BootstrapErrorType =
+  | 'python_not_found'
+  | 'uv_not_found'
+  | 'venv_failed'
+  | 'sync_failed'
+  | 'permission_denied'
+  | 'startup_failed'
+  | 'missing_vc_redist'
+  | 'unknown'
 
 export interface BootstrapError {
   type: BootstrapErrorType

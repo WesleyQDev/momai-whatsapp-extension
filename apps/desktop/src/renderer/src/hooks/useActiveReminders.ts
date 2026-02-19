@@ -4,7 +4,7 @@ import { fetchActiveReminders, type ActiveReminder } from '../services/api'
 type Listener = (data: ActiveReminder[]) => void
 
 let cachedReminders: ActiveReminder[] = []
-let subscribers = new Set<Listener>()
+const subscribers = new Set<Listener>()
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let retryCount = 0
 

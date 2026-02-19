@@ -51,8 +51,7 @@ export default function MainViewRenderer({
   extensionData,
   chat
 }: MainViewRendererProps) {
-  const Component =
-    VIEW_MAP[viewName] || (extensionData ? DynamicDashboard : null)
+  const Component = VIEW_MAP[viewName] || (extensionData ? DynamicDashboard : null)
 
   const isChat = viewName === 'ChatDashboard'
 

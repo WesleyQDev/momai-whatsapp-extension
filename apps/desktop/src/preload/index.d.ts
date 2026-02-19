@@ -9,7 +9,9 @@ declare global {
       close: () => void
       getLogsPath: () => Promise<string>
       openLogsFolder: () => Promise<void>
-      onBootstrapError: (callback: (error: { type: string; message: string; details?: string }) => void) => () => void
+      onBootstrapError: (
+        callback: (error: { type: string; message: string; details?: string }) => void
+      ) => () => void
     }
   }
 }

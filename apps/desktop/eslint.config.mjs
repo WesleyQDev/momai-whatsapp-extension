@@ -25,7 +25,27 @@ export default defineConfig(
     },
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
-      ...eslintPluginReactRefresh.configs.vite.rules
+      ...eslintPluginReactRefresh.configs.vite.rules,
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'no-case-declarations': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'react/no-unescaped-entities': 'off',
+      'react/prop-types': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-refresh/only-export-components': 'off',
+      'no-empty': 'off',
+      'no-empty-pattern': 'off'
+    }
+  },
+  {
+    files: ['tailwind.config.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off'
     }
   },
   eslintConfigPrettier

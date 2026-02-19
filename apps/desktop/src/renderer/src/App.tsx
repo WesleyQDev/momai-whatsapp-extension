@@ -25,12 +25,15 @@ function App(): React.JSX.Element {
 
   const chat = useChat()
   const { graphState, handleGraphOption, closeGraph, clearHistory } = chat
-  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady, isOnline } = useStatus()
+  const { localMode, statusInfo, hasUpdate, initMessage, initProgress, isReady, isOnline } =
+    useStatus()
   const [showSettings, setShowSettings] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<'general' | 'brain' | 'voice' | 'economy' | 'updates'>('general')
+  const [settingsTab, setSettingsTab] = useState<
+    'general' | 'brain' | 'voice' | 'economy' | 'updates'
+  >('general')
   const [isCompact, setIsCompact] = useState(window.innerWidth < 850)
   const [extensions, setExtensions] = useState<any[]>([])
   const [settingsLoaded, setSettingsLoaded] = useState(false)
@@ -91,10 +94,10 @@ function App(): React.JSX.Element {
         if (data.locale) {
           setLocale(data.locale as any)
         }
-        
+
         if (!data.onboarding_completed) {
           setShowOnboarding(true)
-        }/* else if (!data.tutorial_completed) {
+        } /* else if (!data.tutorial_completed) {
           setShowTutorial(true)
         }*/
         setSettingsLoaded(true)
@@ -310,7 +313,9 @@ function App(): React.JSX.Element {
                   </div>
 
                   <div className="flex-1 rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative flex flex-col">
-                    <RemindersSidebar onNavigate={() => navigate('/extensions/com.momai.builtin.scheduler')} />
+                    <RemindersSidebar
+                      onNavigate={() => navigate('/extensions/com.momai.builtin.scheduler')}
+                    />
                   </div>
                 </div>
               )}

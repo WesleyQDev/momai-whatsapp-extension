@@ -22,7 +22,9 @@ export function useChat() {
   const [isCallMode, setIsCallMode] = useState(false)
   const isCallModeRef = useRef(false)
   const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'processing'>('idle')
-  const [callHistory, setCallHistory] = useState<{ id: string; role: 'user' | 'assistant'; content: string }[]>([])
+  const [callHistory, setCallHistory] = useState<
+    { id: string; role: 'user' | 'assistant'; content: string }[]
+  >([])
   const messagesRef = useRef<Message[]>([])
 
   // Graph State
@@ -182,16 +184,13 @@ export function useChat() {
     setSpeakingIndex(null)
     setCallHistory([])
     toolTraceRef.current = { activeMsgId: null, byToolId: {} }
-    
+
     // Notify other components
     window.dispatchEvent(new CustomEvent('momai_clear_history'))
 
     try {
       // Background actions
-      await Promise.all([
-        stopVoice(),
-        clearChatHistory(threadId)
-      ])
+      await Promise.all([stopVoice(), clearChatHistory(threadId)])
     } catch (err) {
       console.error('Erro ao sincronizar limpeza de histórico:', err)
     }
@@ -256,7 +255,9 @@ export function useChat() {
             if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
               const currentActivities = updated[lastIdx].activities || []
               // Check if this is an update to an existing "Buscando" entry
-              const buscandoIdx = currentActivities.findIndex((a: string) => a.startsWith('Buscando'))
+              const buscandoIdx = currentActivities.findIndex((a: string) =>
+                a.startsWith('Buscando')
+              )
               if (buscandoIdx !== -1 && status.startsWith('Buscando')) {
                 // Update existing Buscando entry instead of adding new one
                 const updatedActivities = [...currentActivities]
@@ -497,7 +498,7 @@ export function useChat() {
             if (idx >= 0) {
               const current = updated[idx]
               const parsed = splitToolTraceContent(current.content)
-              let textPart = parsed?.textPart || ''
+              const textPart = parsed?.textPart || ''
               let traceData: any = null
 
               try {
@@ -655,7 +656,10 @@ export function useChat() {
                 updated[updated.length - 1] = { ...last, content: msg.text }
                 return updated
               }
-              return [...prev, { id: `user-${Date.now()}`, role: 'user' as const, content: msg.text }].slice(-5)
+              return [
+                ...prev,
+                { id: `user-${Date.now()}`, role: 'user' as const, content: msg.text }
+              ].slice(-5)
             })
           }
         } else if (msg.type === 'reminder_trigger') {
@@ -679,7 +683,10 @@ export function useChat() {
                 updated[updated.length - 1] = { ...last, content: msg.content }
                 return updated
               }
-              return [...prev, { id: `user-${Date.now()}`, role: 'user' as const, content: msg.content }].slice(-5)
+              return [
+                ...prev,
+                { id: `user-${Date.now()}`, role: 'user' as const, content: msg.content }
+              ].slice(-5)
             })
           }
 
@@ -758,7 +765,7 @@ export function useChat() {
                     if (prevContent === '...' || prevContent === '') {
                       nextToken = nextToken.replace(/^\s+/, '')
                     }
-                    
+
                     const newContent = (prevContent === '...' ? '' : prevContent) + nextToken
                     history[history.length - 1] = {
                       ...last,
@@ -766,11 +773,18 @@ export function useChat() {
                     }
                     return history
                   }
-                  
+
                   // New assistant message: only start if we have actual text
                   const trimmed = cleanTokenForCall.replace(/^\s+/, '')
                   if (trimmed) {
-                    return [...prevHistory, { id: `assistant-${Date.now()}`, role: 'assistant' as const, content: trimmed }].slice(-5)
+                    return [
+                      ...prevHistory,
+                      {
+                        id: `assistant-${Date.now()}`,
+                        role: 'assistant' as const,
+                        content: trimmed
+                      }
+                    ].slice(-5)
                   }
                   return prevHistory
                 })
@@ -802,7 +816,7 @@ export function useChat() {
                 if (isToolTraceMessage(updated[lastIdx])) {
                   const parsed = splitToolTraceContent(updated[lastIdx].content)
                   let traceData: any = null
-                  let textPart = parsed?.textPart || ''
+                  const textPart = parsed?.textPart || ''
 
                   try {
                     traceData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
@@ -889,7 +903,7 @@ export function useChat() {
       if (removeOnlineListener) removeOnlineListener()
     }
   }, [])
- // Removida dependência graphState para estabilidade
+  // Removida dependência graphState para estabilidade
 
   const sendMessage = useCallback(
     async (overrideText?: string, isSilent: boolean = false) => {
@@ -901,7 +915,12 @@ export function useChat() {
         setMessages((prev) => [...prev, userMessage])
 
         if (isCallModeRef.current) {
-          setCallHistory((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user' as const, content: messageText }].slice(-5))
+          setCallHistory((prev) =>
+            [
+              ...prev,
+              { id: `user-${Date.now()}`, role: 'user' as const, content: messageText }
+            ].slice(-5)
+          )
         }
       }
 
@@ -931,7 +950,7 @@ export function useChat() {
                 if (isToolTraceMessage(updated[lastIdx])) {
                   const parsed = splitToolTraceContent(updated[lastIdx].content)
                   let traceData: any = null
-                  let textPart = parsed?.textPart || ''
+                  const textPart = parsed?.textPart || ''
 
                   try {
                     traceData = parsed?.jsonPart ? JSON.parse(parsed.jsonPart) : null
@@ -978,11 +997,18 @@ export function useChat() {
                     }
                     return history
                   }
-                  
+
                   // New assistant message: only start if we have actual text
                   const trimmed = cleanTokenForCall.replace(/^\s+/, '')
                   if (trimmed) {
-                    return [...prevHistory, { id: `assistant-${Date.now()}`, role: 'assistant' as const, content: trimmed }].slice(-5)
+                    return [
+                      ...prevHistory,
+                      {
+                        id: `assistant-${Date.now()}`,
+                        role: 'assistant' as const,
+                        content: trimmed
+                      }
+                    ].slice(-5)
                   }
                   return prevHistory
                 })
@@ -996,7 +1022,9 @@ export function useChat() {
               if (lastIdx >= 0) {
                 const currentActivities = updated[lastIdx].activities || []
                 // Check if this is an update to an existing "Buscando" entry
-                const buscandoIdx = currentActivities.findIndex((a: string) => a.startsWith('Buscando'))
+                const buscandoIdx = currentActivities.findIndex((a: string) =>
+                  a.startsWith('Buscando')
+                )
                 if (buscandoIdx !== -1 && status.startsWith('Buscando')) {
                   // Update existing Buscando entry instead of adding new one
                   const updatedActivities = [...currentActivities]
@@ -1114,23 +1142,26 @@ export function useChat() {
     }
   }, [])
 
-const removeMessage = useCallback(async (index: number) => {
-    const msg = messages[index]
-    if (msg.id) {
-      try {
-        await deleteMessage(Number(msg.id))
-      } catch (error) {
-        console.error('Erro ao excluir mensagem do banco:', error)
+  const removeMessage = useCallback(
+    async (index: number) => {
+      const msg = messages[index]
+      if (msg.id) {
+        try {
+          await deleteMessage(Number(msg.id))
+        } catch (error) {
+          console.error('Erro ao excluir mensagem do banco:', error)
+        }
       }
-    }
-    setMessages((prev) => prev.filter((_, i) => i !== index))
-  }, [messages])
+      setMessages((prev) => prev.filter((_, i) => i !== index))
+    },
+    [messages]
+  )
 
   const toggleCallMode = useCallback(async () => {
     const newState = !isCallMode
     setIsCallMode(newState)
     setCallHistory([])
-    
+
     // Se estiver desativando o call mode, para o TTS imediatamente
     if (!newState) {
       try {
@@ -1140,7 +1171,7 @@ const removeMessage = useCallback(async (index: number) => {
         console.error('Erro ao parar voz:', error)
       }
     }
-    
+
     try {
       await setCallMode(newState)
     } catch (error) {

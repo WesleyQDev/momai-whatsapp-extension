@@ -3,7 +3,15 @@ import { spawn, execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { createConnection } from 'net'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, unlinkSync } from 'fs'
-import { state, setPythonProcess, setPythonStartTime, setIsQuitting, getMainWindow, BootstrapError, BootstrapErrorType } from './state'
+import {
+  state,
+  setPythonProcess,
+  setPythonStartTime,
+  setIsQuitting,
+  getMainWindow,
+  BootstrapError,
+  BootstrapErrorType
+} from './state'
 import { is } from '@electron-toolkit/utils'
 import { logger } from './logger'
 
@@ -26,7 +34,7 @@ interface SyncResult {
 
 function sendErrorToRenderer(error: BootstrapError): void {
   logger.error(`[Bootstrap] Error: ${error.type} - ${error.message}`, error.details || '')
-  
+
   const mainWindow = getMainWindow()
   if (mainWindow && !mainWindow.isDestroyed()) {
     logger.info('[Bootstrap] Sending error to renderer...')
@@ -52,7 +60,7 @@ function waitForPort(port: number, host: string, timeout = 60000): Promise<void>
         reject(new Error(`Timeout waiting for port ${port}`))
         return
       }
-      
+
       // Stop waiting if the process died
       if (!isPythonRunning()) {
         reject(new Error('Python process exited while waiting for port'))
@@ -66,7 +74,7 @@ function waitForPort(port: number, host: string, timeout = 60000): Promise<void>
         sock.removeAllListeners()
         sock.destroy()
       }
-      
+
       sock.on('connect', () => {
         cleanup()
         resolve()
@@ -83,7 +91,6 @@ function waitForPort(port: number, host: string, timeout = 60000): Promise<void>
     check()
   })
 }
-
 
 function getSyncLock(corePath: string): SyncResult | null {
   try {
@@ -341,12 +348,12 @@ let restartAttempts = 0
 export async function startPythonBackend(): Promise<void> {
   try {
     const result = await bootstrapPython()
-    
+
     if ('type' in result) {
       sendErrorToRenderer(result)
       return
     }
-    
+
     const { pythonExe, corePath, venvPath } = result
     const dataDir = join(userDataPath, 'data')
     if (!existsSync(dataDir)) {
@@ -390,10 +397,10 @@ export async function startPythonBackend(): Promise<void> {
     waitForPort(port, host, 60000)
       .then(() => {
         logger.info(`[Electron] Backend HTTP server is online on ${host}:${port}`)
-        
+
         // Backend considered "stable" enough to reset retry counter after it's online
         restartAttempts = 0
-        
+
         const window = getMainWindow()
         if (window && !window.isDestroyed()) {
           window.webContents.send('backend-online')
@@ -402,7 +409,6 @@ export async function startPythonBackend(): Promise<void> {
       .catch((err) => {
         logger.error(`[Electron] Failed to detect backend port: ${err.message}`)
       })
-
 
     pythonProcess.stderr?.setEncoding('utf8')
     pythonProcess.stderr?.on('data', (data: string) => {
@@ -415,15 +421,15 @@ export async function startPythonBackend(): Promise<void> {
       for (const line of lines) {
         const lower = line.toLowerCase()
         // Improved log classification
-        const isInfo = 
-          lower.startsWith('info:') || 
+        const isInfo =
+          lower.startsWith('info:') ||
           lower.startsWith('successfully') ||
           lower.includes('using loop:') ||
           lower.includes('awaiting initialization') ||
           lower.includes("couldn't access the hub")
-          
+
         const isWarning = lower.includes('warning')
-        
+
         if (isInfo) {
           logger.info(`[Python] ${line}`)
         } else if (isWarning) {
@@ -444,7 +450,9 @@ export async function startPythonBackend(): Promise<void> {
         // If it got past the port check (online), restartAttempts would be 0
         if (restartAttempts < 1) {
           restartAttempts++
-          logger.warn(`[Python] Crash detectado durante boot (Código: ${code}). Tentando reiniciar (Tentativa ${restartAttempts})...`)
+          logger.warn(
+            `[Python] Crash detectado durante boot (Código: ${code}). Tentando reiniciar (Tentativa ${restartAttempts})...`
+          )
           setTimeout(() => startPythonBackend(), 2000)
           return
         }
@@ -456,10 +464,14 @@ export async function startPythonBackend(): Promise<void> {
         let errorMessage = `Python backend crashed with code ${code}`
         let errorDetails = 'Check logs for more details'
 
-        if (stderrBuffer.includes('Microsoft Visual C++ Redistributable') || stderrBuffer.includes('c10.dll')) {
+        if (
+          stderrBuffer.includes('Microsoft Visual C++ Redistributable') ||
+          stderrBuffer.includes('c10.dll')
+        ) {
           errorType = 'missing_vc_redist'
           errorMessage = 'Microsoft Visual C++ Redistributable is missing'
-          errorDetails = 'This application requires the Visual C++ Redistributable to run AI models. Please install it from: https://aka.ms/vs/17/release/vc_redist.x64.exe'
+          errorDetails =
+            'This application requires the Visual C++ Redistributable to run AI models. Please install it from: https://aka.ms/vs/17/release/vc_redist.x64.exe'
         }
 
         const error: BootstrapError = {
@@ -467,7 +479,7 @@ export async function startPythonBackend(): Promise<void> {
           message: errorMessage,
           details: errorDetails
         }
-        
+
         // Reset counter before sending error so manual retries from UI can work
         restartAttempts = 0
         sendErrorToRenderer(error)

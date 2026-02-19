@@ -1,9 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  TrashIcon
-} from '@heroicons/react/24/outline'
+import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from '@heroicons/react/24/outline'
 import {
   fetchReminders as fetchRemindersApi,
   createReminder,
@@ -125,8 +121,7 @@ export default function RemindersView() {
         let isMatch = false
         if (interval === 'minutes' || interval === 'hours') {
           isMatch = !!getOccurrenceForDate(r, d, now)
-        }
-        else if (interval === 'days') isMatch = diffInDays(d, start) % value === 0
+        } else if (interval === 'days') isMatch = diffInDays(d, start) % value === 0
         else if (interval === 'weeks') isMatch = diffInDays(d, start) % (7 * value) === 0
         else if (interval === 'months') {
           isMatch = d.getDate() === start.getDate() && diffInMonths(d, start) % value === 0
@@ -148,9 +143,19 @@ export default function RemindersView() {
     const firstDay = new Date(year, month, 1).getDay()
     const days: any[] = []
     const prevMonthDays = new Date(year, month, 0).getDate()
-    for (let i = firstDay - 1; i >= 0; i--) days.push({ d: new Date(year, month - 1, prevMonthDays - i), curr: false })
-    for (let i = 1; i <= new Date(year, month + 1, 0).getDate(); i++) days.push({ d: new Date(year, month, i), curr: true })
-    while (days.length < 35) days.push({ d: new Date(year, month + 1, days.length - (firstDay + new Date(year, month + 1, 0).getDate()) + 1), curr: false })
+    for (let i = firstDay - 1; i >= 0; i--)
+      days.push({ d: new Date(year, month - 1, prevMonthDays - i), curr: false })
+    for (let i = 1; i <= new Date(year, month + 1, 0).getDate(); i++)
+      days.push({ d: new Date(year, month, i), curr: true })
+    while (days.length < 35)
+      days.push({
+        d: new Date(
+          year,
+          month + 1,
+          days.length - (firstDay + new Date(year, month + 1, 0).getDate()) + 1
+        ),
+        curr: false
+      })
     return days
   }, [currentDate])
 
@@ -179,7 +184,13 @@ export default function RemindersView() {
   const handleOpenCreate = (date: Date, hour = 9) => {
     const d = new Date(date)
     d.setHours(hour, 0, 0, 0)
-    setFormData({ title: '', content: '', scheduled_time: getLocalISOString(d), repeat_interval: null, repeat_value: 1 })
+    setFormData({
+      title: '',
+      content: '',
+      scheduled_time: getLocalISOString(d),
+      repeat_interval: null,
+      repeat_value: 1
+    })
     setIsModalOpen(true)
   }
 
@@ -198,7 +209,7 @@ export default function RemindersView() {
   const handleDelete = async (id: number) => {
     if (confirm(t('reminders.deleteConfirm'))) {
       await deleteReminder(id)
-      setReminders(prev => prev.filter(r => r.id !== id))
+      setReminders((prev) => prev.filter((r) => r.id !== id))
     }
   }
 
@@ -224,47 +235,71 @@ export default function RemindersView() {
             {selectedDate.getDate()} {formatDate(selectedDate, { month: 'short' })}
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {(remindersMap.get(`${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`) || [])
+          {(
+            remindersMap.get(
+              `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`
+            ) || []
+          )
             .sort((a, b) => {
               const now = new Date()
-              const aTime = getOccurrenceForDate(a, selectedDate, now)?.getTime() ?? new Date(a.scheduled_time).getTime()
-              const bTime = getOccurrenceForDate(b, selectedDate, now)?.getTime() ?? new Date(b.scheduled_time).getTime()
+              const aTime =
+                getOccurrenceForDate(a, selectedDate, now)?.getTime() ??
+                new Date(a.scheduled_time).getTime()
+              const bTime =
+                getOccurrenceForDate(b, selectedDate, now)?.getTime() ??
+                new Date(b.scheduled_time).getTime()
               return aTime - bTime
             })
-            .map(r => {
-              const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday';
+            .map((r) => {
+              const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday'
               const now = new Date()
-              const occurrence = getOccurrenceForDate(r, selectedDate, now) || new Date(r.scheduled_time)
+              const occurrence =
+                getOccurrenceForDate(r, selectedDate, now) || new Date(r.scheduled_time)
               return (
-                <div key={r.id} onClick={() => handleOpenEdit(r)} 
+                <div
+                  key={r.id}
+                  onClick={() => handleOpenEdit(r)}
                   className={`p-2 rounded cursor-pointer group transition-colors border ${
-                    isIntraday 
-                      ? 'bg-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10 hover:border-emerald-500/40' 
+                    isIntraday
+                      ? 'bg-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10 hover:border-emerald-500/40'
                       : 'hover:bg-accent/5 border-transparent hover:border-border/10'
-                  }`}>
+                  }`}
+                >
                   <div className="flex justify-between items-start">
-                    <span className={`text-[11px] font-mono font-bold opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent/80'}`}>
+                    <span
+                      className={`text-[11px] font-mono font-bold opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent/80'}`}
+                    >
                       {formatTime(occurrence, { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(r.id)
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-opacity"
+                    >
                       <TrashIcon className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className={`text-[12px] font-medium leading-tight truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}>
+                  <div
+                    className={`text-[12px] font-medium leading-tight truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}
+                  >
                     {r.title}
                   </div>
                 </div>
-              );
-            })
-          }
+              )
+            })}
         </div>
 
         <div className="p-3 border-t border-border/10">
-           <button onClick={() => handleOpenCreate(selectedDate)} className="w-full py-3 bg-accent text-black rounded text-xs font-bold uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
-             {t('reminders.newReminder')}
-           </button>
+          <button
+            onClick={() => handleOpenCreate(selectedDate)}
+            className="w-full py-3 bg-accent text-black rounded text-xs font-bold uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all"
+          >
+            {t('reminders.newReminder')}
+          </button>
         </div>
       </aside>
 
@@ -275,30 +310,47 @@ export default function RemindersView() {
             <h1 className="text-lg font-bold flex items-center gap-2">
               <span className="text-accent tracking-tighter uppercase font-black">Agenda</span>
               <span className="text-text-muted opacity-40">/</span>
-              <span className="capitalize text-sm font-medium">{formatDate(currentDate, { month: 'long', year: 'numeric' })}</span>
+              <span className="capitalize text-sm font-medium">
+                {formatDate(currentDate, { month: 'long', year: 'numeric' })}
+              </span>
             </h1>
-            
+
             <div className="flex bg-input border border-border/10 rounded p-0.5">
-              <button 
+              <button
                 onClick={() => setViewMode('month')}
-                className={`px-4 py-1.5 text-[11px] font-bold uppercase rounded transition-all ${viewMode === 'month' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}>
+                className={`px-4 py-1.5 text-[11px] font-bold uppercase rounded transition-all ${viewMode === 'month' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}
+              >
                 Mês
               </button>
-              <button 
+              <button
                 onClick={() => setViewMode('week')}
-                className={`px-4 py-1.5 text-[11px] font-bold uppercase rounded transition-all ${viewMode === 'week' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}>
+                className={`px-4 py-1.5 text-[11px] font-bold uppercase rounded transition-all ${viewMode === 'week' ? 'bg-border/10 text-accent' : 'text-text-muted hover:text-text'}`}
+              >
                 Semana
               </button>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }} className="px-4 py-1.5 border border-border/10 rounded text-[11px] uppercase font-bold text-text-muted hover:text-text hover:bg-accent/5">
+            <button
+              onClick={() => {
+                setCurrentDate(new Date())
+                setSelectedDate(new Date())
+              }}
+              className="px-4 py-1.5 border border-border/10 rounded text-[11px] uppercase font-bold text-text-muted hover:text-text hover:bg-accent/5"
+            >
               Hoje
             </button>
             <div className="flex border border-border/10 rounded overflow-hidden">
-              <button onClick={handlePrev} className="p-2 hover:bg-accent/5 border-r border-border/10"><ChevronLeftIcon className="w-4 h-4" /></button>
-              <button onClick={handleNext} className="p-2 hover:bg-accent/5"><ChevronRightIcon className="w-4 h-4" /></button>
+              <button
+                onClick={handlePrev}
+                className="p-2 hover:bg-accent/5 border-r border-border/10"
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+              <button onClick={handleNext} className="p-2 hover:bg-accent/5">
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </header>
@@ -308,29 +360,47 @@ export default function RemindersView() {
           {viewMode === 'month' ? (
             <div className="flex-1 flex flex-col">
               <div className="grid grid-cols-7 border-b border-border/5 bg-bg/50">
-                {['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'].map(day => (
-                  <div key={day} className="py-3 text-center text-[11px] font-bold uppercase text-text-muted/60 tracking-widest">{day}</div>
+                {['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'].map((day) => (
+                  <div
+                    key={day}
+                    className="py-3 text-center text-[11px] font-bold uppercase text-text-muted/60 tracking-widest"
+                  >
+                    {day}
+                  </div>
                 ))}
               </div>
               <div className="flex-1 grid grid-cols-7 grid-rows-5">
                 {monthData.map((cell, i) => {
                   const key = `${cell.d.getFullYear()}-${cell.d.getMonth()}-${cell.d.getDate()}`
-                  const items = (remindersMap.get(key) || []).filter(r => getRecurrenceMeta(r.repeat_interval) !== 'intraday')
+                  const items = (remindersMap.get(key) || []).filter(
+                    (r) => getRecurrenceMeta(r.repeat_interval) !== 'intraday'
+                  )
                   const isToday = isSameDay(cell.d, new Date())
                   return (
-                    <div key={i} onClick={() => setSelectedDate(cell.d)} 
-                      className={`border-r border-b border-border/10 p-1.5 flex flex-col gap-0.5 transition-colors cursor-pointer hover:bg-accent/5 ${!cell.curr ? 'opacity-30 bg-black/5' : ''} ${isSameDay(cell.d, selectedDate) ? 'bg-accent/5' : ''}`}>
-                      <span className={`text-[11px] font-bold w-7 h-7 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-text-muted'}`}>
+                    <div
+                      key={i}
+                      onClick={() => setSelectedDate(cell.d)}
+                      className={`border-r border-b border-border/10 p-1.5 flex flex-col gap-0.5 transition-colors cursor-pointer hover:bg-accent/5 ${!cell.curr ? 'opacity-30 bg-black/5' : ''} ${isSameDay(cell.d, selectedDate) ? 'bg-accent/5' : ''}`}
+                    >
+                      <span
+                        className={`text-[11px] font-bold w-7 h-7 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-text-muted'}`}
+                      >
                         {cell.d.getDate()}
                       </span>
                       <div className="flex flex-col gap-px overflow-hidden">
-                        {items.slice(0, 4).map(r => (
+                        {items.slice(0, 4).map((r) => (
                           <div key={r.id} className="flex items-center gap-1 overflow-hidden">
                             <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0"></span>
-                            <span className="text-[10px] truncate font-medium text-text-muted">{r.title}</span>
+                            <span className="text-[10px] truncate font-medium text-text-muted">
+                              {r.title}
+                            </span>
                           </div>
                         ))}
-                        {items.length > 4 && <div className="text-[9px] font-bold text-text-muted/50 pl-2">+{items.length-4}</div>}
+                        {items.length > 4 && (
+                          <div className="text-[9px] font-bold text-text-muted/50 pl-2">
+                            +{items.length - 4}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -344,21 +414,36 @@ export default function RemindersView() {
                 <div className="w-14 border-r border-border/5"></div>
                 <div className="flex-1 grid grid-cols-7">
                   {weekData.map((d, i) => (
-                    <div key={i} className="py-3 text-center border-r border-border/5 flex flex-col items-center">
-                      <span className="text-[10px] font-bold uppercase text-accent/40 mb-1">{formatDate(d, { weekday: 'short' }).replace('.', '')}</span>
-                      <span className={`text-xl font-bold w-9 h-9 flex items-center justify-center rounded-full ${isSameDay(d, new Date()) ? 'bg-accent text-black' : ''}`}>
+                    <div
+                      key={i}
+                      className="py-3 text-center border-r border-border/5 flex flex-col items-center"
+                    >
+                      <span className="text-[10px] font-bold uppercase text-accent/40 mb-1">
+                        {formatDate(d, { weekday: 'short' }).replace('.', '')}
+                      </span>
+                      <span
+                        className={`text-xl font-bold w-9 h-9 flex items-center justify-center rounded-full ${isSameDay(d, new Date()) ? 'bg-accent text-black' : ''}`}
+                      >
                         {d.getDate()}
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
-              
-              <div ref={hourGridRef} className="flex-1 overflow-y-auto custom-scrollbar relative bg-bg">
-                <div className="flex h-[1440px]"> {/* 24h * 60px */}
+
+              <div
+                ref={hourGridRef}
+                className="flex-1 overflow-y-auto custom-scrollbar relative bg-bg"
+              >
+                <div className="flex h-[1440px]">
+                  {' '}
+                  {/* 24h * 60px */}
                   <div className="w-14 shrink-0 border-r border-border/5 bg-sidebar/50 z-10 sticky left-0">
-                    {hours.map(h => (
-                      <div key={h} className="h-[60px] text-[10px] text-right pr-2 pt-0.5 text-text-muted font-bold opacity-50">
+                    {hours.map((h) => (
+                      <div
+                        key={h}
+                        className="h-[60px] text-[10px] text-right pr-2 pt-0.5 text-text-muted font-bold opacity-50"
+                      >
                         {h}:00
                       </div>
                     ))}
@@ -368,43 +453,62 @@ export default function RemindersView() {
                       const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`
                       const items = remindersMap.get(key) || []
                       return (
-                        <div key={dIdx} className="relative h-full border-r border-white/5 group hover:bg-accent/5 transition-colors"
-                             onClick={() => handleOpenCreate(day)}>
-                           {/* Horizontal Guideline */}
-                           {hours.map(h => (
-                             <div key={h} className="absolute w-full h-px bg-white/5 pointer-events-none" style={{ top: h * 60 }}></div>
-                           ))}
-                           
-                           {/* Current time indicator */}
-                           {isSameDay(day, new Date()) && (
-                             <div 
-                               className="absolute w-full h-0.5 bg-red-500 z-30 pointer-events-none"
-                               style={{ top: new Date().getHours() * 60 + new Date().getMinutes() }}
-                             />
-                           )}
-                           
-                           {/* Reminders as small cards */}
-                            {items.map(r => {
-                              const now = new Date()
-                              const occurrence = getOccurrenceForDate(r, day, now)
-                              if (!occurrence) return null
-                              const top = occurrence.getHours() * 60 + occurrence.getMinutes()
-                              const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday'
-                              return (
-                                <div key={r.id} onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }}
-                                  className={`absolute left-1 right-1 p-1.5 rounded-r shadow-lg cursor-pointer overflow-hidden group hover:brightness-125 transition-all z-20 border-l-2 ${
-                                    isIntraday 
-                                      ? 'bg-emerald-500/20 border-emerald-500' 
-                                      : 'bg-accent/20 border-accent'
-                                  }`}
-                                  style={{ top, height: 44 }}>
-                                    <div className={`text-[10px] font-black uppercase leading-none mb-0.5 opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent'}`}>
-                                      {formatTime(occurrence, { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                    <div className={`text-[11px] font-bold truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}>{r.title}</div>
+                        <div
+                          key={dIdx}
+                          className="relative h-full border-r border-white/5 group hover:bg-accent/5 transition-colors"
+                          onClick={() => handleOpenCreate(day)}
+                        >
+                          {/* Horizontal Guideline */}
+                          {hours.map((h) => (
+                            <div
+                              key={h}
+                              className="absolute w-full h-px bg-white/5 pointer-events-none"
+                              style={{ top: h * 60 }}
+                            ></div>
+                          ))}
+
+                          {/* Current time indicator */}
+                          {isSameDay(day, new Date()) && (
+                            <div
+                              className="absolute w-full h-0.5 bg-red-500 z-30 pointer-events-none"
+                              style={{ top: new Date().getHours() * 60 + new Date().getMinutes() }}
+                            />
+                          )}
+
+                          {/* Reminders as small cards */}
+                          {items.map((r) => {
+                            const now = new Date()
+                            const occurrence = getOccurrenceForDate(r, day, now)
+                            if (!occurrence) return null
+                            const top = occurrence.getHours() * 60 + occurrence.getMinutes()
+                            const isIntraday = getRecurrenceMeta(r.repeat_interval) === 'intraday'
+                            return (
+                              <div
+                                key={r.id}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleOpenEdit(r)
+                                }}
+                                className={`absolute left-1 right-1 p-1.5 rounded-r shadow-lg cursor-pointer overflow-hidden group hover:brightness-125 transition-all z-20 border-l-2 ${
+                                  isIntraday
+                                    ? 'bg-emerald-500/20 border-emerald-500'
+                                    : 'bg-accent/20 border-accent'
+                                }`}
+                                style={{ top, height: 44 }}
+                              >
+                                <div
+                                  className={`text-[10px] font-black uppercase leading-none mb-0.5 opacity-60 ${isIntraday ? 'text-emerald-400' : 'text-accent'}`}
+                                >
+                                  {formatTime(occurrence, { hour: '2-digit', minute: '2-digit' })}
                                 </div>
-                              )
-                            })}
+                                <div
+                                  className={`text-[11px] font-bold truncate ${isIntraday ? 'text-emerald-50' : 'text-text'}`}
+                                >
+                                  {r.title}
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       )
                     })}
@@ -431,33 +535,67 @@ export default function RemindersView() {
             </div>
 
             <div className="p-5 space-y-4">
-              <input required autoFocus type="text" placeholder="Título do evento" 
+              <input
+                required
+                autoFocus
+                type="text"
+                placeholder="Título do evento"
                 className="w-full bg-input border border-border/10 rounded-lg px-4 py-3 text-sm font-medium outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all text-text placeholder:text-text-muted/30"
-                value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
-              <textarea rows={3} placeholder="Descrição (opcional)"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              />
+              <textarea
+                rows={3}
+                placeholder="Descrição (opcional)"
                 className="w-full bg-input border border-border/10 rounded-lg px-4 py-3 text-[12px] outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all resize-none text-text placeholder:text-text-muted/30"
-                value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} />
-              
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              />
+
               <div className="space-y-3">
-                <input required type="datetime-local" className="w-full bg-input border border-border/10 rounded-lg px-3 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
-                  value={formData.scheduled_time} onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })} />
-                
+                <input
+                  required
+                  type="datetime-local"
+                  className="w-full bg-input border border-border/10 rounded-lg px-3 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
+                  value={formData.scheduled_time}
+                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                />
+
                 <div className="grid grid-cols-3 gap-2">
-                  <select className="col-span-2 bg-input border border-border/10 rounded-lg px-3 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
-                    value={formData.repeat_interval || ''} onChange={(e) => setFormData({ ...formData, repeat_interval: (e.target.value || null) as any, repeat_value: e.target.value ? (formData.repeat_value || 1) : 1 })}>
-                      <option value="">Não repetir</option>
-                      <option value="minutes">Minutos</option>
-                      <option value="hours">Horas</option>
-                      <option value="days">Dias</option>
-                      <option value="weeks">Semanas</option>
-                      <option value="months">Meses</option>
+                  <select
+                    className="col-span-2 bg-input border border-border/10 rounded-lg px-3 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
+                    value={formData.repeat_interval || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        repeat_interval: (e.target.value || null) as any,
+                        repeat_value: e.target.value ? formData.repeat_value || 1 : 1
+                      })
+                    }
+                  >
+                    <option value="">Não repetir</option>
+                    <option value="minutes">Minutos</option>
+                    <option value="hours">Horas</option>
+                    <option value="days">Dias</option>
+                    <option value="weeks">Semanas</option>
+                    <option value="months">Meses</option>
                   </select>
                   {formData.repeat_interval && (
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-text-muted">a cada</span>
-                      <input type="number" min="1" max="99" 
+                      <input
+                        type="number"
+                        min="1"
+                        max="99"
                         className="w-full bg-input border border-border/10 rounded-lg px-2 py-2.5 text-xs font-bold text-text outline-none focus:border-accent/50"
-                        value={formData.repeat_value} onChange={(e) => setFormData({ ...formData, repeat_value: Math.max(1, parseInt(e.target.value) || 1) })} />
+                        value={formData.repeat_value}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            repeat_value: Math.max(1, parseInt(e.target.value) || 1)
+                          })
+                        }
+                      />
                     </div>
                   )}
                 </div>
@@ -465,8 +603,19 @@ export default function RemindersView() {
             </div>
 
             <div className="flex justify-end gap-3 p-4 bg-card/50 border-t border-border/10">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-bold text-text-muted hover:text-text uppercase transition-colors">Cancelar</button>
-              <button type="submit" className="px-5 py-2 bg-accent text-white rounded-lg text-xs font-bold uppercase hover:brightness-110 shadow-lg shadow-accent/20 transition-all">Salvar</button>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-text-muted hover:text-text uppercase transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-accent text-white rounded-lg text-xs font-bold uppercase hover:brightness-110 shadow-lg shadow-accent/20 transition-all"
+              >
+                Salvar
+              </button>
             </div>
           </form>
         </div>

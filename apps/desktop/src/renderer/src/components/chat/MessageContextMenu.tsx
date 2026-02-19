@@ -1,10 +1,10 @@
 import { JSX, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { 
-  ClipboardDocumentIcon, 
-  SpeakerWaveIcon, 
-  TrashIcon, 
-  ArrowPathIcon 
+import {
+  ClipboardDocumentIcon,
+  SpeakerWaveIcon,
+  TrashIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline'
 
 interface MessageContextMenuProps {
@@ -52,7 +52,10 @@ export default function MessageContextMenu({
     >
       <div className="flex flex-col p-1.5">
         <button
-          onClick={() => { onCopy(); onClose() }}
+          onClick={() => {
+            onCopy()
+            onClose()
+          }}
           className="flex items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-accent/10 rounded-lg transition-colors group"
         >
           <ClipboardDocumentIcon className="w-4 h-4 text-text-muted group-hover:text-accent" />
@@ -61,7 +64,10 @@ export default function MessageContextMenu({
 
         {!isUser && (
           <button
-            onClick={() => { onSpeak(); onClose() }}
+            onClick={() => {
+              onSpeak()
+              onClose()
+            }}
             className="flex items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-accent/10 rounded-lg transition-colors group"
           >
             <SpeakerWaveIcon className="w-4 h-4 text-text-muted group-hover:text-accent" />
@@ -71,7 +77,10 @@ export default function MessageContextMenu({
 
         {isUser && onRetry && (
           <button
-            onClick={() => { onRetry(); onClose() }}
+            onClick={() => {
+              onRetry()
+              onClose()
+            }}
             className="flex items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-accent/10 rounded-lg transition-colors group"
           >
             <ArrowPathIcon className="w-4 h-4 text-text-muted group-hover:text-accent" />
@@ -82,7 +91,10 @@ export default function MessageContextMenu({
         <div className="h-px bg-border/20 my-1 mx-1" />
 
         <button
-          onClick={() => { onDelete(); onClose() }}
+          onClick={() => {
+            onDelete()
+            onClose()
+          }}
           className="flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors group"
         >
           <TrashIcon className="w-4 h-4 opacity-70 group-hover:opacity-100" />
