@@ -44,6 +44,10 @@ const errorMessages: Record<string, { title: string; solution: string }> = {
   unknown: {
     title: 'Unknown Error',
     solution: 'Check logs for details'
+  },
+  missing_vc_redist: {
+    title: 'Missing Component',
+    solution: 'Install Microsoft Visual C++ Redistributable (aka.ms/vs/17/release/vc_redist.x64.exe)'
   }
 }
 

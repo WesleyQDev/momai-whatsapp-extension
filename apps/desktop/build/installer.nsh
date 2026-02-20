@@ -199,9 +199,8 @@ FunctionEnd
   ${Else}
     DetailPrint "Visual C++ Redistributable nao encontrado. Instalando..."
     
-    # Check if VC++ installer file exists
-    IfFileExists "${BUILD_RESOURCES_DIR}\..\bin\vc_redist.x64.exe" 0 vc_redist_skip
-      
+    # Check if VC++ installer file exists at compile time
+    !if /FileExists "${BUILD_RESOURCES_DIR}\..\bin\vc_redist.x64.exe"
       File "/oname=$PLUGINSDIR\vc_redist.x64.exe" "${BUILD_RESOURCES_DIR}\..\bin\vc_redist.x64.exe"
       
       # Run silently: /install /quiet /norestart
@@ -216,13 +215,9 @@ FunctionEnd
       ${Else}
         DetailPrint "Aviso: Instalacao do VC Redist retornou codigo $1"
       ${EndIf}
-      
-      Goto vc_redist_done
-    
-    vc_redist_skip:
-    DetailPrint "Arquivo vc_redist.x64.exe nao encontrado. Pulando instalacao do VC++."
-    
-    vc_redist_done:
+    !else
+      DetailPrint "Arquivo vc_redist.x64.exe nao empacotado. Pulando instalacao do VC++."
+    !endif
   ${EndIf}
 !macroend
 
