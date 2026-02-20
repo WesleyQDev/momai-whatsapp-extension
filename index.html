@@ -11,6 +11,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,slnt,wdth,wght,ROND@8..144,-10..0,25..150,400..500,0..100&family=Google+Sans+Text:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KFD10X8EW7"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-KFD10X8EW7');
+</script>
 <body>
 
     <!-- Background Effects -->
@@ -193,10 +202,16 @@
         function applyDownloadUrl(url, isLinux) {
             document.querySelectorAll('.btn-download').forEach(el => {
                 el.href = url;
+                const span = el.querySelector('span');
+                if (span) {
+                    span.textContent = isLinux ? 'Download para Linux' : 'Download para Windows';
+                }
             });
         }
 
-        updateDownloadLinks();
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDownloadLinks();
+        });
 
         // Scroll animations
         const fadeElements = document.querySelectorAll('.feature, .step');
@@ -226,7 +241,7 @@
         <p class="subtitle">A MomAI é uma assistente inteligente que roda inteiramente na sua máquina. Sem nuvem, sem assinaturas, sem coleta de dados.</p>
         
         <div class="btn-group">
-            <a href="https://github.com/WesleyQDev/MomAI/releases/latest" class="btn-primary btn-download">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -323,7 +338,7 @@
     <section class="cta-section">
         <h2>Pronto para experimentar?</h2>
         <p>Baixe gratuitamente e descubra o poder de uma IA que é só sua.</p>
-        <a href="https://github.com/WesleyQDev/MomAI/releases/latest" class="btn-primary btn-download">
+        <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>

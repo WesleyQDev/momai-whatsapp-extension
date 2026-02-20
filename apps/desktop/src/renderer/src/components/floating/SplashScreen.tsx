@@ -92,6 +92,7 @@ export default function SplashScreen({
 
   useEffect(() => {
     if (isFullyReady) {
+      setVisualProgress(100)
       const timer = setTimeout(() => {
         setIsVisible(false)
         setTimeout(() => {
@@ -137,7 +138,7 @@ export default function SplashScreen({
       setVisualProgress((prev) => {
         const step = (target - prev) * 0.1
         const next = prev + step + 0.1
-        return Math.min(next, 95)
+        return Math.min(next, (initProgress || 0) >= 100 ? 100 : 95)
       })
     }, 50)
 

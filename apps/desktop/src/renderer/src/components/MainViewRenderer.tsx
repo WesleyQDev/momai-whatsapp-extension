@@ -4,7 +4,9 @@ import RemindersView from '../views/RemindersView'
 import ExtensionsView from '../views/ExtensionsView'
 import NotesView from '../views/NotesView'
 import DynamicDashboard from './DynamicDashboard'
-import { useStatus } from '../hooks/useStatus'
+import { StatusData } from '../services/api'
+
+
 
 interface MainViewRendererProps {
   viewName: string
@@ -12,11 +14,11 @@ interface MainViewRendererProps {
   onOpenSettings: (tab?: any) => void
   extensionData?: any
   chat: any // Chat instance from App
+  statusInfo: StatusData | null
 }
 
 const VIEW_MAP: Record<string, React.ComponentType<any>> = {
   ChatDashboard: (props: any) => {
-    const status = useStatus()
     return (
       <ContainerChat
         messages={props.chat.messages}
@@ -27,7 +29,7 @@ const VIEW_MAP: Record<string, React.ComponentType<any>> = {
         messagesEndRef={props.chat.messagesEndRef}
         onReopenGraph={props.chat.reopenGraph}
         onGraphOption={props.chat.handleGraphOption}
-        statusInfo={status.statusInfo}
+        statusInfo={props.statusInfo}
         stopCurrentGeneration={props.chat.stopCurrentGeneration}
         stopCurrentVoice={props.chat.stopCurrentVoice}
         speakingIndex={props.chat.speakingIndex}
@@ -49,7 +51,8 @@ export default function MainViewRenderer({
   isCompact,
   onOpenSettings,
   extensionData,
-  chat
+  chat,
+  statusInfo
 }: MainViewRendererProps) {
   const Component = VIEW_MAP[viewName] || (extensionData ? DynamicDashboard : null)
 
@@ -73,6 +76,7 @@ export default function MainViewRenderer({
         description={extensionData?.description}
         extensionId={extensionData?.id}
         chat={chat}
+        statusInfo={statusInfo}
       />
     </div>
   )

@@ -43,6 +43,7 @@ export function useStatus() {
       setStatusInfo(data)
       setLocalMode(data.mode)
       setIsOnline(data.status === 'ok')
+      setBackendOnline(true)
 
       // Evita encerrar boot antes do modelo estar realmente pronto
       if (data.status === 'ok' && data.brain_ready && !data.is_loading) {
@@ -86,6 +87,12 @@ export function useStatus() {
     const removeIpcListener = window.api?.onInitProgress?.((data) => {
       setInitMessage(data.message)
       setInitProgress((prev) => Math.max(prev, data.progress))
+      
+      // Se recebemos progresso do backend, ele definitivamente está rodando
+      if (!backendOnline) {
+        setBackendOnline(true)
+      }
+
       if (data.progress >= 100) {
         setIsBooting(false)
       }
@@ -102,7 +109,7 @@ export function useStatus() {
       if (removeIpcListener) removeIpcListener()
       if (removeOnlineListener) removeOnlineListener()
     }
-  }, [])
+  }, [backendOnline])
 
   const changeMode = async (mode: string) => {
     if (mode === localMode) return
@@ -123,11 +130,14 @@ export function useStatus() {
     let initInterval: NodeJS.Timeout
 
     const startPolling = () => {
-      if (!backendOnline) return
-
+      // Tentativa proativa imediata mesmo se backendOnline for falso
+      // Isso resolve o caso onde o sinal foi enviado antes do hook montar
       checkStatus()
       checkInitProgress()
-      const pollInterval = isBooting ? 2000 : 8000
+
+      if (!backendOnline) return
+
+      const pollInterval = (isBooting || (initProgress >= 100 && !isReady)) ? 2000 : 8000
       statusInterval = setInterval(checkStatus, pollInterval)
     }
 

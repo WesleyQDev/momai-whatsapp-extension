@@ -192,10 +192,16 @@
         function applyDownloadUrl(url, isLinux) {
             document.querySelectorAll('.btn-download').forEach(el => {
                 el.href = url;
+                const span = el.querySelector('span');
+                if (span) {
+                    span.textContent = isLinux ? 'Download para Linux' : 'Download para Windows';
+                }
             });
         }
 
-        updateDownloadLinks();
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDownloadLinks();
+        });
     </script>
 
     <!-- Changelog Content -->

@@ -235,6 +235,7 @@ function App(): React.JSX.Element {
                 onOpenSettings={openSettings}
                 extensionData={currentExtension}
                 chat={chat}
+                statusInfo={statusInfo}
               />
 
               {/* 2. Graph Panel (Middle Column - Conditional) */}
