@@ -57,6 +57,11 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
   }>({})
   const [gamingApps, setGamingApps] = useState<any[]>([])
   const [newApp, setNewApp] = useState({ name: '', executable: '' })
+  const [appVersion, setAppVersion] = useState('1.0.0')
+
+  useEffect(() => {
+    window.api.getAppVersion?.().then(setAppVersion).catch(() => {})
+  }, [])
 
   useEffect(() => {
     loadSettings()
@@ -815,7 +820,7 @@ export default function SettingsCard({ onClose, initialTab = 'general' }: Settin
                         {t('settings.updates.coreTitle')}
                       </span>
                       <span className="text-[10px] text-text-muted font-medium">
-                        {t('settings.updates.coreVersion', { version: '0.1.0' })}
+                        {t('settings.updates.coreVersion', { version: appVersion })}
                       </span>
                     </div>
                   </div>

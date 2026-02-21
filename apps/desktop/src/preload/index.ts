@@ -7,6 +7,7 @@ const api = {
   close: (): void => electronAPI.ipcRenderer.send('window-close'),
   getLogsPath: (): Promise<string> => electronAPI.ipcRenderer.invoke('get-logs-path'),
   openLogsFolder: (): Promise<void> => electronAPI.ipcRenderer.invoke('open-logs-folder'),
+  getAppVersion: (): Promise<string> => electronAPI.ipcRenderer.invoke('get-app-version'),
   onBootstrapError: (
     callback: (error: { type: string; message: string; details?: string }) => void
   ) => {

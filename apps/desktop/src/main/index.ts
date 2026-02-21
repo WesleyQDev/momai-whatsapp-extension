@@ -31,6 +31,7 @@ process.on('unhandledRejection', (reason) => {
 
 ipcMain.handle('get-logs-path', () => getLogsPath())
 ipcMain.handle('open-logs-folder', () => shell.openPath(getLogsPath()))
+ipcMain.handle('get-app-version', () => app.getVersion())
 
 ipcMain.on('report-bootstrap-error', (_, error: string) => {
   logger.error('[Bootstrap] Error reported from renderer:', error)

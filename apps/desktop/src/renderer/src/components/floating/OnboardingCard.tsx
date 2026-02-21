@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import { useI18n } from '../../i18n'
 
@@ -51,6 +51,11 @@ export default function OnboardingCard({ onFinish }: OnboardingCardProps) {
   const [selectedVoice, setSelectedVoice] = useState('pf_dora')
   const [selectedLang, setSelectedLang] = useState('p')
   const [isSaving, setIsSaving] = useState(false)
+  const [appVersion, setAppVersion] = useState('1.0.0')
+
+  useEffect(() => {
+    window.api.getAppVersion?.().then(setAppVersion).catch(() => {})
+  }, [])
 
   const changeTheme = (newTheme: Theme) => {
     setTheme(newTheme)
@@ -283,7 +288,7 @@ export default function OnboardingCard({ onFinish }: OnboardingCardProps) {
 
             <div className="text-center">
               <span className="text-[9px] font-black text-text-muted/20 uppercase tracking-[0.3em]">
-                MomAI Enterprise V0.1.0 • All Data Localized
+                MomAI Enterprise V{appVersion} • All Data Localized
               </span>
             </div>
           </div>

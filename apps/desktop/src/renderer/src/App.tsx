@@ -96,7 +96,7 @@ function App(): React.JSX.Element {
           setLocale(data.locale as any)
         }
 
-        if (!data.onboarding_completed) {
+        if (data && data.onboarding_completed === false) {
           setShowOnboarding(true)
         }
         setSettingsLoaded(true)
