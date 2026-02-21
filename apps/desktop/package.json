@@ -13,7 +13,7 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "start": "electron-vite preview",
-    "dev": "chcp 65001 > nul && electron-vite dev",
+    "dev": "electron-vite dev",
     "prebuild": "node -e \"const isWin = process.platform === 'win32'; const cmd = isWin ? 'powershell -ExecutionPolicy Bypass -File scripts/hydrate-bin.ps1' : 'bash scripts/hydrate-bin.sh'; require('child_process').execSync(cmd, {stdio: 'inherit'})\"",
     "build": "npm run prebuild && npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",

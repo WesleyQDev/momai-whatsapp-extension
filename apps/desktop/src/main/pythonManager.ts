@@ -207,6 +207,22 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     return error
   }
 
+  // On Linux/macOS, ensure the uv and python binaries are executable
+  if (process.platform !== 'win32' && !isUvCommand && existsSync(uvExe)) {
+    try {
+      execSync(`chmod +x "${uvExe}"`, { stdio: 'ignore' })
+      logger.info(`[Bootstrap] chmod +x applied to ${uvExe}`)
+
+      const bundledPython = join(process.resourcesPath, 'bin', 'python', 'bin', 'python3')
+      if (existsSync(bundledPython)) {
+        execSync(`chmod +x "${bundledPython}"`, { stdio: 'ignore' })
+        logger.info(`[Bootstrap] chmod +x applied to bundled python`)
+      }
+    } catch (e) {
+      logger.warn(`[Bootstrap] Could not chmod +x binaries: ${e}`)
+    }
+  }
+
   if (!checkWritePermission(userDataPath)) {
     const error: BootstrapError = {
       type: 'permission_denied',
@@ -324,15 +340,11 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
 }
 
 function buildEnv(venvPath: string, dataDir: string, uvExe: string) {
-  return {
+  const isWin = process.platform === 'win32'
+  const base: Record<string, string | undefined> = {
     PATH: process.env.PATH,
-    SystemRoot: process.env.SystemRoot,
-    SystemDrive: process.env.SystemDrive,
     TEMP: process.env.TEMP,
     TMP: process.env.TMP,
-    USERPROFILE: process.env.USERPROFILE,
-    APPDATA: process.env.APPDATA,
-    LOCALAPPDATA: process.env.LOCALAPPDATA,
     VIRTUAL_ENV: venvPath,
     MOMAI_DATA_DIR: dataDir,
     MOMAI_UV_BIN: uvExe,
@@ -343,6 +355,27 @@ function buildEnv(venvPath: string, dataDir: string, uvExe: string) {
     FORCE_COLOR: '1',
     LC_ALL: 'pt_BR.UTF-8'
   }
+
+  if (isWin) {
+    // Windows-specific environment variables
+    base.SystemRoot = process.env.SystemRoot
+    base.SystemDrive = process.env.SystemDrive
+    base.USERPROFILE = process.env.USERPROFILE
+    base.APPDATA = process.env.APPDATA
+    base.LOCALAPPDATA = process.env.LOCALAPPDATA
+  } else {
+    // Linux/macOS-specific environment variables
+    base.HOME = process.env.HOME
+    base.USER = process.env.USER
+    base.SHELL = process.env.SHELL
+    base.XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME
+    base.XDG_DATA_HOME = process.env.XDG_DATA_HOME
+    base.XDG_CACHE_HOME = process.env.XDG_CACHE_HOME
+    base.DBUS_SESSION_BUS_ADDRESS = process.env.DBUS_SESSION_BUS_ADDRESS
+    base.DISPLAY = process.env.DISPLAY
+  }
+
+  return base
 }
 
 let restartAttempts = 0

@@ -10,9 +10,17 @@ mkdir -p "$BIN_DIR"
 
 # 1. Download UV
 echo "[MomAI] Downloading UV..."
-UV_URL="https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-musl.tar.gz"
+
+if [[ "$(uname -m)" == "aarch64" || "$(uname -m)" == "arm64" ]]; then
+    ARCH="aarch64"
+else
+    ARCH="x86_64"
+fi
+
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    UV_URL="https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-apple-darwin.tar.gz"
+    UV_URL="https://github.com/astral-sh/uv/releases/latest/download/uv-${ARCH}-apple-darwin.tar.gz"
+else
+    UV_URL="https://github.com/astral-sh/uv/releases/latest/download/uv-${ARCH}-unknown-linux-musl.tar.gz"
 fi
 
 UV_TAR="$BIN_DIR/uv.tar.gz"
@@ -20,12 +28,15 @@ curl -L "$UV_URL" -o "$UV_TAR"
 tar -xzf "$UV_TAR" -C "$BIN_DIR" --strip-components=1
 rm "$UV_TAR"
 
-# 2. Download Portable Python (optional for Linux as usually bundled or handled by uv, 
-# but we follow the hydration logic)
+echo "[MomAI] UV installed: $("$BIN_DIR/uv" --version)"
+
+# 2. Download Portable Python 3.12
 echo "[MomAI] Downloading Portable Python 3.12..."
-PY_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20250115/cpython-3.12.8+20250115-x86_64-unknown-linux-gnu-install_only.tar.gz"
+
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    PY_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20250115/cpython-3.12.8+20250115-x86_64-apple-darwin-install_only.tar.gz"
+    PY_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20250115/cpython-3.12.8+20250115-${ARCH}-apple-darwin-install_only.tar.gz"
+else
+    PY_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20250115/cpython-3.12.8+20250115-${ARCH}-unknown-linux-gnu-install_only.tar.gz"
 fi
 
 PY_TAR="$BIN_DIR/python.tar.gz"
@@ -34,9 +45,7 @@ mkdir -p "$BIN_DIR/python"
 tar -xzf "$PY_TAR" -C "$BIN_DIR/python" --strip-components=1
 rm "$PY_TAR"
 
-# 3. Download Visual C++ Redistributable
-echo "[MomAI] Downloading Visual C++ Redistributable..."
-VC_URL="https://aka.ms/vs/17/release/vc_redist.x64.exe"
-curl -L "$VC_URL" -o "$BIN_DIR/vc_redist.x64.exe"
+echo "[MomAI] Python installed: $("$BIN_DIR/python/bin/python3" --version)"
 
-echo "[MomAI] Hydration complete! UV, Python and VC Redist are ready in apps/desktop/bin"
+# NOTE: VC++ Redistributable is Windows-only, skipping for Linux/macOS
+echo "[MomAI] Hydration complete! UV and Python are ready in apps/desktop/bin"

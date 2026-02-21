@@ -1,6 +1,6 @@
 ---
 title: O nascimento de uma assistente privada
-date: 17 de Fevereiro, 2026
+date: 21 de Fevereiro, 2026
 excerpt: Conheça a MomAI, uma assistente pessoal focada em privacidade que roda 100% localmente no seu computador.
 image: https://i.ibb.co/LXgHdCFK/image.png
 featured: true
@@ -16,7 +16,7 @@ O nome vem da ideia de ser a "mãe" do seu sistema — ela organiza, lembra e aj
 
 ## O que ela faz hoje?
 
-Nesta versão você pode criar e gerenciar anotações, agendar lembretes com notificação por voz, e pedir para ela buscar informações na internet. A ativação por voz também já funciona: basta dizer **"Sistema"** e ela começa a ouvir, tudo processado localmente.
+Nesta versão você pode criar e gerenciar anotações, agendar lembretes com notificação por voz, e pedir para ela buscar informações na internet. A ativação por voz também já funciona: basta dizer **"Luna"** e ela começa a ouvir, tudo processado localmente.
 
 Ela também detecta quando você está rodando um jogo ou processo pesado no PC e pausa os processos de IA automaticamente para não comprometer o desempenho.
 

@@ -83,7 +83,7 @@
             </button>
             <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.45rem 0.9rem; font-size: 0.8rem; background: rgba(255,255,255,0.1); color: var(--text);">
                 <span>Download</span>
-                <span class="version-badge" id="navVersion" style="margin-left: 6px; font-size: 0.7rem; opacity: 0.7;"></span>
+                <span id="navVersion" style="margin-left: 6px; font-size: 0.7rem; opacity: 0.7; font-weight: 400;"></span>
             </a>
             <button class="menu-toggle" aria-label="Menu" id="menuToggle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -195,7 +195,7 @@
                 el.href = url;
                 const span = el.querySelector('span');
                 if (span) {
-                    span.textContent = isLinux ? 'Download para Linux' : 'Download para Windows';
+                    span.textContent = 'Download';
                 }
             });
         }

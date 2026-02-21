@@ -92,7 +92,7 @@
             </button>
             <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.45rem 0.9rem; font-size: 0.8rem; background: rgba(255,255,255,0.1); color: var(--text);">
                 <span>Download</span>
-                <span class="version-badge" id="navVersion" style="margin-left: 6px; font-size: 0.7rem; opacity: 0.7;"></span>
+                <span id="navVersion" style="margin-left: 6px; font-size: 0.7rem; opacity: 0.7; font-weight: 400;"></span>
             </a>
             <button class="menu-toggle" aria-label="Menu" id="menuToggle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -139,19 +139,32 @@
             });
         });
 
+        // --- OS Detection ---
+        function detectPlatform() {
+            const ua = navigator.userAgent.toLowerCase();
+            const platform = (navigator.platform || '').toLowerCase();
+            if (platform.includes('linux') || ua.includes('linux')) return 'linux';
+            if (platform.includes('mac') || ua.includes('mac')) return 'mac';
+            return 'win';
+        }
+
         async function updateDownloadLinks() {
             const repo = "WesleyQDev/MomAI-App";
-            const platform = navigator.platform?.toLowerCase() || "";
-            const isLinux = platform.includes('linux') || navigator.userAgent.toLowerCase().includes('linux');
-            const storageKey = isLinux ? "momai_latest_linux" : "momai_latest_win";
+            const os = detectPlatform();
+            const storageKeyWin = "momai_latest_win";
+            const storageKeyLinux = "momai_latest_linux";
             const versionKey = "momai_latest_version";
-            
-            const cachedUrl = sessionStorage.getItem(storageKey);
+
+            const cachedWin = sessionStorage.getItem(storageKeyWin);
+            const cachedLinux = sessionStorage.getItem(storageKeyLinux);
             const cachedVersion = sessionStorage.getItem(versionKey);
-            
-            if (cachedUrl && cachedVersion) {
-                applyDownloadUrl(cachedUrl, isLinux);
-                displayVersion(cachedVersion);
+
+            if ((os === 'linux' ? cachedLinux : cachedWin) && cachedVersion) {
+                applyDownloadUrls(
+                    cachedWin || 'https://github.com/WesleyQDev/MomAI-App/releases/latest',
+                    cachedLinux || 'https://github.com/WesleyQDev/MomAI-App/releases/latest',
+                    os, cachedVersion
+                );
                 return;
             }
 
@@ -170,21 +183,19 @@
                 }
 
                 if (data && data.assets) {
-                    let asset;
-                    if (isLinux) {
-                        asset = data.assets.find(a => a.name.endsWith('.AppImage')) || data.assets.find(a => a.name.endsWith('.deb'));
-                    } else {
-                        asset = data.assets.find(a => a.name.endsWith('.exe'));
-                    }
+                    const winAsset = data.assets.find(a => a.name.endsWith('.exe'));
+                    const linuxAsset = data.assets.find(a => a.name.endsWith('.AppImage'))
+                                   || data.assets.find(a => a.name.endsWith('.deb'));
 
-                    if (asset) {
-                        const downloadUrl = asset.browser_download_url;
-                        const version = data.tag_name || data.name || '';
-                        sessionStorage.setItem(storageKey, downloadUrl);
-                        sessionStorage.setItem(versionKey, version);
-                        applyDownloadUrl(downloadUrl, isLinux);
-                        displayVersion(version);
-                    }
+                    const version = data.tag_name || data.name || '';
+                    const winUrl = winAsset?.browser_download_url || `https://github.com/${repo}/releases/latest`;
+                    const linuxUrl = linuxAsset?.browser_download_url || `https://github.com/${repo}/releases/latest`;
+
+                    if (winUrl) sessionStorage.setItem(storageKeyWin, winUrl);
+                    if (linuxUrl) sessionStorage.setItem(storageKeyLinux, linuxUrl);
+                    if (version) sessionStorage.setItem(versionKey, version);
+
+                    applyDownloadUrls(winUrl, linuxUrl, os, version);
                 }
             } catch (err) {
                 console.error("Erro ao buscar release do GitHub:", err);
@@ -199,13 +210,24 @@
             }
         }
 
-        function applyDownloadUrl(url, isLinux) {
+        function applyDownloadUrls(winUrl, linuxUrl, os, version) {
+            displayVersion(version);
+
+            // Primary download button: points to the user's platform
+            const primaryUrl = os === 'linux' ? linuxUrl : winUrl;
+            const altText = os === 'linux' ? 'Versão para Windows' : 'Versão para Linux';
+            const altUrl = os === 'linux' ? winUrl : linuxUrl;
+
             document.querySelectorAll('.btn-download').forEach(el => {
-                el.href = url;
-                const span = el.querySelector('span');
-                if (span) {
-                    span.textContent = isLinux ? 'Download para Linux' : 'Download para Windows';
-                }
+                el.href = primaryUrl;
+                const span = el.querySelector('span:not(.version-badge)');
+                if (span) span.textContent = 'Download';
+            });
+
+            // Update alt-download links (cross-platform link below the main button)
+            document.querySelectorAll('.btn-alt-download').forEach(el => {
+                el.href = altUrl;
+                el.textContent = altText;
             });
         }
 
@@ -213,16 +235,15 @@
             updateDownloadLinks();
 
             // Rastreamento de Cliques de Download
-            document.querySelectorAll('.btn-download').forEach(btn => {
+            document.querySelectorAll('.btn-download, .btn-alt-download').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    const platform = navigator.platform.toLowerCase().includes('linux') ? 'Linux' : 'Windows';
+                    const os = detectPlatform();
                     const version = document.getElementById('navVersion')?.textContent || 'unknown';
-                    
                     gtag('event', 'file_download', {
                         'file_extension': btn.href.split('.').pop(),
                         'file_name': btn.href.split('/').pop(),
                         'link_text': btn.innerText.trim(),
-                        'platform': platform,
+                        'platform': os,
                         'version': version
                     });
                 });
@@ -257,7 +278,7 @@
         <p class="subtitle">A MomAI é uma assistente inteligente que roda inteiramente na sua máquina. Sem nuvem, sem assinaturas, sem coleta de dados.</p>
         
         <div class="btn-group">
-            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" id="heroDownloadBtn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -266,6 +287,11 @@
                 <span>Download para Windows</span>
             </a>
             <a href="#features" class="btn-secondary">Saiba mais</a>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.8rem; opacity: 0.55;">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-alt-download" style="color: inherit; text-decoration: underline; cursor: pointer;">Versão para Linux</a>
+            &nbsp;·&nbsp;
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" style="color: inherit; text-decoration: underline;" target="_blank">Todas as versões</a>
         </div>
     </section>
 
@@ -377,6 +403,11 @@
             </svg>
             <span>Download para Windows</span>
         </a>
+        <p style="margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.6;">
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-alt-download" style="color: inherit; text-decoration: underline;">Versão para Linux</a>
+            &nbsp;·&nbsp;
+            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" style="color: inherit; text-decoration: underline;" target="_blank">Todas as versões</a>
+        </p>
     </section>
 
     <!-- Footer -->

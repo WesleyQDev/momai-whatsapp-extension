@@ -83,7 +83,7 @@
             </button>
             <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download" style="padding: 0.45rem 0.9rem; font-size: 0.8rem; background: rgba(255,255,255,0.1); color: var(--text);">
                 <span>Download</span>
-                <span class="version-badge" id="navVersion" style="margin-left: 6px; font-size: 0.7rem; opacity: 0.7;"></span>
+                <span id="navVersion" style="margin-left: 6px; font-size: 0.7rem; opacity: 0.7; font-weight: 400;"></span>
             </a>
             <button class="menu-toggle" aria-label="Menu" id="menuToggle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -194,7 +194,7 @@
                 el.href = url;
                 const span = el.querySelector('span');
                 if (span) {
-                    span.textContent = isLinux ? 'Download para Linux' : 'Download para Windows';
+                    span.textContent = 'Download';
                 }
             });
         }
@@ -207,8 +207,8 @@
     <!-- Changelog Content -->
     <div class="changelog-content" id="changelog-container">
         <div class="changelog-header">
-            <h1>Changelog</h1>
-            <p>Acompanhe todas as atualizações da MomAI</p>
+            <h1>Registro de Atualizações</h1>
+            <p>Acompanhe a evolução da MomAI</p>
         </div>
         <p style="text-align:center; padding: 4rem; color: var(--text-tertiary);">Sincronizando registros...</p>
     </div>
@@ -248,10 +248,116 @@
                 if (!res.ok) throw new Error('CHANGELOG.md não encontrado');
                 
                 const text = await res.text();
-                container.innerHTML = `<div class="md-content">${marked.parse(text)}</div>`;
+                const changelog = parseChangelog(text);
+                
+                if (changelog.length === 0) {
+                    container.innerHTML += `<p style="text-align:center;color:var(--text-tertiary);padding:2rem;">Nenhum registro encontrado</p>`;
+                    return;
+                }
+                
+                let html = '';
+                changelog.forEach((item) => {
+                    const sections = item.sections.map((section) => {
+                        return `
+                            <div class="version-section">
+                                <div class="section-title">
+                                    <span>${section.title}</span>
+                                </div>
+                                <ul class="change-list">
+                                    ${section.items.map(listItem => {
+                                        // Substitui **texto** por <strong>texto</strong> para manter a formatação
+                                        const formatted = listItem.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text); font-weight: 600;">$1</strong>');
+                                        return `<li>${formatted}</li>`;
+                                    }).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    html += `
+                        <div class="timeline-item">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <span class="version-badge">v${item.version}</span>
+                                    <span class="version-date">${formatDate(item.date)}</span>
+                                </div>
+                                ${item.title ? `<p class="version-title">${item.title}</p>` : ''}
+                                <div class="version-details">
+                                    ${sections}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = `
+                    <div class="changelog-header">
+                        <h1>Registro de Atualizações</h1>
+                        <p>Acompanhe a evolução da MomAI a cada nova versão.</p>
+                    </div>
+                    <div class="timeline">${html}</div>
+                `;
             } catch (err) {
                 container.innerHTML += `<p style="text-align:center;color:var(--text-tertiary);padding:2rem;">Erro ao carregar changelog: ${err.message}</p>`;
             }
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr + 'T12:00:00Z'); // Força time neutro para evitar fuso horário variando dia
+            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+
+        function parseChangelog(text) {
+            const lines = text.split('\n');
+            const items = [];
+            let currentItem = null;
+            let currentSection = null;
+            let contentLines = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const versionMatch = line.match(/^##\s+(\d+\.\d+\.\d+)\s+-\s+(\d{4}-\d{2}-\d{2})/);
+                
+                if (versionMatch) {
+                    if (currentItem) {
+                        if (currentSection) {
+                            currentSection.items = contentLines.filter(l => l.trim());
+                            currentItem.sections.push(currentSection);
+                        }
+                        items.push(currentItem);
+                    }
+                    
+                    const titleMatch = lines[i + 1]?.match(/^([^#\n].+)/);
+                    currentItem = {
+                        version: versionMatch[1],
+                        date: versionMatch[2],
+                        title: titleMatch ? titleMatch[1].trim() : '',
+                        sections: []
+                    };
+                    currentSection = null;
+                    contentLines = [];
+                    i++;
+                } else if (line.match(/^##\s+/)) {
+                    if (currentSection && contentLines.length > 0) {
+                        currentSection.items = contentLines.filter(l => l.trim());
+                        currentItem.sections.push(currentSection);
+                    }
+                    const sectionTitle = line.replace(/^##\s+/, '').trim();
+                    currentSection = { title: sectionTitle, items: [] };
+                    contentLines = [];
+                } else if (currentItem && line.trim() && line.startsWith('- ')) {
+                    contentLines.push(line.replace(/^-\s+/, ''));
+                }
+            }
+            
+            if (currentSection && contentLines.length > 0) {
+                currentSection.items = contentLines.filter(l => l.trim());
+                currentItem.sections.push(currentSection);
+            }
+            if (currentItem) items.push(currentItem);
+            
+            return items;
         }
 
         loadChangelog();

@@ -14,6 +14,17 @@ asarUnpack:
 win:
   executableName: MomAI
   artifactName: MomAI-Installer.${ext}
+  extraResources:
+    - from: '../core'
+      to: 'core'
+      filter:
+        - '!**/.venv'
+        - '!**/__pycache__'
+        - '!**/models/*'
+    - from: 'bin'
+      to: 'bin'
+    - from: 'build/diagnostic.bat'
+      to: 'diagnostic.bat'
 nsis:
   artifactName: MomAI-Installer.${ext}
   shortcutName: MomAI
@@ -40,19 +51,20 @@ linux:
     - deb
   maintainer: WesleyQDev
   category: Utility
+  artifactName: MomAI-${version}.${ext}
+  extraResources:
+    - from: '../core'
+      to: 'core'
+      filter:
+        - '!**/.venv'
+        - '!**/__pycache__'
+        - '!**/models/*'
+    - from: 'bin'
+      to: 'bin'
+    - from: 'build/diagnostic.sh'
+      to: 'diagnostic.sh'
 appImage:
   artifactName: MomAI-${version}.${ext}
-extraResources:
-  - from: '../core'
-    to: 'core'
-    filter:
-      - '!**/.venv'
-      - '!**/__pycache__'
-      - '!**/models/*'
-  - from: 'bin'
-    to: 'bin'
-  - from: 'build/diagnostic.bat'
-    to: 'diagnostic.bat'
 npmRebuild: false
 publish:
   provider: github
