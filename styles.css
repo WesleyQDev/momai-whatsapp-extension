@@ -443,12 +443,12 @@ p.subtitle {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: var(--text);
-    color: var(--bg);
+    background: #ffffff;
+    color: #000000;
     text-decoration: none;
     padding: 0.7rem 1.5rem;
     border-radius: 100px;
-    font-weight: 500;
+    font-weight: 600;
     font-size: 0.9rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: none;
@@ -460,8 +460,8 @@ p.subtitle {
 /* Botão de download com animação pulsante suave - apenas fora da navbar */
 .btn-group .btn-download,
 .cta-section .btn-download {
-    background: var(--text);
-    color: var(--bg) !important;
+    background: #ffffff;
+    color: #000000 !important;
     font-weight: 600;
     box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
     animation: softPulse 3s ease-in-out infinite;
@@ -475,8 +475,8 @@ p.subtitle {
 
 [data-theme="light"] .btn-group .btn-download,
 [data-theme="light"] .cta-section .btn-download {
-    background: var(--text);
-    color: var(--bg) !important;
+    background: #ffffff;
+    color: #000000 !important;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     animation: softPulseLight 3s ease-in-out infinite;
 }
@@ -506,11 +506,11 @@ p.subtitle {
 
 /* Botão download no navbar - com mesma animação pulsante */
 .nav-right .btn-download {
-    background: var(--text) !important;
-    color: var(--bg) !important;
+    background: #ffffff !important;
+    color: #000000 !important;
     border: none;
     animation: softPulse 3s ease-in-out infinite !important;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .nav-right .btn-download:hover {
@@ -518,8 +518,8 @@ p.subtitle {
 }
 
 [data-theme="light"] .nav-right .btn-download {
-    background: var(--text) !important;
-    color: var(--bg) !important;
+    background: #ffffff !important;
+    color: #000000 !important;
     border: none;
     animation: softPulseLight 3s ease-in-out infinite !important;
 }
@@ -665,6 +665,10 @@ p.subtitle {
     background: var(--bg-secondary);
     padding: 6rem 2rem;
     position: relative;
+}
+
+.features-section .section-title h2 {
+    color: var(--accent);
 }
 
 .features-section::before {
@@ -850,6 +854,10 @@ p.subtitle {
     position: relative;
 }
 
+.how-section .section-title h2 {
+    color: var(--accent);
+}
+
 .how-section::before {
     content: '';
     position: absolute;
@@ -939,11 +947,12 @@ p.subtitle {
 
 .cta-section h2 {
     font-family: 'Google Sans Flex', sans-serif;
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 400;
     letter-spacing: -0.5px;
     margin-bottom: 0.75rem;
     position: relative;
+    color: #ffffff;
 }
 
 .cta-section p {
@@ -1762,7 +1771,7 @@ footer {
     pointer-events: none;
 }
 
-.section-title {
+.version-section .section-title {
     display: flex;
     align-items: center;
     gap: 0.75rem;
