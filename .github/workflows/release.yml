@@ -198,6 +198,9 @@ jobs:
           VERSION="${{ steps.version.outputs.VERSION }}"
           REPO="WesleyQDev/MomAI-App"
 
+          # Remove arquivos de debug para evitar conflito de nomes
+          rm -f dist/win/builder-debug.yml dist/linux/builder-debug.yml
+
           # Coleta arquivos de forma mais robusta
           WIN_FILES=$(find dist/win -type f -print | tr '\n' ' ')
           LINUX_FILES=$(find dist/linux -type f -print | tr '\n' ' ')

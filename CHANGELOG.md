@@ -4,6 +4,12 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
+## 0.2.2 - 2026-02-21
+Correções e Estabilidade
+
+## Correções de Infraestrutura
+- **Colisão de Artefatos no GitHub Release:** Corrigido o erro que causava falha na etapa final do pipeline de publicação por tentar fazer o upload de dois arquivos `builder-debug.yml` idênticos (gerados pelos builds de Windows e Linux) simultaneamente para o mesmo Release. Evitando o erro `HTTP 422: Validation Failed`.
+
 ## 0.2.1 - 2026-02-21
 Correções e Estabilidade
 
