@@ -91,6 +91,7 @@ export function useStatus() {
       // Se recebemos progresso do backend, ele definitivamente está rodando
       if (!backendOnline) {
         setBackendOnline(true)
+        window.dispatchEvent(new CustomEvent('momai_backend_ready'))
       }
 
       if (data.progress >= 100) {
@@ -102,6 +103,7 @@ export function useStatus() {
     // @ts-ignore
     const removeOnlineListener = window.api?.onBackendOnline?.(() => {
       setBackendOnline(true)
+      window.dispatchEvent(new CustomEvent('momai_backend_ready'))
     })
 
     return () => {

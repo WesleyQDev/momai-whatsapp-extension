@@ -98,10 +98,12 @@ function App(): React.JSX.Element {
 
         if (!data.onboarding_completed) {
           setShowOnboarding(true)
-        } /* else if (!data.tutorial_completed) {
-          setShowTutorial(true)
-        }*/
+        }
         setSettingsLoaded(true)
+
+        // Carrega extensões agora que sabemos que o backend responde
+        const exts = await fetchExtensions()
+        setExtensions(exts)
       } catch (err) {
         console.error('Retrying settings sync...', err)
       }
@@ -128,26 +130,7 @@ function App(): React.JSX.Element {
     const handleResize = () => setIsCompact(window.innerWidth < 850)
     window.addEventListener('resize', handleResize)
 
-    // Delay inicial para carregar extensões (espera backend)
-    const loadExtensions = async () => {
-      try {
-        const exts = await fetchExtensions()
-        setExtensions(exts)
-      } catch {
-        // Retry silencioso após 2s
-        setTimeout(async () => {
-          try {
-            const exts = await fetchExtensions()
-            setExtensions(exts)
-          } catch {
-            // Silent fail - não é crítico
-          }
-        }, 2000)
-      }
-    }
-
-    setTimeout(loadExtensions, 1500)
-
+    // Event listeners only need to be attached once
     const handleSync = (e: any) => setExtensions(e.detail)
     window.addEventListener('momai_extensions_sync', handleSync)
 
@@ -266,7 +249,7 @@ function App(): React.JSX.Element {
                       />
                     </div>
 
-                    {settings?.wake_word_enabled && (
+                    {(settings === null || settings.wake_word_enabled) && (
                       <div className="relative flex flex-col items-center mt-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
                         {/* Pontinhos brilhantes flutuantes */}
                         <div className="absolute -inset-6 pointer-events-none">

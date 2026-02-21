@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { fetchExtensions } from '../services/api'
 import {
   ChatBubbleLeftRightIcon,
@@ -25,6 +25,9 @@ interface ExtensionItem {
   description?: string
   category?: string
   enabled: boolean
+  features?: {
+    sidebar?: boolean
+  }
 }
 
 const iconMap: Record<string, any> = {
@@ -44,29 +47,50 @@ export default function LateralBar({
   const { t } = useI18n()
   const [extensions, setExtensions] = useState<ExtensionItem[]>([])
 
-  useEffect(() => {
-    fetchExtensions().then((allExts) => {
-      // Sort to ensure Chat is first
+  const loadExtensions = useCallback(async () => {
+    try {
+      const allExts = await fetchExtensions()
       const sorted = (allExts as any[]).sort((a, b) => {
-        if (a.id.includes('responder')) return -1
-        if (b.id.includes('responder')) return 1
+        if (a.id?.includes('responder')) return -1
+        if (b.id?.includes('responder')) return 1
         return 0
       })
-      setExtensions(sorted.filter((e) => e.features?.sidebar && e.enabled))
-    })
+      // Core extensions should always be in the list if they exist
+      setExtensions(sorted)
+    } catch (err) {
+      console.error('Error loading extensions in sidebar:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadExtensions()
 
     const handleSync = (e: any) => {
       const allExts = e.detail as ExtensionItem[]
       const sorted = allExts.sort((a, b) => {
-        if (a.id.includes('responder')) return -1
-        if (b.id.includes('responder')) return 1
+        if (a.id?.includes('responder')) return -1
+        if (b.id?.includes('responder')) return 1
         return 0
       })
-      setExtensions(sorted.filter((e) => e.enabled))
+      setExtensions(sorted)
     }
+
+    const handleReady = () => {
+      loadExtensions()
+    }
+
     window.addEventListener('momai_extensions_sync', handleSync)
-    return () => window.removeEventListener('momai_extensions_sync', handleSync)
-  }, [])
+    window.addEventListener('momai_backend_ready', handleReady)
+    
+    // Fallback retry
+    const timer = setTimeout(loadExtensions, 3000)
+
+    return () => {
+      window.removeEventListener('momai_extensions_sync', handleSync)
+      window.removeEventListener('momai_backend_ready', handleReady)
+      clearTimeout(timer)
+    }
+  }, [loadExtensions])
 
   return (
     <div
@@ -143,11 +167,23 @@ export default function LateralBar({
             )
           }
 
+          const otherExtensions = extensions.filter(
+            (e) =>
+              e.features?.sidebar &&
+              e.enabled &&
+              e.name !== 'responder' &&
+              e.name !== 'scheduler'
+          )
+
           return (
             <>
-              {chatIcon && renderExt(chatIcon, HomeIcon)}
+              {renderExt(
+                chatIcon || { id: 'com.momai.builtin.responder', name: 'responder', enabled: true },
+                HomeIcon
+              )}
               {renderNotes()}
-              {schedulerIcon && renderScheduler()}
+              {renderScheduler()}
+              {otherExtensions.map((ext) => renderExt(ext, iconMap[ext.category || 'Puzzle']))}
             </>
           )
         })()}
