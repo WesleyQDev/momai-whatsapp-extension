@@ -90,20 +90,18 @@ export function registerIpcHandlers(): void {
   ipcMain.on('app-ready', () => {
     const win = getMainWindow()
     if (!win) return
-    win.setResizable(true)
     win.setMinimumSize(450, 670)
 
     if (process.platform === 'linux') {
       // On some Linux WMs (like GNOME on Ubuntu), maximize() on start can cause minimization.
       // We ensure it's restored and focused first.
       if (win.isMinimized()) win.restore()
-      win.show()
+      if (!win.isVisible()) win.show()
+      
+      const { workArea } = screen.getPrimaryDisplay()
+      win.setBounds(workArea)
+      
       win.focus()
-
-      // Small delay for maximize on Linux to avoid WM quirks
-      setTimeout(() => {
-        if (!win.isDestroyed()) win.maximize()
-      }, 100)
     } else {
       win.maximize()
     }
@@ -165,7 +163,7 @@ function createMainWindow(): BrowserWindow {
     height: 540,
     show: false,
     frame: false,
-    resizable: false,
+    resizable: true,
     center: true,
     icon: ICON_PATH,
     autoHideMenuBar: true,
@@ -318,11 +316,12 @@ export function createWindow(): void {
   if (win) {
     if (process.platform === 'linux') {
       if (win.isMinimized()) win.restore()
-      win.show()
+      if (!win.isVisible()) win.show()
+      
+      const { workArea } = screen.getPrimaryDisplay()
+      win.setBounds(workArea)
+      
       win.focus()
-      setTimeout(() => {
-        if (!win.isDestroyed()) win.maximize()
-      }, 100)
     } else {
       win.maximize()
     }

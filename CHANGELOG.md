@@ -4,6 +4,14 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
+## 0.2.8 - 2026-02-21
+Correções de renderização da janela no Linux (Wayland)
+
+## 🐛 Correções
+- **Janela Invisível no Ubuntu/Wayland:** Resolvido o problema onde o aplicativo rodava em segundo plano mas a interface gráfica não aparecia. A janela agora utiliza `setBounds` com cálculo das margens úteis da tela para simular maximização em sistemas Linux ao invés da função nativa do backend Electron, evitando o descarte da superfície de renderização no Wayland quando em modo sem bordas (frameless).
+
+---
+
 ## 0.2.7 - 2026-02-21
 Correção da hint de voice activation
 
