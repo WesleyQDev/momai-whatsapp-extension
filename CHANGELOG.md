@@ -2,7 +2,11 @@
 
 Acompanhe todas as atualizações e mudanças da MomAI.
 
----
+## 0.3.1 - 2026-02-21
+Melhorias na Interface e Versionamento
+
+### ✨ Melhorias
+- **Versionamento Dinâmico:** A versão exibida na janela "Sobre" (TitleBar) agora é carregada dinamicamente das configurações do aplicativo, garantindo que sempre reflita a versão real da release.
 
 ## 0.3.0 - 2026-02-21
 Suporte ao FortScript no build de produção
@@ -11,8 +15,6 @@ Suporte ao FortScript no build de produção
 - **Modo Economia (FortScript) em Produção:** Corrigido problema onde o monitor de recursos (FortScript) não funcionava na versão instalada. A pasta `fortscript` agora é incluída corretamente no pacote e as dependências necessárias foram adicionadas ao ambiente virtual do core.
 - **Correção de "Read-only file system" no Linux:** Resolvido o erro de bootstrap que impedia o MomAI de iniciar em ambientes Linux (AppImage) ao tentar rodar `pip install -e`. Agora o sistema identifica as dependências e as instala diretamente, evitando tentativas de escrita na partição montada do AppImage.
 
----
-
 ## 0.2.10 - 2026-02-21
 Correção crítica de instalação no Linux e Melhorias de Renderização
 
@@ -20,15 +22,11 @@ Correção crítica de instalação no Linux e Melhorias de Renderização
 - **Carregamento Infinito (uv_not_found) no Linux:** Corrigido bug crítico no script de build onde os binários essenciais (`uv` e `python`) eram colocados na pasta incorreta durante a geração do AppImage e pacote DEB. Isso fazia com que o instalador fosse gerado vazio, resultando em uma tela de carregamento que não exibia a interface de erro e ficava em loop infinito no ambiente Linux.
 - **Janela Minimizada no Ubuntu/Wayland:** Adicionado delay de tempo de recuperação e a chamada obrigatória `win.moveTop()` no Linux para contornar comportamento de sistemas operacionais onde a janela mesmo com bounds ativados poderia ficar retida em estado recuado na barra superior do GNOME.
 
----
-
 ## 0.2.9 - 2026-02-21
 Correções de renderização da janela no Linux (Wayland)
 
 ## 🐛 Correções
 - **Janela Invisível no Ubuntu/Wayland e VMs:** Resolvido o problema onde o aplicativo rodava em segundo plano mas a interface gráfica não aparecia em máquinas virtuais (Hyper-V, VirtualBox) e Wayland. A aceleração de hardware do Electron foi desativada nativamente no Linux para evitar falhas silenciosas de renderização de GPU que ocultavam a janela. Além disso, a janela agora utiliza `setBounds` com cálculo das margens úteis da tela para simular maximização de forma segura.
-
----
 
 ## 0.2.7 - 2026-02-21
 Correção da hint de voice activation

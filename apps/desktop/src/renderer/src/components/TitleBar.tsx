@@ -8,6 +8,11 @@ interface TitleBarProps {
 
 export default function TitleBar({}: TitleBarProps) {
   const [showAbout, setShowAbout] = useState(false)
+  const [version, setVersion] = useState('...')
+
+  React.useEffect(() => {
+    window.api.getAppVersion().then(setVersion)
+  }, [])
 
   const handleMinimize = () => {
     window.api.minimize()
@@ -110,7 +115,7 @@ export default function TitleBar({}: TitleBarProps) {
             {/* Header */}
             <div className="flex flex-col items-center p-6 text-center border-b border-border">
               <h2 className="text-lg font-black text-text uppercase tracking-wider">MomAI</h2>
-              <p className="text-xs text-text-muted mt-1">v0.1-alpha</p>
+              <p className="text-xs text-text-muted mt-1">{version}</p>
               <p className="text-sm text-text-muted mt-4">Assistente pessoal inteligente</p>
               <p className="text-xs text-text-muted mt-4">Desenvolvido por</p>
               <p className="text-sm font-bold text-accent">Wesley Developer Studios</p>
