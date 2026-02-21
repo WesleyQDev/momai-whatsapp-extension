@@ -4,6 +4,12 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
+## 0.2.1 - 2026-02-21
+Correções e Estabilidade
+
+## Correções de Infraestrutura
+- **Rotina de Build CI Linux:** Removida dependência obsoleta (`libgconf-2-4`) do pipeline de integração contínua. Essa mudança garante suporte total a compilações nativas de pacotes linux rodando nas imagens atualizadas e imutáveis `ubuntu-24.04` do GitHub.
+
 ## 0.2.0 - 2026-02-21
 Suporte Oficial para Linux
 
