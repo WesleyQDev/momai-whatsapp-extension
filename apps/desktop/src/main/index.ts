@@ -7,6 +7,12 @@ import { logger, getLogsPath } from './logger'
 import { setupUpdater } from './updater'
 
 app.name = 'MomAI'
+
+// Fix for invisible windows on Linux VMs (Hyper-V, VirtualBox) and some Wayland compositors
+if (process.platform === 'linux') {
+  app.disableHardwareAcceleration()
+}
+
 logger.info(`[Electron] Starting MomAI... ${app.getVersion()}`)
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
