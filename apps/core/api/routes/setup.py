@@ -19,7 +19,7 @@ async def get_setup_status(db: Session = Depends(get_db)):
 
     def _get_status():
         settings = db.query(Settings).first()
-        current_local_backend = settings.local_backend if settings else "auto"
+        user_backend_pref = settings.local_backend if settings else "auto"
 
         engine_ok = downloader.check_engine_installed()
         models_path = Path(__file__).parent.parent.parent / "models"
@@ -30,6 +30,12 @@ async def get_setup_status(db: Session = Depends(get_db)):
         installed_backends = downloader.get_all_installed_backends()
 
         latest_v = downloader.get_latest_llama_version()
+
+        # Resolve 'auto' to the actual backend that will be used
+        if user_backend_pref == "auto":
+            resolved_backend = hw_info.get("backend", "cpu")
+        else:
+            resolved_backend = user_backend_pref
 
         return {
             "engine_installed": engine_ok,
@@ -42,7 +48,7 @@ async def get_setup_status(db: Session = Depends(get_db)):
             "installed_version": install_info.get("version") if install_info else None,
             "installed_build": install_info.get("build_type") if install_info else None,
             "installed_backends": installed_backends,
-            "current_local_backend": current_local_backend
+            "current_local_backend": resolved_backend
         }
 
     return await asyncio.to_thread(_get_status)

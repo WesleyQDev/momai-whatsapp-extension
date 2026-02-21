@@ -108,7 +108,27 @@ def get_hardware_info():
                                    text=True, encoding='utf-8', 
                                    errors='replace')
             if gpu_res.returncode == 0 and gpu_res.stdout.strip():
-                gpu_name = gpu_res.stdout.strip().split('\n')[0]
+                # Get all non-empty lines, as there could be multiple GPUs
+                lines = [line.strip() for line in gpu_res.stdout.strip().split('\n') if line.strip()]
+                # Prioritize NVIDIA, then AMD/Radeon, then Intel
+                best_gpu = None
+                best_backend = "cpu"
+                for line in lines:
+                    name_lower = line.lower()
+                    if "nvidia" in name_lower:
+                        best_gpu = line
+                        best_backend = "cuda"
+                        break  # Highest priority
+                    elif ("amd" in name_lower or "radeon" in name_lower) and best_backend != "cuda":
+                        best_gpu = line
+                        best_backend = "vulkan"
+                    elif "intel" in name_lower and best_backend not in ["cuda", "vulkan"]:
+                        best_gpu = line
+                        best_backend = "vulkan"
+                
+                if best_gpu:
+                    gpu_name = best_gpu
+                    backend = best_backend
             
             # Detect CPU
             cpu_cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name"'
@@ -121,14 +141,6 @@ def get_hardware_info():
                 cpu_name = cpu_res.stdout.strip().split('\n')[0]
     except Exception:
         pass
-    
-    # Determine best Backend
-    if gpu_name:
-        name_lower = gpu_name.lower()
-        if "nvidia" in name_lower:
-            backend = "cuda"
-        elif "amd" in name_lower or "radeon" in name_lower or "intel" in name_lower:
-            backend = "vulkan"
     
     return {
         "gpu_name": gpu_name,

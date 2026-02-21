@@ -106,19 +106,20 @@ def get_paths():
         backend = preferred_backend
     else:
         # Auto mode: find info on the best installed build
-        install_info = downloader.get_installed_info()
-        backend = install_info.get("backend", "cpu")
+        hw_info = downloader.get_hardware_info()
+        backend = hw_info.get("backend", "cpu")
 
     exe_path = base_dir / "bin" / backend / "llama-server.exe"
-
-    # Only apply fallback if in auto mode and nothing is found
+    
+    # If the optimal backend is not installed, but another one IS installed,
+    # we should ideally download the optimal one. 
+    # But if we strictly want fallback when offline, we can check network or just 
+    # rely on the download step which will fail correctly if offline.
+    # By removing the silent fallback loop here, 'auto' will actually trigger 
+    # downloading the GPU engine if it detects a GPU but it's not installed yet.
     if preferred_backend == "auto" and not exe_path.exists():
-        for b in ["cuda", "vulkan", "cpu"]:
-            p = base_dir / "bin" / b / "llama-server.exe"
-            if p.exists():
-                exe_path = p
-                backend = b
-                break
+        # Only fallback if NO network/can't install, but we do this gracefully in load_model
+        pass
 
     return {"exe": exe_path, "models": base_dir / "models", "backend": backend}
 

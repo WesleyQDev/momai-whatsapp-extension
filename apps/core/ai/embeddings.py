@@ -45,30 +45,12 @@ class EmbeddingEngine:
             backend = None
 
         if not backend:
-            # Auto-detect best installed
-            from utils.downloader import get_installed_info
-            info = get_installed_info()
-            backend = info.get("backend", "cpu")
+            # Auto-detect best hardware
+            from utils.downloader import get_hardware_info
+            hw_info = get_hardware_info()
+            backend = hw_info.get("backend", "cpu")
 
         exe_path = base_dir / "bin" / backend / "llama-server.exe"
-        
-        # Only fallback if not explicitly chosen
-        try:
-            db = SessionLocal()
-            s = db.query(Settings).first()
-            is_auto = s.local_backend == "auto" if s else True
-            db.close()
-        except:
-            is_auto = True
-
-        if is_auto and not exe_path.exists():
-            # Fallback
-            for b in ["cuda", "vulkan", "cpu"]:
-                p = base_dir / "bin" / b / "llama-server.exe"
-                if p.exists():
-                    exe_path = p
-                    backend = b
-                    break
         
         return {
             "exe": str(exe_path),
