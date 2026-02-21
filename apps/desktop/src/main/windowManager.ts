@@ -93,15 +93,17 @@ export function registerIpcHandlers(): void {
     win.setMinimumSize(450, 670)
 
     if (process.platform === 'linux') {
-      // On some Linux WMs (like GNOME on Ubuntu), maximize() on start can cause minimization.
-      // We ensure it's restored and focused first.
-      if (win.isMinimized()) win.restore()
-      if (!win.isVisible()) win.show()
-      
       const { workArea } = screen.getPrimaryDisplay()
       win.setBounds(workArea)
       
-      win.focus()
+      // Wayland and GNOME can sometimes place borderless windows minimized asynchronously
+      // or in the background stack on first bounds change.
+      setTimeout(() => {
+        if (win.isMinimized()) win.restore()
+        if (!win.isVisible()) win.show()
+        win.moveTop()
+        win.focus()
+      }, 150)
     } else {
       win.maximize()
     }
@@ -315,13 +317,15 @@ export function createWindow(): void {
   const win = getMainWindow()
   if (win) {
     if (process.platform === 'linux') {
-      if (win.isMinimized()) win.restore()
-      if (!win.isVisible()) win.show()
-      
       const { workArea } = screen.getPrimaryDisplay()
       win.setBounds(workArea)
       
-      win.focus()
+      setTimeout(() => {
+        if (win.isMinimized()) win.restore()
+        if (!win.isVisible()) win.show()
+        win.moveTop()
+        win.focus()
+      }, 150)
     } else {
       win.maximize()
     }

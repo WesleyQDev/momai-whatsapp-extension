@@ -4,7 +4,7 @@ set -e
 # Automation to prepare the portable binaries for MomAI build on Linux/macOS
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd "$SCRIPTPATH"
-BIN_DIR="../../bin"
+BIN_DIR="../bin"
 
 mkdir -p "$BIN_DIR"
 

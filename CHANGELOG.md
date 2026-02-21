@@ -4,6 +4,15 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
+## 0.2.10 - 2026-02-21
+Correção crítica de instalação no Linux e Melhorias de Renderização
+
+## 🐛 Correções
+- **Carregamento Infinito (uv_not_found) no Linux:** Corrigido bug crítico no script de build onde os binários essenciais (`uv` e `python`) eram colocados na pasta incorreta durante a geração do AppImage e pacote DEB. Isso fazia com que o instalador fosse gerado vazio, resultando em uma tela de carregamento que não exibia a interface de erro e ficava em loop infinito no ambiente Linux.
+- **Janela Minimizada no Ubuntu/Wayland:** Adicionado delay de tempo de recuperação e a chamada obrigatória `win.moveTop()` no Linux para contornar comportamento de sistemas operacionais onde a janela mesmo com bounds ativados poderia ficar retida em estado recuado na barra superior do GNOME.
+
+---
+
 ## 0.2.9 - 2026-02-21
 Correções de renderização da janela no Linux (Wayland)
 
