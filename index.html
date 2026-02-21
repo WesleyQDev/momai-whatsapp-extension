@@ -211,6 +211,22 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             updateDownloadLinks();
+
+            // Rastreamento de Cliques de Download
+            document.querySelectorAll('.btn-download').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const platform = navigator.platform.toLowerCase().includes('linux') ? 'Linux' : 'Windows';
+                    const version = document.getElementById('navVersion')?.textContent || 'unknown';
+                    
+                    gtag('event', 'file_download', {
+                        'file_extension': btn.href.split('.').pop(),
+                        'file_name': btn.href.split('/').pop(),
+                        'link_text': btn.innerText.trim(),
+                        'platform': platform,
+                        'version': version
+                    });
+                });
+            });
         });
 
         // Scroll animations
