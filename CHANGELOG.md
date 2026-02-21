@@ -4,14 +4,14 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
-## 0.2.6 - 2026-02-21
+## 0.2.7 - 2026-02-21
 Correção da hint de voice activation
 
 ## ✨ Melhorias
 - **Hint de Ativação por Voz:** Corrigido bug onde a mensagem "Tente dizer Luna" nem sempre aparecia na interface inicial. Agora a hint é exibida sempre, independentemente de qualquer configuração.
 
 ## 🗑️ Remoções
-- **Toggle de Wake Word nas Configurações:** Removida a opção de ativar/desativar a wake word das configurações de voz. A funcionalidade agora é sempre ativada.
+- **Toggle de Wake Word nas Configurações:** Removida a opção de ativar/desativar a wake word das configurações de voz.
 
 ## 0.2.5 - 2026-02-21
 Correções de Inicialização (DLL failure)

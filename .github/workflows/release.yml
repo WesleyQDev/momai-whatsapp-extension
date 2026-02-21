@@ -211,15 +211,25 @@ jobs:
             exit 1
           fi
 
-          echo "📦 Criando release $VERSION no repo $REPO..."
+          echo "📦 Gerenciando release $VERSION no repo $REPO..."
           echo "📁 Arquivos Windows: $WIN_FILES"
           echo "📁 Arquivos Linux: $LINUX_FILES"
 
-          # Cria o release e faz upload de todos os arquivos
-          gh release create "$VERSION" \
-            --repo "$REPO" \
-            --title "MomAI $VERSION" \
-            --latest \
-            dist/win/* dist/linux/*
+          # Se o release já existir, apenas faz upload dos novos arquivos (clobber)
+          # Caso contrário, cria um novo release.
+          if gh release view "$VERSION" --repo "$REPO" > /dev/null 2>&1; then
+            echo "✅ Release $VERSION já existe. Atualizando arquivos..."
+            gh release upload "$VERSION" \
+              --repo "$REPO" \
+              --clobber \
+              dist/win/* dist/linux/*
+          else
+            echo "✨ Criando novo release $VERSION..."
+            gh release create "$VERSION" \
+              --repo "$REPO" \
+              --title "MomAI $VERSION" \
+              --latest \
+              dist/win/* dist/linux/*
+          fi
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
