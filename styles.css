@@ -963,6 +963,319 @@ p.subtitle {
     position: relative;
 }
 
+/* ---- Requirements ---- */
+.requirements-section {
+    padding: 6rem 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.requirements-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+}
+
+.req-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--feature-border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.req-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(138, 180, 248, 0.2);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.req-recommended {
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.05) 0%, var(--bg-tertiary) 100%);
+    border-color: rgba(var(--accent-rgb), 0.2);
+}
+
+.req-recommended:hover {
+    border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+.req-glow {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(var(--accent-rgb), 0.15) 0%, transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+}
+
+.req-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.req-header h3 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.req-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    padding: 0.3rem 0.8rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.req-badge-pro {
+    background: var(--gradient-subtle);
+    border-color: rgba(var(--accent-rgb), 0.3);
+    color: var(--accent);
+}
+
+.req-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.req-list li {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.req-list li strong {
+    color: var(--text);
+    font-weight: 500;
+    min-width: 120px;
+}
+
+.req-note {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    margin-top: 2rem;
+}
+
+.req-note svg {
+    width: 20px;
+    height: 20px;
+    stroke: #ffc107;
+    flex-shrink: 0;
+}
+
+.req-note p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.req-note strong {
+    color: var(--text);
+}
+
+@media (max-width: 768px) {
+    .requirements-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .req-list li {
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+}
+
+/* ---- Mega Download Card ---- */
+.mega-download-container {
+    max-width: 1100px;
+    margin: 3rem auto;
+}
+
+.mega-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    display: flex;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+}
+
+[data-theme="light"] .mega-card {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.05);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.05);
+}
+
+.mega-card-downloads {
+    flex: 1.2;
+    padding: 3rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .mega-card-downloads {
+    border-right-color: rgba(0, 0, 0, 0.05);
+}
+
+.mega-card-specs {
+    flex: 1;
+    padding: 3rem;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.mega-card h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Platform Download List */
+.platform-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.platform-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.3s ease;
+}
+
+.platform-btn:not(.disabled):hover {
+    background: var(--text);
+    color: var(--bg);
+    transform: translateX(8px);
+    border-color: var(--text);
+}
+
+.platform-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-style: dashed;
+}
+
+.platform-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.platform-info svg {
+    width: 24px;
+    height: 24px;
+}
+
+.platform-name {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.platform-status {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.platform-btn:not(.disabled) .platform-status {
+    color: var(--accent);
+}
+
+.platform-btn:not(.disabled):hover .platform-status {
+    color: var(--bg);
+}
+
+/* Specs List */
+.spec-group {
+    margin-bottom: 2rem;
+}
+
+.spec-group:last-child {
+    margin-bottom: 0;
+}
+
+.spec-group h4 {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.spec-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.spec-item svg {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    color: var(--accent);
+    opacity: 0.7;
+}
+
+.spec-item strong {
+    color: var(--text);
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.spec-item span {
+    color: var(--text-secondary);
+}
+
+@media (max-width: 950px) {
+    .mega-card {
+        flex-direction: column;
+    }
+    .mega-card-downloads {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+}
+
+@media (max-width: 600px) {
+    .mega-card-downloads, .mega-card-specs {
+        padding: 2rem;
+    }
+}
+
 /* ---- Footer ---- */
 footer {
     text-align: center;

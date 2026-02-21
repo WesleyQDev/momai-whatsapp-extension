@@ -501,7 +501,10 @@ export async function startPythonBackend(): Promise<void> {
 
         if (
           stderrBuffer.includes('Microsoft Visual C++ Redistributable') ||
-          stderrBuffer.includes('c10.dll')
+          stderrBuffer.includes('c10.dll') ||
+          stderrBuffer.includes('Uma rotina de inicialização') ||
+          stderrBuffer.includes('DLL initialization routine failed') ||
+          stderrBuffer.includes('Importing the numpy C-extensions failed')
         ) {
           errorType = 'missing_vc_redist'
           errorMessage = 'Microsoft Visual C++ Redistributable is missing'

@@ -391,23 +391,103 @@
         </div>
     </section>
 
-    <!-- CTA -->
-    <section class="cta-section">
-        <h2>Pronto para experimentar?</h2>
-        <p>Baixe gratuitamente e descubra o poder de uma IA que é só sua.</p>
-        <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-primary btn-download">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            <span>Download para Windows</span>
-        </a>
-        <p style="margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.6;">
-            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="btn-alt-download" style="color: inherit; text-decoration: underline;">Versão para Linux</a>
-            &nbsp;·&nbsp;
-            <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" style="color: inherit; text-decoration: underline;" target="_blank">Todas as versões</a>
-        </p>
+
+    <!-- CTA / Download -->
+    <section class="cta-section" id="download" style="padding: 6rem 2rem;">
+        <div class="section-title">
+            <h2>Pronto para experimentar?</h2>
+            <p>Escolha sua plataforma e veja os requisitos para rodar a MomAI 100% local no seu hardware.</p>
+        </div>
+        
+        <div class="mega-download-container">
+            <div class="mega-card">
+                <!-- Coluna de Downloads -->
+                <div class="mega-card-downloads">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Plataformas
+                    </h3>
+                    
+                    <div class="platform-list">
+                        <!-- Windows -->
+                        <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="platform-btn">
+                            <div class="platform-info">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1V11.724H0V3.449ZM0 12.333H9.75V21.9L0 20.55V12.333ZM10.709 1.956L24 0V11.724H10.709V1.956ZM10.709 12.333H24V24L10.709 22.044V12.333Z"/></svg>
+                                <span class="platform-name">Windows</span>
+                            </div>
+                            <span class="platform-status">Instalar</span>
+                        </a>
+
+                        <!-- Linux -->
+                        <a href="https://github.com/WesleyQDev/MomAI-App/releases/latest" class="platform-btn">
+                            <div class="platform-info">
+                                <svg viewBox="0 0 128 128"><path d="M64 6.75c-15.34 0-27.78 12.44-27.78 27.78 0 4.14 1 8.04 2.75 11.53-7.53 5.44-12.42 14.31-12.42 24.31 0 11.85 6.84 22.1 16.81 26.88-1.56 1.44-2.56 3.47-2.56 5.75 0 4.28 3.47 7.75 7.75 7.75h30.89c4.28 0 7.75-3.47 7.75-7.75 0-2.28-1-4.31-2.56-5.75 9.97-4.78 16.81-15.03 16.81-26.88 0-10-4.89-18.87-12.42-24.31 1.75-3.49 2.75-7.39 2.75-11.53 0-15.34-12.44-27.78-27.78-27.78z" fill="#333"/><path d="M64 121.25c15.34 0 27.78-12.44 27.78-27.78 0-4.14-1-8.04-2.75-11.53 7.53-5.44 12.42-14.31 12.42-24.31 0-11.85-6.84-22.1-16.81-26.88 1.56-1.44 2.56-3.47 2.56-5.75 0-4.28-3.47-7.75-7.75-7.75H48.56c-4.28 0-7.75 3.47-7.75 7.75 0 2.28 1 4.31 2.56 5.75-9.97 4.78-16.81 15.03-16.81 26.88 0 10 4.89 18.87 12.42 24.31-1.75 3.49-2.75 7.39-2.75 11.53 0 15.34 12.44 27.78 27.78 27.78z" fill="#f5f5f5"/><path d="M78 45c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6 6 2.69 6 6zM56 45c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6 6 2.69 6 6z" fill="#333"/><path d="M48.5 78.5c0 8.56 6.94 15.5 15.5 15.5s15.5-6.94 15.5-15.5H48.5z" fill="#ff9800"/></svg>
+                                <span class="platform-name">Linux</span>
+                            </div>
+                            <span class="platform-status">AppImage</span>
+                        </a>
+
+                        <!-- macOS -->
+                        <div class="platform-btn disabled">
+                            <div class="platform-info">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.591.954C17.72 2.308 18.428 4.148 18.232 5.922c-1.545.062-3.415-.898-4.577-2.3-1.026-1.229-1.83-3.08-1.583-4.82 1.706.126 3.4 1.054 4.519 2.152M22.036 17.513c-1.396 4.026-3.87 8.356-6.195 8.356s-2.071-.853-4.5-1.066c-2.43-.21-3.692 1.066-6.014 1.066-2.324 0-4.708-3.097-6.953-7.51-2.906-5.717-2.618-12.016 1.764-15.11 1.956-1.378 4.29-1.637 5.768-1.637s2.5.64 4.545.64c2.045 0 2.946-.64 5.215-.64s4.298.544 5.768 1.637c-.772.486-2.909 2.055-2.909 5.343 0 3.737 3.018 5.708 3.511 5.922z" /></svg>
+                                <span class="platform-name">macOS</span>
+                            </div>
+                            <span class="platform-status">Em breve</span>
+                        </div>
+
+                        <!-- Android -->
+                        <div class="platform-btn disabled">
+                            <div class="platform-info">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.525 10.42a1.366 1.366 0 0 0-1.364 1.365 1.366 1.366 0 0 0 1.364 1.365 1.365 1.365 0 0 0 1.365-1.365 1.365 1.365 0 0 0-1.365-1.365zm-11.05 0a1.366 1.366 0 0 0-1.365 1.365 1.366 1.366 0 0 0 1.365 1.365 1.365 1.365 0 0 0 1.365-1.365 1.365 1.365 0 0 0-1.365-1.365zm11.396-3.82l1.9-3.297a.417.417 0 0 0-.153-.574.422.422 0 0 0-.58.15L17.114 6.2a11.17 11.17 0 0 0-5.114-1.242 11.238 11.238 0 0 0-5.115 1.24l-1.92-3.32a.419.419 0 0 0-.575-.152.417.417 0 0 0-.154.57l1.9 3.29A11.348 11.348 0 0 0 1.838 14.544h20.324A11.332 11.332 0 0 0 17.87 6.6z"/></svg>
+                                <span class="platform-name">Android</span>
+                            </div>
+                            <span class="platform-status">Em breve</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna de Requisitos -->
+                <div class="mega-card-specs">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                        Requisitos
+                    </h3>
+
+                    <div class="spec-group">
+                        <h4>Mínimos (Conversação)</h4>
+                        <div class="spec-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            <strong>CPU:</strong> <span>Core i5 ou Ryzen 5</span>
+                        </div>
+                        <div class="spec-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 10h20M2 14h20M6 6v12M10 6v12M14 6v12M18 6v12"></path></svg>
+                            <strong>RAM:</strong> <span>8GB</span>
+                        </div>
+                        <div class="spec-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2M12 2v20M2 7h20M2 17h20"></path></svg>
+                            <strong>GPU:</strong> <span>Integrada ou Simples</span>
+                        </div>
+                    </div>
+
+                    <div class="spec-group">
+                        <h4>Recomendados (Alta performance)</h4>
+                        <div class="spec-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            <strong>CPU:</strong> <span>i7 ou Ryzen 7+</span>
+                        </div>
+                        <div class="spec-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 10h20M2 14h20M6 6v12M10 6v12M14 6v12M18 6v12"></path></svg>
+                            <strong>RAM:</strong> <span>16GB+</span>
+                        </div>
+                        <div class="spec-item">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2M12 2v20M2 7h20M2 17h20"></path></svg>
+                            <strong>GPU:</strong> <span>RTX 2060+ / RX 6000+</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 
     <!-- Footer -->
