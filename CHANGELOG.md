@@ -4,6 +4,19 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
+## 0.2.5 - 2026-02-21
+Correções de Inicialização (DLL failure)
+
+## ✨ Melhorias
+- **Detecção de Dependências do Windows:** Adicionada detecção específica para o erro "Uma rotina de inicialização da biblioteca de vínculo dinâmico (DLL) falhou" (comum no NumPy/Torch). O aplicativo agora identifica automaticamente quando o Microsoft Visual C++ Redistributable está faltando e fornece o link direto para instalação, evitando loops de reinicialização.
+
+## 0.2.4 - 2026-02-21
+Melhorias Visuais e de Inicialização
+
+## ✨ Melhorias
+- **Feedback de Inicialização:** Adicionada barra de progresso e mensagens de status detalhadas durante o bootstrap do ambiente Python.
+- **Interface e Estilo:** Ajustes finos no CSS global e na página inicial para uma experiência mais fluida.
+
 ## 0.2.3 - 2026-02-21
 Correções de Janela no Linux
 
