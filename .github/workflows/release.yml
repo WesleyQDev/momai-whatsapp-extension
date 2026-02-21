@@ -28,15 +28,17 @@ jobs:
 
       - name: Get version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Sync version to package.json
+        shell: bash
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           CLEAN_VERSION="${VERSION#v}"
           echo "Setting version to $CLEAN_VERSION"
           cd apps/desktop
-          npm version $CLEAN_VERSION --no-git-tag-version
+          npm version "$CLEAN_VERSION" --no-git-tag-version
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
