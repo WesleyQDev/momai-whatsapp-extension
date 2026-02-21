@@ -223,12 +223,13 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     if (!existsSync(userDataPath)) mkdirSync(userDataPath, { recursive: true })
 
     try {
-      logger.info(`[Bootstrap] Running: ${uvExe} venv ${venvPath} --python 3.12 --seed`)
+      logger.info(`[Bootstrap] Running: "${uvExe}" venv "${venvPath}" --python 3.12 --seed`)
       logger.info('[Bootstrap] uv will download Python automatically if not found')
       await new Promise<void>((resolve, reject) => {
         const child = spawn(uvExe, ['venv', venvPath, '--python', '3.12', '--seed'], {
-          shell: true,
-          stdio: 'pipe'
+          shell: false,
+          stdio: 'pipe',
+          windowsVerbatimArguments: false
         })
         let stdout = ''
         let stderr = ''
@@ -272,12 +273,13 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     sendInitProgress('Instalando dependências...', 15)
 
     try {
-      logger.info(`[Bootstrap] Running: ${uvExe} pip install -e ${corePath}`)
+      logger.info(`[Bootstrap] Running: "${uvExe}" pip install -e "${corePath}"`)
       await new Promise<void>((resolve, reject) => {
         const child = spawn(uvExe, ['pip', 'install', '--no-progress', '-e', corePath], {
           env: { ...process.env, VIRTUAL_ENV: venvPath },
-          shell: true,
-          stdio: 'pipe'
+          shell: false,
+          stdio: 'pipe',
+          windowsVerbatimArguments: false
         })
         let stderr = ''
         let stdout = ''
