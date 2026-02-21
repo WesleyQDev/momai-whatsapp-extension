@@ -21,6 +21,11 @@ win:
         - '!**/.venv'
         - '!**/__pycache__'
         - '!**/models/*'
+    - from: '../fortscript'
+      to: 'fortscript'
+      filter:
+        - '!**/.venv'
+        - '!**/__pycache__'
     - from: 'bin'
       to: 'bin'
     - from: 'build/diagnostic.bat'
@@ -59,6 +64,11 @@ linux:
         - '!**/.venv'
         - '!**/__pycache__'
         - '!**/models/*'
+    - from: '../fortscript'
+      to: 'fortscript'
+      filter:
+        - '!**/.venv'
+        - '!**/__pycache__'
     - from: 'bin'
       to: 'bin'
     - from: 'build/diagnostic.sh'

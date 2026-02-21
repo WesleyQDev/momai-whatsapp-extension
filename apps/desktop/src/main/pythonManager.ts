@@ -117,6 +117,28 @@ function getSyncLock(corePath: string): SyncResult | null {
   }
 }
 
+function getCoreDependencies(corePath: string): string[] {
+  try {
+    const pyprojectPath = join(corePath, 'pyproject.toml')
+    if (!existsSync(pyprojectPath)) return []
+    const content = readFileSync(pyprojectPath, 'utf-8')
+    const match = content.match(/dependencies\s*=\s*\[([\s\S]*?)\]/)
+    if (!match) return []
+
+    return match[1]
+      .split('\n')
+      .map((line) => line.trim())
+      .map((line) => {
+        const m = line.match(/["'](.*?)["']/)
+        return m ? m[1] : null
+      })
+      .filter((dep): dep is string => !!dep)
+  } catch (e) {
+    logger.error(`[Bootstrap] Error parsing dependencies: ${e}`)
+    return []
+  }
+}
+
 function setSyncLock(success: boolean): void {
   try {
     writeFileSync(SYNC_LOCK_FILE, JSON.stringify({ lastChecked: Date.now(), success }))
@@ -289,9 +311,22 @@ async function bootstrapPython(): Promise<BootstrapResult | BootstrapError> {
     sendInitProgress('Instalando dependências...', 15)
 
     try {
-      logger.info(`[Bootstrap] Running: "${uvExe}" pip install -e "${corePath}"`)
+      const installArgs = ['pip', 'install', '--no-progress']
+      if (isDev) {
+        installArgs.push('-e', corePath)
+      } else {
+        const deps = getCoreDependencies(corePath)
+        if (deps.length > 0) {
+          installArgs.push(...deps)
+        } else {
+          // Fallback but without -e to avoid Read-only file system error
+          installArgs.push(corePath)
+        }
+      }
+
+      logger.info(`[Bootstrap] Running: "${uvExe}" ${installArgs.join(' ')}`)
       await new Promise<void>((resolve, reject) => {
-        const child = spawn(uvExe, ['pip', 'install', '--no-progress', '-e', corePath], {
+        const child = spawn(uvExe, installArgs, {
           env: { ...process.env, VIRTUAL_ENV: venvPath },
           shell: false,
           stdio: 'pipe',

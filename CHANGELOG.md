@@ -4,6 +4,15 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
+## 0.3.0 - 2026-02-21
+Suporte ao FortScript no build de produção
+
+### ✨ Melhorias
+- **Modo Economia (FortScript) em Produção:** Corrigido problema onde o monitor de recursos (FortScript) não funcionava na versão instalada. A pasta `fortscript` agora é incluída corretamente no pacote e as dependências necessárias foram adicionadas ao ambiente virtual do core.
+- **Correção de "Read-only file system" no Linux:** Resolvido o erro de bootstrap que impedia o MomAI de iniciar em ambientes Linux (AppImage) ao tentar rodar `pip install -e`. Agora o sistema identifica as dependências e as instala diretamente, evitando tentativas de escrita na partição montada do AppImage.
+
+---
+
 ## 0.2.10 - 2026-02-21
 Correção crítica de instalação no Linux e Melhorias de Renderização
 
