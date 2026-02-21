@@ -249,52 +249,50 @@ function App(): React.JSX.Element {
                       />
                     </div>
 
-                    {(settings === null || settings.wake_word_enabled) && (
-                      <div className="relative flex flex-col items-center mt-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        {/* Pontinhos brilhantes flutuantes */}
-                        <div className="absolute -inset-6 pointer-events-none">
-                          <div
-                            className="absolute top-1/2 left-0 w-1 h-1 rounded-full bg-accent/60 animate-pulse"
-                            style={{ animationDuration: '1.5s' }}
-                          />
-                          <div
-                            className="absolute top-1/2 right-0 w-1 h-1 rounded-full bg-accent/60 animate-pulse"
-                            style={{ animationDuration: '1.5s', animationDelay: '0.3s' }}
-                          />
-                          <div
-                            className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-accent/40 animate-ping"
-                            style={{ animationDuration: '2s' }}
-                          />
-                          <div
-                            className="absolute bottom-0 left-1/2 w-1 h-1 rounded-full bg-accent/50 animate-pulse"
-                            style={{ animationDuration: '1.8s', animationDelay: '0.5s' }}
-                          />
-                          <div
-                            className="absolute top-1/4 left-1/4 w-0.5 h-0.5 rounded-full bg-accent/70 animate-ping"
-                            style={{ animationDuration: '2.5s' }}
-                          />
-                          <div
-                            className="absolute top-3/4 right-1/4 w-0.5 h-0.5 rounded-full bg-accent/70 animate-ping"
-                            style={{ animationDuration: '2.5s', animationDelay: '1s' }}
-                          />
-                        </div>
-
-                        {/* Texto com brilho suave e efeito de profundidade */}
-                        <div className="relative mt-2">
-                          <div
-                            className="absolute -inset-3 bg-accent/20 blur-2xl animate-pulse"
-                            style={{ animationDuration: '3s' }}
-                          />
-                          <span className="relative text-sm font-medium text-text-muted/80 whitespace-nowrap">
-                            Tente dizer{' '}
-                            <span className="text-accent font-bold text-lg drop-shadow-[0_0_12px_rgba(var(--accent-rgb),0.6)]">
-                              &quot;Luna&quot;
-                            </span>
-                            ..
-                          </span>
-                        </div>
+                    <div className="relative flex flex-col items-center mt-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                      {/* Pontinhos brilhantes flutuantes */}
+                      <div className="absolute -inset-6 pointer-events-none">
+                        <div
+                          className="absolute top-1/2 left-0 w-1 h-1 rounded-full bg-accent/60 animate-pulse"
+                          style={{ animationDuration: '1.5s' }}
+                        />
+                        <div
+                          className="absolute top-1/2 right-0 w-1 h-1 rounded-full bg-accent/60 animate-pulse"
+                          style={{ animationDuration: '1.5s', animationDelay: '0.3s' }}
+                        />
+                        <div
+                          className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-accent/40 animate-ping"
+                          style={{ animationDuration: '2s' }}
+                        />
+                        <div
+                          className="absolute bottom-0 left-1/2 w-1 h-1 rounded-full bg-accent/50 animate-pulse"
+                          style={{ animationDuration: '1.8s', animationDelay: '0.5s' }}
+                        />
+                        <div
+                          className="absolute top-1/4 left-1/4 w-0.5 h-0.5 rounded-full bg-accent/70 animate-ping"
+                          style={{ animationDuration: '2.5s' }}
+                        />
+                        <div
+                          className="absolute top-3/4 right-1/4 w-0.5 h-0.5 rounded-full bg-accent/70 animate-ping"
+                          style={{ animationDuration: '2.5s', animationDelay: '1s' }}
+                        />
                       </div>
-                    )}
+
+                      {/* Texto com brilho suave e efeito de profundidade */}
+                      <div className="relative mt-2">
+                        <div
+                          className="absolute -inset-3 bg-accent/20 blur-2xl animate-pulse"
+                          style={{ animationDuration: '3s' }}
+                        />
+                        <span className="relative text-sm font-medium text-text-muted/80 whitespace-nowrap">
+                          Tente dizer{' '}
+                          <span className="text-accent font-bold text-lg drop-shadow-[0_0_12px_rgba(var(--accent-rgb),0.6)]">
+                            &quot;Luna&quot;
+                          </span>
+                          ..
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex-1 rounded-xl bg-card border border-border/10 shadow-2xl overflow-hidden relative flex flex-col">
