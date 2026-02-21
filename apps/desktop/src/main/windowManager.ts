@@ -92,7 +92,21 @@ export function registerIpcHandlers(): void {
     if (!win) return
     win.setResizable(true)
     win.setMinimumSize(450, 670)
-    win.maximize()
+
+    if (process.platform === 'linux') {
+      // On some Linux WMs (like GNOME on Ubuntu), maximize() on start can cause minimization.
+      // We ensure it's restored and focused first.
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+
+      // Small delay for maximize on Linux to avoid WM quirks
+      setTimeout(() => {
+        if (!win.isDestroyed()) win.maximize()
+      }, 100)
+    } else {
+      win.maximize()
+    }
   })
 }
 
@@ -166,6 +180,9 @@ function createMainWindow(): BrowserWindow {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    if (process.platform === 'linux') {
+      mainWindow.focus()
+    }
 
     if (state.lastBootstrapError) {
       logger.info('[WindowManager] Sending pending bootstrap error to renderer')
@@ -299,10 +316,16 @@ function setupContextMenu(): void {
 export function createWindow(): void {
   const win = getMainWindow()
   if (win) {
-    if (win.isMinimized()) win.restore()
-    win.show()
-    win.focus()
-    win.maximize()
+    if (process.platform === 'linux') {
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+      setTimeout(() => {
+        if (!win.isDestroyed()) win.maximize()
+      }, 100)
+    } else {
+      win.maximize()
+    }
     return
   }
   createMainWindow()

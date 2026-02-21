@@ -4,6 +4,12 @@ Acompanhe todas as atualizações e mudanças da MomAI.
 
 ---
 
+## 0.2.3 - 2026-02-21
+Correções de Janela no Linux
+
+## Correções
+- **Inicialização no Ubuntu/Linux:** Corrigido problema onde o aplicativo iniciava minimizado em alguns ambientes Linux (como GNOME). Adicionada lógica de foco explícito e um pequeno delay na maximização para garantir que o Gerenciador de Janelas processe a exibição corretamente.
+
 ## 0.2.2 - 2026-02-21
 Correções e Estabilidade
 
