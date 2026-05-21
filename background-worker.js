@@ -206,7 +206,14 @@ process.on('message', async (msg) => {
       let result
       switch (msg.payload?.toolName) {
         case 'send_message':
-          result = await sendMessage(msg.payload.args?.contact, msg.payload.args?.message)
+          try {
+            result = await sendMessage(msg.payload.args?.contact, msg.payload.args?.message)
+            momai.log(`send_message OK: to=${msg.payload.args?.contact} msg="${(msg.payload.args?.message || '').substring(0, 50)}"`)
+            result.directResponse = `Mensagem enviada`
+          } catch (err) {
+            momai.log(`send_message FAILED: ${err.message}`)
+            result = { ok: false, error: err.message, directResponse: `Erro ao enviar: ${err.message}` }
+          }
           break
         case 'list_contacts':
           result = { contacts: whitelist.map((w) => ({ id: w, name: contactNames[w] || w })) }
