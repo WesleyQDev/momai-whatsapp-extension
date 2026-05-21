@@ -104,9 +104,9 @@ async function main() {
 async function connect() {
   try {
     const { version } = await fetchLatestBaileysVersion()
-    const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
-    momai.log(`connect() authDir exists: ${require('fs').existsSync(authDir)}`)
-    const { state, saveCreds } = await useMultiFileAuthState(authDir)
+    const { state, saveCreds } = await useMultiFileAuthState(
+      path.join(momai.storage.storageDir, 'baileys-auth')
+    )
 
     sock = makeWASocket({
       version,
@@ -119,11 +119,9 @@ async function connect() {
 
     sock.ev.on('connection.update', async (update) => {
       const { qr, connection, lastDisconnect } = update
-      momai.log(`connection.update: qr=${!!qr} conn=${connection}`)
 
       if (qr) {
         momai.sendEvent('qr_code', { qr, expiresIn: 30 })
-        momai.log('QR code sent to frontend')
       }
 
       if (connection === 'open') {
