@@ -59,14 +59,43 @@ let contactNames = {}
 let connected = false
 let chatHistory = []
 let totalMessages = 0
+let _currentPhone = null
+
+function _getWhitelistKey() {
+  return _currentPhone ? `whitelist-${_currentPhone}` : WHITELIST_KEY
+}
+
+function _getContactNamesKey() {
+  return _currentPhone ? `contact_names-${_currentPhone}` : CONTACT_NAMES_KEY
+}
+
+async function _loadPerPhoneData() {
+  try {
+    const credsPath = path.join(momai.storage.storageDir, 'baileys-auth', 'creds.json')
+    const content = await fs.readFile(credsPath, 'utf-8')
+    const creds = JSON.parse(content)
+    if (creds.me?.id) {
+      const phone = creds.me.id.split(':')[0].replace(/\D/g, '')
+      if (!phone) return
+      _currentPhone = phone
+      const pw = await momai.storage.get(_getWhitelistKey())
+      if (pw) whitelist = pw
+      const pn = await momai.storage.get(_getContactNamesKey())
+      if (pn) contactNames = pn
+    }
+  } catch {}
+}
 
 async function main() {
   // Signal ready
   process.send({ type: 'ready' })
 
-  // Load whitelist
+  // Load whitelist (generic fallback)
   whitelist = (await momai.storage.get(WHITELIST_KEY)) || []
   contactNames = (await momai.storage.get(CONTACT_NAMES_KEY)) || {}
+
+  // Try to load per-phone data from existing creds
+  await _loadPerPhoneData()
 
   // Start connection
   await connect()
@@ -88,7 +117,7 @@ async function connect() {
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
       const { qr, connection, lastDisconnect } = update
 
       if (qr) {
@@ -97,6 +126,19 @@ async function connect() {
 
       if (connection === 'open') {
         connected = true
+        // Detect phone number and load per-phone whitelist
+        try {
+          const phone = (sock?.user?.id || sock?.authState?.creds?.me?.id || '').split(':')[0].replace(/\D/g, '')
+          if (phone && phone !== _currentPhone) {
+            _currentPhone = phone
+            const pw = await momai.storage.get(_getWhitelistKey())
+            if (pw) whitelist = pw
+            else whitelist = []
+            const pn = await momai.storage.get(_getContactNamesKey())
+            if (pn) contactNames = pn
+            else contactNames = {}
+          }
+        } catch {}
         momai.sendEvent('authenticated', { status: 'connected' })
         momai.log('WhatsApp connected')
       } else if (connection === 'close') {
@@ -221,19 +263,19 @@ process.on('message', async (msg) => {
         case 'add_contact':
           if (msg.payload.args?.contact) {
             whitelist.push(msg.payload.args.contact)
-            await momai.storage.set(WHITELIST_KEY, whitelist)
+            await momai.storage.set(_getWhitelistKey(), whitelist)
             result = { ok: true, contact: msg.payload.args.contact }
           }
           break
         case 'remove_contact':
           whitelist = whitelist.filter((w) => w !== msg.payload.args?.contact)
-          await momai.storage.set(WHITELIST_KEY, whitelist)
+          await momai.storage.set(_getWhitelistKey(), whitelist)
           result = { ok: true, contact: msg.payload.args?.contact }
           break
         case 'set_contact_name':
           if (msg.payload.args?.contact && msg.payload.args?.name) {
             contactNames[msg.payload.args.contact] = msg.payload.args.name
-            await momai.storage.set(CONTACT_NAMES_KEY, contactNames)
+            await momai.storage.set(_getContactNamesKey(), contactNames)
             result = { ok: true }
           }
           break
@@ -247,6 +289,14 @@ process.on('message', async (msg) => {
           break
         case 'get_history':
           result = { history: chatHistory.slice(0, 20) }
+          break
+        case 'logout':
+          if (sock && connected) {
+            momai.log('Logging out from WhatsApp...')
+            connected = false
+            await sock.logout()
+          }
+          result = { ok: true }
           break
         case 'panel':
           result = await getPanelData()
