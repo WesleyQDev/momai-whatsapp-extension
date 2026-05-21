@@ -159,13 +159,13 @@ async function handleMessagesUpsert({ messages }) {
     totalMessages++
     momai.log(`Message tracked: from=${displayName} text="${text.substring(0, 50)}" total=${totalMessages}`)
 
-    // Notify for messages from whitelisted contacts (including self-messages)
-    const digitsOnly = rawNumber.replace(/\D/g, '')
-    const isWhitelisted = whitelist.some(function(w) {
+    // Notify for: self-messages (fromMe always), or whitelisted incoming messages
+    const shouldNotify = isFromMe || whitelist.some(function(w) {
       const wDigits = String(w).replace(/\D/g, '')
-      return senderJid.includes(w) || w === senderJid || w === rawNumber || (digitsOnly && wDigits && (digitsOnly.endsWith(wDigits) || wDigits.endsWith(digitsOnly)))
+      const dDigits = rawNumber.replace(/\D/g, '')
+      return senderJid.includes(w) || w === senderJid || w === rawNumber || (dDigits && wDigits && (dDigits.endsWith(wDigits) || wDigits.endsWith(dDigits)))
     })
-    if (isWhitelisted) {
+    if (shouldNotify) {
       momai.sendEvent('whatsapp_notification', {
         contact: displayName,
         contactJid: senderJid,
