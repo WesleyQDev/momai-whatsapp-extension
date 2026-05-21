@@ -1,13 +1,16 @@
 // scripts/skills/packaged/whatsapp/background-worker.js
 // Persistent worker for WhatsApp Web connection via Baileys
 
+const MAX_HISTORY = 50
+
 let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion
 try {
   const baileys = require('@whiskeysockets/baileys')
   makeWASocket = baileys.makeWASocket || baileys.default?.makeWASocket
   useMultiFileAuthState = baileys.useMultiFileAuthState || baileys.default?.useMultiFileAuthState
   DisconnectReason = baileys.DisconnectReason
-  fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion || baileys.default?.fetchLatestBaileysVersion
+  fetchLatestBaileysVersion =
+    baileys.fetchLatestBaileysVersion || baileys.default?.fetchLatestBaileysVersion
   process.send({ type: 'log', message: 'Baileys loaded successfully' })
 } catch (err) {
   process.send({ type: 'log', message: `Baileys load error: ${err.message}` })
@@ -22,12 +25,14 @@ const CHECK_INTERVAL = 5000
 
 // Self-contained momai bridge (not loaded via extension-host-worker)
 const _skillId = process.env.MOMAI_EXTENSION_ID || 'whatsapp'
-const _dataDir = process.env.MOMAI_DATA_DIR || path.resolve(__dirname, '..', '..', '..', '..', 'data')
+const _dataDir =
+  process.env.MOMAI_DATA_DIR || path.resolve(__dirname, '..', '..', '..', '..', 'data')
 const _storageBase = path.join(_dataDir, 'extensions', _skillId)
 
 const momai = {
   log: (msg) => process.send({ type: 'log', message: String(msg) }),
-  sendEvent: (eventType, data) => process.send({ type: 'event', eventType: String(eventType), data }),
+  sendEvent: (eventType, data) =>
+    process.send({ type: 'event', eventType: String(eventType), data }),
   sendStructuredResponse: (data) => process.send({ type: 'structured_response', data }),
   storage: {
     storageDir: _storageBase,
@@ -35,7 +40,9 @@ const momai = {
       try {
         const content = await fs.readFile(path.join(_storageBase, `${key}.json`), 'utf-8')
         return JSON.parse(content)
-      } catch { return null }
+      } catch {
+        return null
+      }
     },
     async set(key, value) {
       await fs.mkdir(_storageBase, { recursive: true })
@@ -50,6 +57,8 @@ let sock = null
 let whitelist = []
 let contactNames = {}
 let connected = false
+let chatHistory = []
+let totalMessages = 0
 
 async function main() {
   // Signal ready
@@ -92,7 +101,8 @@ async function connect() {
         momai.log('WhatsApp connected')
       } else if (connection === 'close') {
         connected = false
-        const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+        const shouldReconnect =
+          lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
         if (shouldReconnect) {
           momai.sendEvent('connection_status', { status: 'reconnecting' })
           setTimeout(connect, CHECK_INTERVAL)
@@ -111,27 +121,39 @@ async function connect() {
 
 async function handleMessagesUpsert({ messages }) {
   for (const msg of messages) {
-    if (msg.key.fromMe) continue
     if (!msg.message?.conversation && !msg.message?.extendedTextMessage) continue
 
     const contact = msg.key.remoteJid
     const text = msg.message.conversation || msg.message.extendedTextMessage?.text
     if (!text || !contact) continue
 
-    // Check whitelist
-    const isWhitelisted = whitelist.some((w) => contact.includes(w) || w === contact)
-    if (!isWhitelisted) continue
+    const isFromMe = msg.key.fromMe
+    const rawNumber = contact.split('@')[0] || contact
+    const displayName = isFromMe ? 'Eu' : (contactNames[contact] || rawNumber)
 
-    // Resolve display name
-    const displayName = contactNames[contact] || contact.split('@')[0] || contact
-
-    // Send notification
-    momai.sendEvent('whatsapp_notification', {
-      contact: displayName,
-      contactJid: contact,
-      message: text,
-      timestamp: msg.messageTimestamp
+    // Track ALL messages in history
+    chatHistory.unshift({
+      from: displayName,
+      jid: contact,
+      text,
+      timestamp: msg.messageTimestamp,
+      direction: isFromMe ? 'outgoing' : 'incoming'
     })
+    if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
+    totalMessages++
+
+    // Only notify for incoming messages from whitelisted contacts
+    if (!isFromMe) {
+      const isWhitelisted = whitelist.some((w) => contact.includes(w) || w === contact)
+      if (isWhitelisted) {
+        momai.sendEvent('whatsapp_notification', {
+          contact: displayName,
+          contactJid: contact,
+          message: text,
+          timestamp: msg.messageTimestamp
+        })
+      }
+    }
   }
 }
 
@@ -189,6 +211,17 @@ process.on('message', async (msg) => {
             result = { ok: true }
           }
           break
+        case 'get_stats':
+          result = {
+            connected,
+            totalMessages,
+            totalContacts: whitelist.length,
+            whitelist: whitelist.map((w) => ({ id: w, name: contactNames[w] || w, number: w }))
+          }
+          break
+        case 'get_history':
+          result = { history: chatHistory.slice(0, 20) }
+          break
         case 'panel':
           result = await getPanelData()
           break
@@ -197,7 +230,11 @@ process.on('message', async (msg) => {
       }
       process.send({ type: 'response', requestId: msg.requestId, result })
     } catch (err) {
-      process.send({ type: 'response', requestId: msg.requestId, result: { ok: false, error: err.message } })
+      process.send({
+        type: 'response',
+        requestId: msg.requestId,
+        result: { ok: false, error: err.message }
+      })
     }
   }
 })
