@@ -131,8 +131,21 @@ async function handleMessagesUpsert({ messages }) {
     const senderJid = msg.key.participant || msg.key.remoteJid
     if (!senderJid) continue
     const rawNumber = senderJid.split('@')[0] || senderJid
-    // Try custom name by JID, then by raw number, then fallback
-    const displayName = isFromMe ? 'Eu' : (contactNames[senderJid] || contactNames[rawNumber] || rawNumber)
+    // Try custom name by JID, by raw number, by digits-only match, then fallback
+    let displayName = rawNumber
+    if (!isFromMe) {
+      displayName = contactNames[senderJid] || contactNames[rawNumber] || rawNumber
+      if (displayName === rawNumber) {
+        const digitsOnly = rawNumber.replace(/\D/g, '')
+        for (const key of Object.keys(contactNames)) {
+          const keyDigits = String(key).replace(/\D/g, '')
+          if (keyDigits && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
+            displayName = contactNames[key]
+            break
+          }
+        }
+      }
+    }
 
     // Track ALL messages in history
     chatHistory.unshift({
@@ -148,7 +161,11 @@ async function handleMessagesUpsert({ messages }) {
 
     // Only notify for incoming messages from whitelisted contacts
     if (!isFromMe) {
-      const isWhitelisted = whitelist.some((w) => senderJid.includes(w) || w === senderJid || w === rawNumber)
+      const digitsOnly = rawNumber.replace(/\D/g, '')
+      const isWhitelisted = whitelist.some(function(w) {
+        const wDigits = String(w).replace(/\D/g, '')
+        return senderJid.includes(w) || w === senderJid || w === rawNumber || (digitsOnly && wDigits && (digitsOnly.endsWith(wDigits) || wDigits.endsWith(digitsOnly)))
+      })
       if (isWhitelisted) {
         momai.sendEvent('whatsapp_notification', {
           contact: displayName,
