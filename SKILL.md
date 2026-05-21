@@ -2,26 +2,33 @@
 id: whatsapp
 name: WhatsApp
 description: Monitora e responde mensagens do WhatsApp
-capabilities:
-  intents:
-    - enviar mensagem no whatsapp
-    - mandar zap
-    - whatsapp
-    - falar com contato
-    - whitelist do whatsapp
-    - responda
-    - responder
-  tools:
-    - send_message
-    - list_contacts
-    - add_contact
-    - remove_contact
-    - set_contact_name
-  triggers:
-    - mensagem
-    - zap
-    - whatsapp
-    - responda
+icon: 💚
+author: WesleyQDev
+version: 0.1.0
+intents:
+  - enviar mensagem no whatsapp
+  - mandar zap
+  - whatsapp
+  - falar com contato
+  - whitelist do whatsapp
+  - responda
+  - responder
+tags:
+  - whatsapp
+  - mensagens
+  - comunicacao
+tools:
+  - send_message
+  - list_contacts
+  - add_contact
+  - remove_contact
+  - set_contact_name
+triggers:
+  - mensagem
+  - zap
+  - whatsapp
+  - responda
+  - responde
 ---
 
 ## Instruções para o LLM
