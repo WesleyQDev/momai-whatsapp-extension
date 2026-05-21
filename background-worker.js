@@ -123,18 +123,20 @@ async function handleMessagesUpsert({ messages }) {
   for (const msg of messages) {
     if (!msg.message?.conversation && !msg.message?.extendedTextMessage) continue
 
-    const contact = msg.key.remoteJid
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text
-    if (!text || !contact) continue
-
     const isFromMe = msg.key.fromMe
-    const rawNumber = contact.split('@')[0] || contact
-    const displayName = isFromMe ? 'Eu' : (contactNames[contact] || rawNumber)
+    const text = msg.message.conversation || msg.message.extendedTextMessage?.text
+    if (!text) continue
+
+    // Use participant JID for groups, remoteJid for 1:1
+    const senderJid = msg.key.participant || msg.key.remoteJid
+    if (!senderJid) continue
+    const rawNumber = senderJid.split('@')[0] || senderJid
+    const displayName = isFromMe ? 'Eu' : (contactNames[senderJid] || rawNumber)
 
     // Track ALL messages in history
     chatHistory.unshift({
       from: displayName,
-      jid: contact,
+      jid: senderJid,
       text,
       timestamp: msg.messageTimestamp,
       direction: isFromMe ? 'outgoing' : 'incoming'
@@ -145,11 +147,11 @@ async function handleMessagesUpsert({ messages }) {
 
     // Only notify for incoming messages from whitelisted contacts
     if (!isFromMe) {
-      const isWhitelisted = whitelist.some((w) => contact.includes(w) || w === contact)
+      const isWhitelisted = whitelist.some((w) => senderJid.includes(w) || w === senderJid)
       if (isWhitelisted) {
         momai.sendEvent('whatsapp_notification', {
           contact: displayName,
-          contactJid: contact,
+          contactJid: senderJid,
           message: text,
           timestamp: msg.messageTimestamp
         })
