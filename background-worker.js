@@ -1,7 +1,18 @@
 // scripts/skills/packaged/whatsapp/background-worker.js
 // Persistent worker for WhatsApp Web connection via Baileys
 
-const { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
+let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion
+try {
+  const baileys = require('@whiskeysockets/baileys')
+  makeWASocket = baileys.makeWASocket || baileys.default?.makeWASocket
+  useMultiFileAuthState = baileys.useMultiFileAuthState || baileys.default?.useMultiFileAuthState
+  DisconnectReason = baileys.DisconnectReason
+  fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion || baileys.default?.fetchLatestBaileysVersion
+  process.send({ type: 'log', message: 'Baileys loaded successfully' })
+} catch (err) {
+  process.send({ type: 'log', message: `Baileys load error: ${err.message}` })
+  process.exit(1)
+}
 const path = require('path')
 const fs = require('node:fs/promises')
 
