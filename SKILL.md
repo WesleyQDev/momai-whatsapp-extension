@@ -9,6 +9,8 @@ capabilities:
     - whatsapp
     - falar com contato
     - whitelist do whatsapp
+    - responda
+    - responder
   tools:
     - send_message
     - list_contacts
@@ -19,6 +21,7 @@ capabilities:
     - mensagem
     - zap
     - whatsapp
+    - responda
 ---
 
 ## Instruções para o LLM
