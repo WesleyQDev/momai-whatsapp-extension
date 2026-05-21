@@ -3,10 +3,37 @@
 
 const { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
 const path = require('path')
+const fs = require('node:fs/promises')
 
 const WHITELIST_KEY = 'whitelist'
 const CONTACT_NAMES_KEY = 'contact_names'
 const CHECK_INTERVAL = 5000
+
+// Self-contained momai bridge (not loaded via extension-host-worker)
+const _skillId = process.env.MOMAI_EXTENSION_ID || 'whatsapp'
+const _dataDir = process.env.MOMAI_DATA_DIR || path.resolve(__dirname, '..', '..', '..', '..', 'data')
+const _storageBase = path.join(_dataDir, 'extensions', _skillId)
+
+const momai = {
+  log: (msg) => process.send({ type: 'log', message: String(msg) }),
+  sendEvent: (eventType, data) => process.send({ type: 'event', eventType: String(eventType), data }),
+  sendStructuredResponse: (data) => process.send({ type: 'structured_response', data }),
+  storage: {
+    storageDir: _storageBase,
+    async get(key) {
+      try {
+        const content = await fs.readFile(path.join(_storageBase, `${key}.json`), 'utf-8')
+        return JSON.parse(content)
+      } catch { return null }
+    },
+    async set(key, value) {
+      await fs.mkdir(_storageBase, { recursive: true })
+      const serialized = JSON.stringify(value, null, 2)
+      if (serialized.length > 1024 * 1024) throw new Error('Storage quota exceeded')
+      await fs.writeFile(path.join(_storageBase, `${key}.json`), serialized, 'utf-8')
+    }
+  }
+}
 
 let sock = null
 let whitelist = []
