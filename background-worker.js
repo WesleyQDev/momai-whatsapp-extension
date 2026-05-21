@@ -131,7 +131,8 @@ async function handleMessagesUpsert({ messages }) {
     const senderJid = msg.key.participant || msg.key.remoteJid
     if (!senderJid) continue
     const rawNumber = senderJid.split('@')[0] || senderJid
-    const displayName = isFromMe ? 'Eu' : (contactNames[senderJid] || rawNumber)
+    // Try custom name by JID, then by raw number, then fallback
+    const displayName = isFromMe ? 'Eu' : (contactNames[senderJid] || contactNames[rawNumber] || rawNumber)
 
     // Track ALL messages in history
     chatHistory.unshift({
@@ -147,7 +148,7 @@ async function handleMessagesUpsert({ messages }) {
 
     // Only notify for incoming messages from whitelisted contacts
     if (!isFromMe) {
-      const isWhitelisted = whitelist.some((w) => senderJid.includes(w) || w === senderJid)
+      const isWhitelisted = whitelist.some((w) => senderJid.includes(w) || w === senderJid || w === rawNumber)
       if (isWhitelisted) {
         momai.sendEvent('whatsapp_notification', {
           contact: displayName,
