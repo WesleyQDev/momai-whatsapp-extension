@@ -244,8 +244,30 @@ process.on('message', async (msg) => {
         case 'panel':
           result = await getPanelData()
           break
-        default:
-          result = await getPanelData()
+        default: {
+          // Voice command via "responda": reply to last contact
+          const lastIncoming = [...chatHistory].reverse().find(m => m.direction === 'incoming')
+          if (lastIncoming && msg.payload?.content && msg.payload.content.toLowerCase().includes('responda')) {
+            const replyMsg = msg.payload.content.replace(/responda\s+/i, '').trim()
+            if (replyMsg) {
+              await sendMessage(lastIncoming.jid, replyMsg)
+              result = { ok: true, to: lastIncoming.from, message: replyMsg, directResponse: `Mensagem enviada para ${lastIncoming.from}` }
+            } else {
+              result = { ok: false, error: 'mensagem vazia', directResponse: 'Fale a mensagem depois de responda' }
+            }
+          } else if (lastIncoming && msg.payload?.content && msg.payload.content.toLowerCase().startsWith('responda')) {
+            const replyMsg = msg.payload.content.replace(/^responda\s+/i, '').trim()
+            if (replyMsg) {
+              await sendMessage(lastIncoming.jid, replyMsg)
+              result = { ok: true, to: lastIncoming.from, message: replyMsg, directResponse: `Mensagem enviada para ${lastIncoming.from}` }
+            } else {
+              result = { ok: false, error: 'mensagem vazia' }
+            }
+          } else {
+            result = await getPanelData()
+          }
+          break
+        }
       }
       process.send({ type: 'response', requestId: msg.requestId, result })
     } catch (err) {
