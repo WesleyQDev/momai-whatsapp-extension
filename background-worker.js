@@ -83,7 +83,9 @@ async function _loadPerPhoneData() {
       const pn = await momai.storage.get(_getContactNamesKey())
       if (pn) contactNames = pn
     }
-  } catch {}
+  } catch {
+    momai.log('_loadPerPhoneData: no creds.json (fresh start)')
+  }
 }
 
 async function main() {
@@ -104,9 +106,10 @@ async function main() {
 async function connect() {
   try {
     const { version } = await fetchLatestBaileysVersion()
-    const { state, saveCreds } = await useMultiFileAuthState(
-      path.join(momai.storage.storageDir, 'baileys-auth')
-    )
+    const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+    const hasCreds = require('fs').existsSync(path.join(authDir, 'creds.json'))
+    momai.log(`connect: creds.json=${hasCreds}`)
+    const { state, saveCreds } = await useMultiFileAuthState(authDir)
 
     sock = makeWASocket({
       version,
@@ -119,9 +122,11 @@ async function connect() {
 
     sock.ev.on('connection.update', async (update) => {
       const { qr, connection, lastDisconnect } = update
+      momai.log(`conn: qr=${!!qr} ${connection}`)
 
       if (qr) {
         momai.sendEvent('qr_code', { qr, expiresIn: 30 })
+        momai.log('QR_CODE_EVENT_SENT')
       }
 
       if (connection === 'open') {
