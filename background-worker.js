@@ -141,6 +141,7 @@ async function handleMessagesUpsert({ messages }) {
     })
     if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
     totalMessages++
+    momai.log(`Message tracked: from=${displayName} text="${text.substring(0, 50)}" total=${totalMessages}`)
 
     // Only notify for incoming messages from whitelisted contacts
     if (!isFromMe) {
