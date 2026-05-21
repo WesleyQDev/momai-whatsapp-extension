@@ -57,6 +57,22 @@ module.exports = {
           name: { type: 'string', description: 'Nome personalizado' }
         }
       }
+    },
+    {
+      name: 'get_stats',
+      description: 'Obtem estatisticas do WhatsApp',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'get_history',
+      description: 'Obtem historico de mensagens recentes',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
     }
   ],
 

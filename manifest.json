@@ -5,13 +5,9 @@
   "description": "Monitora e responde mensagens do WhatsApp",
   "icon": "💚",
   "author": "WesleyQDev",
+  "sidebar": true,
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "sidebarPanel": {
-    "icon": "💚",
-    "label": "WhatsApp",
-    "panelEndpoint": "/extensions/whatsapp/panel"
-  },
   "version": "0.1.0"
 }
