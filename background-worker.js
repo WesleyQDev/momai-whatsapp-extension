@@ -285,57 +285,93 @@ async function handleMessagesUpsert({ messages }) {
     const senderJid = msg.key.participant || msg.key.remoteJid
     if (!senderJid) continue
 
-    // Ensure contact exists in waContacts
-    if (!waContacts[senderJid] && !senderJid.endsWith('@g.us')) {
-      const phone = senderJid.split('@')[0].replace(/\D/g, '')
-      if (phone) {
-        waContacts[senderJid] = {
-          id: senderJid,
-          name: null,
-          notify: msg.pushName || null,
-          verifiedName: null,
-          phone
+    const isGroup = msg.key.remoteJid.endsWith('@g.us')
+
+    // Ensure group/contact exists in waContacts
+    if (isGroup) {
+      if (!waContacts[msg.key.remoteJid]) {
+        waContacts[msg.key.remoteJid] = {
+          id: msg.key.remoteJid,
+          name: 'Grupo',
+          phone: msg.key.remoteJid.split('@')[0]
         }
-        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+        await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+      }
+    } else {
+      if (!waContacts[senderJid]) {
+        const phone = senderJid.split('@')[0].replace(/\D/g, '')
+        if (phone) {
+          waContacts[senderJid] = {
+            id: senderJid,
+            name: null,
+            notify: msg.pushName || null,
+            verifiedName: null,
+            phone
+          }
+          await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+        }
       }
     }
 
-    // Try to fetch profile picture in background with 3s timeout
     const now = Date.now()
     const ONE_DAY = 24 * 60 * 60 * 1000
     const RETRY_DELAY = 10 * 60 * 1000 // 10 minutes on failure
-    const lastChecked = waContacts[senderJid]?.profilePicCheckedAt || 0
-    const isFailedRecently = !waContacts[senderJid]?.profilePicUrl && (now - lastChecked < RETRY_DELAY)
-    const isSuccessRecently = waContacts[senderJid]?.profilePicUrl && (now - lastChecked < ONE_DAY)
 
-    if (sock && connected && waContacts[senderJid] && !isFailedRecently && !isSuccessRecently) {
+    // Fetch group metadata (subject) dynamically if needed
+    if (sock && connected && isGroup && (!waContacts[msg.key.remoteJid]?.name || waContacts[msg.key.remoteJid]?.name === 'Grupo')) {
       try {
-        const url = await Promise.race([
-          sock.profilePictureUrl(senderJid, 'image'),
+        const meta = await Promise.race([
+          sock.groupMetadata(msg.key.remoteJid),
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
         ])
-        if (waContacts[senderJid]) {
-          waContacts[senderJid].profilePicUrl = url
-          waContacts[senderJid].profilePicCheckedAt = now
+        if (meta?.subject) {
+          waContacts[msg.key.remoteJid].name = meta.subject
           await momai.storage.set(_getWaContactsKey(), waContacts)
         }
-      } catch {
-        if (waContacts[senderJid]) {
-          // On failure, allow retry after RETRY_DELAY
-          waContacts[senderJid].profilePicCheckedAt = now - ONE_DAY + RETRY_DELAY
-          await momai.storage.set(_getWaContactsKey(), waContacts)
+      } catch (err) {
+        momai.log(`Failed to fetch group metadata: ${err.message}`)
+      }
+    }
+
+    // Fetch avatar picture (group avatar if group, sender avatar if private)
+    const avatarTarget = isGroup ? msg.key.remoteJid : senderJid
+    if (sock && connected && waContacts[avatarTarget]) {
+      const lastChecked = waContacts[avatarTarget].profilePicCheckedAt || 0
+      const isFailedRecently = !waContacts[avatarTarget].profilePicUrl && (now - lastChecked < RETRY_DELAY)
+      const isSuccessRecently = waContacts[avatarTarget].profilePicUrl && (now - lastChecked < ONE_DAY)
+
+      if (!isFailedRecently && !isSuccessRecently) {
+        try {
+          const url = await Promise.race([
+            sock.profilePictureUrl(avatarTarget, 'image'),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+          ])
+          if (waContacts[avatarTarget]) {
+            waContacts[avatarTarget].profilePicUrl = url
+            waContacts[avatarTarget].profilePicCheckedAt = now
+            await momai.storage.set(_getWaContactsKey(), waContacts)
+          }
+        } catch {
+          if (waContacts[avatarTarget]) {
+            waContacts[avatarTarget].profilePicCheckedAt = now - ONE_DAY + RETRY_DELAY
+            await momai.storage.set(_getWaContactsKey(), waContacts)
+          }
         }
       }
     }
 
+    const groupName = isGroup ? (waContacts[msg.key.remoteJid]?.name || 'Grupo') : null
     const displayName = isFromMe ? (senderJid.split('@')[0] || senderJid) : resolveContactName(senderJid)
 
     chatHistory.unshift({
       from: displayName,
-      jid: senderJid,
+      jid: msg.key.remoteJid, // Target JID for replies
+      senderJid: senderJid,
       text,
       timestamp: msg.messageTimestamp,
-      direction: isFromMe ? 'outgoing' : 'incoming'
+      direction: isFromMe ? 'outgoing' : 'incoming',
+      isGroup,
+      groupName
     })
     if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
     totalMessages++
@@ -347,10 +383,13 @@ async function handleMessagesUpsert({ messages }) {
     if (shouldNotify) {
       momai.sendEvent('whatsapp_notification', {
         contact: displayName,
-        contactJid: senderJid,
+        contactJid: msg.key.remoteJid, // Send to group JID if group, sender JID if private
+        senderJid: senderJid,
         message: text,
         timestamp: msg.messageTimestamp,
-        contactAvatar: waContacts[senderJid]?.profilePicUrl || null
+        contactAvatar: isGroup ? (waContacts[msg.key.remoteJid]?.profilePicUrl || null) : (waContacts[senderJid]?.profilePicUrl || null),
+        isGroup,
+        groupName
       })
     }
   }
@@ -365,6 +404,22 @@ async function sendMessage(contact, message) {
   }
 
   await sock.sendMessage(jid, { text: message })
+
+  // Manually add the sent message to chatHistory to immediately reflect in UI
+  const displayName = resolveContactName(jid)
+  chatHistory.unshift({
+    from: displayName,
+    jid: jid,
+    text: message,
+    timestamp: Math.floor(Date.now() / 1000),
+    direction: 'outgoing'
+  })
+  if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
+  totalMessages++
+
+  // Notify frontend to refresh immediately
+  momai.sendEvent('message_sent', { contact: displayName, jid })
+
   return { ok: true }
 }
 
