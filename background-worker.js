@@ -111,6 +111,22 @@ function _isContactDisabled(jid) {
   })
 }
 
+function _cleanupStaleContacts() {
+  let changed = false
+  for (const key of Object.keys(waContacts)) {
+    if (key.endsWith('@lid')) {
+      delete waContacts[key]
+      changed = true
+      delete contactNames[key]
+      const rawNumber = key.split('@')[0]
+      if (rawNumber) {
+        delete contactNames[rawNumber]
+      }
+    }
+  }
+  return changed
+}
+
 async function _loadPerPhoneData() {
   try {
     const credsPath = path.join(momai.storage.storageDir, 'baileys-auth', 'creds.json')
@@ -126,6 +142,12 @@ async function _loadPerPhoneData() {
       if (pn) contactNames = pn
       const wc = await momai.storage.get(_getWaContactsKey())
       if (wc) waContacts = wc
+
+      if (_cleanupStaleContacts()) {
+        await momai.storage.set(_getWaContactsKey(), waContacts)
+        await momai.storage.set(_getContactNamesKey(), contactNames)
+        momai.log('Automatically cleaned up stale @lid contacts from phone storage')
+      }
     }
   } catch {
     momai.log('_loadPerPhoneData: no creds.json (fresh start)')
@@ -143,6 +165,12 @@ async function main() {
 
   // Try to load per-phone data from existing creds
   await _loadPerPhoneData()
+
+  if (_cleanupStaleContacts()) {
+    await momai.storage.set(WA_CONTACTS_KEY, waContacts)
+    await momai.storage.set(CONTACT_NAMES_KEY, contactNames)
+    momai.log('Automatically cleaned up stale @lid contacts from fallback storage')
+  }
 
   // Start connection
   await connect()
@@ -192,8 +220,14 @@ async function connect() {
             const wc = await momai.storage.get(_getWaContactsKey())
             if (wc) waContacts = wc
             else waContacts = {}
+
+            if (_cleanupStaleContacts()) {
+              await momai.storage.set(_getWaContactsKey(), waContacts)
+              await momai.storage.set(_getContactNamesKey(), contactNames)
+              momai.log('Automatically cleaned up stale @lid contacts on active phone detection')
+            }
           }
-        } catch {}
+        } catch { }
         momai.sendEvent('authenticated', { status: 'connected' })
         momai.log('WhatsApp connected')
       } else if (connection === 'close') {
@@ -214,7 +248,7 @@ async function connect() {
       momai.log(`History sync: received ${syncedContacts.length} contacts`)
       let added = 0
       for (const c of syncedContacts) {
-        if (!c.id) continue
+        if (!c.id || c.id.endsWith('@lid')) continue
         const phone = c.id.split('@')[0].replace(/\D/g, '')
         if (!phone) continue
         waContacts[c.id] = {
@@ -227,7 +261,7 @@ async function connect() {
         added++
       }
       if (added > 0) {
-        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => { })
         momai.sendEvent('contacts_synced', { count: Object.keys(waContacts).length })
         momai.log(`Contacts stored: ${added} new, ${Object.keys(waContacts).length} total`)
       }
@@ -236,7 +270,7 @@ async function connect() {
     sock.ev.on('contacts.upsert', (contacts) => {
       let updated = 0
       for (const c of contacts) {
-        if (!c.id) continue
+        if (!c.id || c.id.endsWith('@lid')) continue
         const phone = c.id.split('@')[0].replace(/\D/g, '')
         if (!phone) continue
         waContacts[c.id] = {
@@ -250,7 +284,7 @@ async function connect() {
         updated++
       }
       if (updated > 0) {
-        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => { })
       }
     })
 
@@ -263,7 +297,7 @@ async function connect() {
         if (u.verifiedName) { waContacts[u.id].verifiedName = u.verifiedName; changed++ }
       }
       if (changed > 0) {
-        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => { })
       }
     })
 
@@ -295,10 +329,10 @@ async function handleMessagesUpsert({ messages }) {
           name: 'Grupo',
           phone: msg.key.remoteJid.split('@')[0]
         }
-        await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+        await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => { })
       }
     } else {
-      if (!waContacts[senderJid]) {
+      if (!senderJid.endsWith('@lid') && !waContacts[senderJid]) {
         const phone = senderJid.split('@')[0].replace(/\D/g, '')
         if (phone) {
           waContacts[senderJid] = {
@@ -308,7 +342,7 @@ async function handleMessagesUpsert({ messages }) {
             verifiedName: null,
             phone
           }
-          await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+          await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => { })
         }
       }
     }
@@ -544,7 +578,7 @@ process.on('message', async (msg) => {
             const RETRY_DELAY = 10 * 60 * 1000; // 10 minutes on failure
 
             // Fetch sequentially with 300ms delay to avoid rate limiting
-            ;(async () => {
+            ; (async () => {
               for (const c of paginated) {
                 const lastChecked = waContacts[c.id]?.profilePicCheckedAt || 0
                 const isFailedRecently = !waContacts[c.id]?.profilePicUrl && (now - lastChecked < RETRY_DELAY)
@@ -574,7 +608,7 @@ process.on('message', async (msg) => {
                   }
                 }
               }
-            })().catch(() => {})
+            })().catch(() => { })
           }
 
           result = {
