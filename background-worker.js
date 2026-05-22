@@ -19,8 +19,9 @@ try {
 const path = require('path')
 const fs = require('node:fs/promises')
 
-const WHITELIST_KEY = 'whitelist'
+const DISABLED_CONTACTS_KEY = 'disabled_contacts'
 const CONTACT_NAMES_KEY = 'contact_names'
+const WA_CONTACTS_KEY = 'wa_contacts'
 const CHECK_INTERVAL = 5000
 
 // Self-contained momai bridge (not loaded via extension-host-worker)
@@ -47,26 +48,67 @@ const momai = {
     async set(key, value) {
       await fs.mkdir(_storageBase, { recursive: true })
       const serialized = JSON.stringify(value, null, 2)
-      if (serialized.length > 1024 * 1024) throw new Error('Storage quota exceeded')
+      if (serialized.length > 5 * 1024 * 1024) throw new Error('Storage quota exceeded')
       await fs.writeFile(path.join(_storageBase, `${key}.json`), serialized, 'utf-8')
     }
   }
 }
 
 let sock = null
-let whitelist = []
+let disabledContacts = []
 let contactNames = {}
+let waContacts = {}
 let connected = false
 let chatHistory = []
 let totalMessages = 0
 let _currentPhone = null
 
-function _getWhitelistKey() {
-  return _currentPhone ? `whitelist-${_currentPhone}` : WHITELIST_KEY
+function _getDisabledContactsKey() {
+  return _currentPhone ? `disabled_contacts-${_currentPhone}` : DISABLED_CONTACTS_KEY
 }
 
 function _getContactNamesKey() {
   return _currentPhone ? `contact_names-${_currentPhone}` : CONTACT_NAMES_KEY
+}
+
+function _getWaContactsKey() {
+  return _currentPhone ? `wa_contacts-${_currentPhone}` : WA_CONTACTS_KEY
+}
+
+function resolveContactName(jid) {
+  const rawNumber = (jid || '').split('@')[0] || jid
+
+  if (contactNames[jid]) return contactNames[jid]
+  if (contactNames[rawNumber]) return contactNames[rawNumber]
+
+  const digitsOnly = rawNumber.replace(/\D/g, '')
+  for (const key of Object.keys(contactNames)) {
+    const keyDigits = String(key).replace(/\D/g, '')
+    if (keyDigits && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
+      return contactNames[key]
+    }
+  }
+
+  const wc = waContacts[jid]
+  if (wc) return wc.name || wc.notify || wc.verifiedName || rawNumber
+
+  for (const [key, contact] of Object.entries(waContacts)) {
+    const keyDigits = key.split('@')[0].replace(/\D/g, '')
+    if (keyDigits && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
+      return contact.name || contact.notify || contact.verifiedName || rawNumber
+    }
+  }
+
+  return rawNumber
+}
+
+function _isContactDisabled(jid) {
+  const rawNumber = (jid || '').split('@')[0] || jid
+  const digitsOnly = rawNumber.replace(/\D/g, '')
+  return disabledContacts.some((d) => {
+    const dDigits = String(d).replace(/\D/g, '')
+    return d === jid || d === rawNumber || (dDigits && digitsOnly && (dDigits.endsWith(digitsOnly) || digitsOnly.endsWith(dDigits)))
+  })
 }
 
 async function _loadPerPhoneData() {
@@ -78,10 +120,12 @@ async function _loadPerPhoneData() {
       const phone = creds.me.id.split(':')[0].replace(/\D/g, '')
       if (!phone) return
       _currentPhone = phone
-      const pw = await momai.storage.get(_getWhitelistKey())
-      if (pw) whitelist = pw
+      const dc = await momai.storage.get(_getDisabledContactsKey())
+      if (dc) disabledContacts = dc
       const pn = await momai.storage.get(_getContactNamesKey())
       if (pn) contactNames = pn
+      const wc = await momai.storage.get(_getWaContactsKey())
+      if (wc) waContacts = wc
     }
   } catch {
     momai.log('_loadPerPhoneData: no creds.json (fresh start)')
@@ -93,8 +137,9 @@ async function main() {
   process.send({ type: 'ready' })
 
   // Load whitelist (generic fallback)
-  whitelist = (await momai.storage.get(WHITELIST_KEY)) || []
+  disabledContacts = (await momai.storage.get(DISABLED_CONTACTS_KEY)) || []
   contactNames = (await momai.storage.get(CONTACT_NAMES_KEY)) || {}
+  waContacts = (await momai.storage.get(WA_CONTACTS_KEY)) || {}
 
   // Try to load per-phone data from existing creds
   await _loadPerPhoneData()
@@ -138,12 +183,15 @@ async function connect() {
             .replace(/\D/g, '')
           if (phone && phone !== _currentPhone) {
             _currentPhone = phone
-            const pw = await momai.storage.get(_getWhitelistKey())
-            if (pw) whitelist = pw
-            else whitelist = []
+            const dc = await momai.storage.get(_getDisabledContactsKey())
+            if (dc) disabledContacts = dc
+            else disabledContacts = []
             const pn = await momai.storage.get(_getContactNamesKey())
             if (pn) contactNames = pn
             else contactNames = {}
+            const wc = await momai.storage.get(_getWaContactsKey())
+            if (wc) waContacts = wc
+            else waContacts = {}
           }
         } catch {}
         momai.sendEvent('authenticated', { status: 'connected' })
@@ -158,6 +206,64 @@ async function connect() {
         } else {
           momai.sendEvent('authenticated', { status: 'logged_out' })
         }
+      }
+    })
+
+    sock.ev.on('messaging-history.set', ({ contacts: syncedContacts }) => {
+      if (!syncedContacts?.length) return
+      momai.log(`History sync: received ${syncedContacts.length} contacts`)
+      let added = 0
+      for (const c of syncedContacts) {
+        if (!c.id) continue
+        const phone = c.id.split('@')[0].replace(/\D/g, '')
+        if (!phone) continue
+        waContacts[c.id] = {
+          id: c.id,
+          name: c.name || null,
+          notify: c.notify || null,
+          verifiedName: c.verifiedName || null,
+          phone
+        }
+        added++
+      }
+      if (added > 0) {
+        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+        momai.sendEvent('contacts_synced', { count: Object.keys(waContacts).length })
+        momai.log(`Contacts stored: ${added} new, ${Object.keys(waContacts).length} total`)
+      }
+    })
+
+    sock.ev.on('contacts.upsert', (contacts) => {
+      let updated = 0
+      for (const c of contacts) {
+        if (!c.id) continue
+        const phone = c.id.split('@')[0].replace(/\D/g, '')
+        if (!phone) continue
+        waContacts[c.id] = {
+          ...waContacts[c.id],
+          id: c.id,
+          name: c.name || waContacts[c.id]?.name || null,
+          notify: c.notify || waContacts[c.id]?.notify || null,
+          verifiedName: c.verifiedName || waContacts[c.id]?.verifiedName || null,
+          phone
+        }
+        updated++
+      }
+      if (updated > 0) {
+        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+      }
+    })
+
+    sock.ev.on('contacts.update', (updates) => {
+      let changed = 0
+      for (const u of updates) {
+        if (!u.id || !waContacts[u.id]) continue
+        if (u.notify) { waContacts[u.id].notify = u.notify; changed++ }
+        if (u.name) { waContacts[u.id].name = u.name; changed++ }
+        if (u.verifiedName) { waContacts[u.id].verifiedName = u.verifiedName; changed++ }
+      }
+      if (changed > 0) {
+        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
       }
     })
 
@@ -176,27 +282,54 @@ async function handleMessagesUpsert({ messages }) {
     const text = msg.message.conversation || msg.message.extendedTextMessage?.text
     if (!text) continue
 
-    // Use participant JID for groups, remoteJid for 1:1
     const senderJid = msg.key.participant || msg.key.remoteJid
     if (!senderJid) continue
-    const rawNumber = senderJid.split('@')[0] || senderJid
-    // Try custom name by JID, by raw number, by digits-only match, then fallback
-    let displayName = rawNumber
-    if (!isFromMe) {
-      displayName = contactNames[senderJid] || contactNames[rawNumber] || rawNumber
-      if (displayName === rawNumber) {
-        const digitsOnly = rawNumber.replace(/\D/g, '')
-        for (const key of Object.keys(contactNames)) {
-          const keyDigits = String(key).replace(/\D/g, '')
-          if (keyDigits && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
-            displayName = contactNames[key]
-            break
-          }
+
+    // Ensure contact exists in waContacts
+    if (!waContacts[senderJid] && !senderJid.endsWith('@g.us')) {
+      const phone = senderJid.split('@')[0].replace(/\D/g, '')
+      if (phone) {
+        waContacts[senderJid] = {
+          id: senderJid,
+          name: null,
+          notify: msg.pushName || null,
+          verifiedName: null,
+          phone
+        }
+        momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+      }
+    }
+
+    // Try to fetch profile picture in background with 3s timeout
+    const now = Date.now()
+    const ONE_DAY = 24 * 60 * 60 * 1000
+    const RETRY_DELAY = 10 * 60 * 1000 // 10 minutes on failure
+    const lastChecked = waContacts[senderJid]?.profilePicCheckedAt || 0
+    const isFailedRecently = !waContacts[senderJid]?.profilePicUrl && (now - lastChecked < RETRY_DELAY)
+    const isSuccessRecently = waContacts[senderJid]?.profilePicUrl && (now - lastChecked < ONE_DAY)
+
+    if (sock && connected && waContacts[senderJid] && !isFailedRecently && !isSuccessRecently) {
+      try {
+        const url = await Promise.race([
+          sock.profilePictureUrl(senderJid, 'image'),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+        ])
+        if (waContacts[senderJid]) {
+          waContacts[senderJid].profilePicUrl = url
+          waContacts[senderJid].profilePicCheckedAt = now
+          await momai.storage.set(_getWaContactsKey(), waContacts)
+        }
+      } catch {
+        if (waContacts[senderJid]) {
+          // On failure, allow retry after RETRY_DELAY
+          waContacts[senderJid].profilePicCheckedAt = now - ONE_DAY + RETRY_DELAY
+          await momai.storage.set(_getWaContactsKey(), waContacts)
         }
       }
     }
 
-    // Track ALL messages in history
+    const displayName = isFromMe ? (senderJid.split('@')[0] || senderJid) : resolveContactName(senderJid)
+
     chatHistory.unshift({
       from: displayName,
       jid: senderJid,
@@ -210,25 +343,14 @@ async function handleMessagesUpsert({ messages }) {
       `Message tracked: from=${displayName} text="${text.substring(0, 50)}" total=${totalMessages}`
     )
 
-    // Notify for: self-messages (fromMe always), or whitelisted incoming messages
-    const shouldNotify =
-      isFromMe ||
-      whitelist.some(function (w) {
-        const wDigits = String(w).replace(/\D/g, '')
-        const dDigits = rawNumber.replace(/\D/g, '')
-        return (
-          senderJid.includes(w) ||
-          w === senderJid ||
-          w === rawNumber ||
-          (dDigits && wDigits && (dDigits.endsWith(wDigits) || wDigits.endsWith(dDigits)))
-        )
-      })
+    const shouldNotify = isFromMe || !_isContactDisabled(senderJid)
     if (shouldNotify) {
       momai.sendEvent('whatsapp_notification', {
         contact: displayName,
         contactJid: senderJid,
         message: text,
-        timestamp: msg.messageTimestamp
+        timestamp: msg.messageTimestamp,
+        contactAvatar: waContacts[senderJid]?.profilePicUrl || null
       })
     }
   }
@@ -249,11 +371,8 @@ async function sendMessage(contact, message) {
 async function getPanelData() {
   return {
     connected,
-    whitelist: whitelist.map((w) => ({
-      id: w,
-      name: contactNames[w] || w,
-      number: w
-    }))
+    syncedContacts: Object.keys(waContacts).length,
+    disabledCount: disabledContacts.length
   }
 }
 
@@ -279,21 +398,36 @@ process.on('message', async (msg) => {
             }
           }
           break
-        case 'list_contacts':
-          result = { contacts: whitelist.map((w) => ({ id: w, name: contactNames[w] || w })) }
+        case 'list_contacts': {
+          const allContacts = Object.values(waContacts)
+            .filter((c) => c.phone && !c.id.endsWith('@g.us'))
+            .map((c) => ({
+              id: c.id,
+              name: contactNames[c.phone] || c.name || c.notify || c.verifiedName || c.phone,
+              phone: c.phone,
+              monitoring: !_isContactDisabled(c.id),
+              profilePicUrl: c.profilePicUrl || null
+            }))
+          result = { contacts: allContacts }
           break
-        case 'add_contact':
-          if (msg.payload.args?.contact) {
-            whitelist.push(msg.payload.args.contact)
-            await momai.storage.set(_getWhitelistKey(), whitelist)
-            result = { ok: true, contact: msg.payload.args.contact }
+        }
+        case 'toggle_monitoring': {
+          const contactId = msg.payload.args?.contact
+          if (!contactId) break
+          const isDisabled = _isContactDisabled(contactId)
+          if (isDisabled) {
+            disabledContacts = disabledContacts.filter((d) => {
+              const dDigits = String(d).replace(/\D/g, '')
+              const cDigits = String(contactId).replace(/\D/g, '')
+              return !(d === contactId || (dDigits && cDigits && (dDigits.endsWith(cDigits) || cDigits.endsWith(dDigits))))
+            })
+          } else {
+            disabledContacts.push(contactId)
           }
+          await momai.storage.set(_getDisabledContactsKey(), disabledContacts)
+          result = { ok: true, contact: contactId, monitoring: isDisabled }
           break
-        case 'remove_contact':
-          whitelist = whitelist.filter((w) => w !== msg.payload.args?.contact)
-          await momai.storage.set(_getWhitelistKey(), whitelist)
-          result = { ok: true, contact: msg.payload.args?.contact }
-          break
+        }
         case 'set_contact_name':
           if (msg.payload.args?.contact && msg.payload.args?.name) {
             contactNames[msg.payload.args.contact] = msg.payload.args.name
@@ -305,10 +439,99 @@ process.on('message', async (msg) => {
           result = {
             connected,
             totalMessages,
-            totalContacts: whitelist.length,
-            whitelist: whitelist.map((w) => ({ id: w, name: contactNames[w] || w, number: w }))
+            syncedContacts: Object.keys(waContacts).length,
+            disabledCount: disabledContacts.length,
+            monitoredCount: Object.keys(waContacts).length - disabledContacts.length
           }
           break
+        case 'get_wa_contacts': {
+          const search = (msg.payload.args?.search || '').toLowerCase()
+          const page = parseInt(msg.payload.args?.page) || 1
+          const perPage = parseInt(msg.payload.args?.perPage) || 20
+          let entries = Object.values(waContacts)
+            .filter((c) => c.phone && !c.id.endsWith('@g.us'))
+          if (search) {
+            entries = entries.filter((c) =>
+              (c.name || '').toLowerCase().includes(search) ||
+              (c.notify || '').toLowerCase().includes(search) ||
+              (c.verifiedName || '').toLowerCase().includes(search) ||
+              c.phone.includes(search)
+            )
+          }
+          const sorted = entries
+            .map((c) => {
+              const hasName = !!(contactNames[c.phone] || c.name || c.notify || c.verifiedName)
+              return {
+                id: c.id,
+                displayName: contactNames[c.phone] || c.name || c.notify || c.verifiedName || c.phone,
+                hasName,
+                name: c.name || null,
+                notify: c.notify || null,
+                phone: c.phone,
+                monitoring: !_isContactDisabled(c.id),
+                profilePicUrl: c.profilePicUrl || null
+              }
+            })
+            .sort((a, b) => {
+              if (a.hasName && !b.hasName) return -1
+              if (!a.hasName && b.hasName) return 1
+              return (a.displayName || '').localeCompare(b.displayName || '')
+            })
+          const totalFiltered = sorted.length
+          const totalPages = Math.ceil(totalFiltered / perPage)
+          const start = (page - 1) * perPage
+          const paginated = sorted.slice(start, start + perPage)
+
+          // Fetch profile pictures in background for this page if missing or checked > 1 day ago
+          if (sock && connected) {
+            const now = Date.now();
+            const ONE_DAY = 24 * 60 * 60 * 1000;
+            const RETRY_DELAY = 10 * 60 * 1000; // 10 minutes on failure
+
+            // Fetch sequentially with 300ms delay to avoid rate limiting
+            ;(async () => {
+              for (const c of paginated) {
+                const lastChecked = waContacts[c.id]?.profilePicCheckedAt || 0
+                const isFailedRecently = !waContacts[c.id]?.profilePicUrl && (now - lastChecked < RETRY_DELAY)
+                const isSuccessRecently = waContacts[c.id]?.profilePicUrl && (now - lastChecked < ONE_DAY)
+
+                if (!isFailedRecently && !isSuccessRecently) {
+                  // Wait 300ms between requests to avoid rate limit
+                  await new Promise(resolve => setTimeout(resolve, 300))
+
+                  try {
+                    const url = await Promise.race([
+                      sock.profilePictureUrl(c.id, 'image'),
+                      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+                    ])
+                    if (waContacts[c.id]) {
+                      waContacts[c.id].profilePicUrl = url
+                      waContacts[c.id].profilePicCheckedAt = now
+                      await momai.storage.set(_getWaContactsKey(), waContacts)
+                      momai.sendEvent('contacts_updated', {})
+                    }
+                  } catch {
+                    if (waContacts[c.id]) {
+                      // On failure, allow retry after RETRY_DELAY
+                      waContacts[c.id].profilePicCheckedAt = now - ONE_DAY + RETRY_DELAY
+                      await momai.storage.set(_getWaContactsKey(), waContacts)
+                    }
+                  }
+                }
+              }
+            })().catch(() => {})
+          }
+
+          result = {
+            contacts: paginated,
+            total: Object.keys(waContacts).length,
+            totalFiltered,
+            page,
+            totalPages,
+            perPage
+          }
+          break
+        }
         case 'get_history':
           result = { history: chatHistory.slice(0, 20) }
           break

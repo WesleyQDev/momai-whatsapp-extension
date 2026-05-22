@@ -73,6 +73,16 @@ module.exports = {
         type: 'object',
         properties: {}
       }
+    },
+    {
+      name: 'get_wa_contacts',
+      description: 'Lista os contatos do WhatsApp importados automaticamente do telefone. Retorna nome e numero.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Busca por nome ou numero (opcional)' }
+        }
+      }
     }
   ],
 

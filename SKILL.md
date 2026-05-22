@@ -20,9 +20,9 @@ tags:
 tools:
   - send_message
   - list_contacts
-  - add_contact
-  - remove_contact
+  - toggle_monitoring
   - set_contact_name
+  - get_wa_contacts
 triggers:
   - mensagem
   - zap
@@ -42,20 +42,22 @@ Você pode interagir com o WhatsApp do usuário através das tools abaixo.
    - Sempre confirme com o usuário antes de enviar mensagens que possam ser ambíguas.
    - Use nomes personalizados se disponíveis.
 
-2. **list_contacts** — Lista os contatos no whitelist.
+2. **list_contacts** — Lista todos os contatos do WhatsApp com o status de monitoramento.
    - Sem parâmetros.
 
-3. **add_contact** — Adiciona um contato ao whitelist para monitoramento.
-   - Parâmetros: `contact` (número ou nome)
+3. **toggle_monitoring** — Ativa ou desativa o monitoramento (opt-out) para um contato específico.
+   - Parâmetros: `contact` (número ou ID do contato)
+   - Retorna o novo estado de monitoramento.
 
-4. **remove_contact** — Remove um contato do whitelist.
-   - Parâmetros: `contact` (nome ou ID)
-
-5. **set_contact_name** — Define um nome personalizado para um contato (melhora o contexto do LLM).
+4. **set_contact_name** — Define um nome personalizado para um contato (sobrescreve o nome da agenda).
    - Parâmetros: `contact` (número), `name` (nome personalizado)
+
+5. **get_wa_contacts** — Lista e busca contatos sincronizados de forma paginada.
+   - Parâmetros: `search` (opcional), `page` (opcional), `perPage` (opcional)
+   - Use para encontrar o número/status de um contato pelo nome.
 
 ### Regras
 
-- Nunca envie mensagens sem confirmar com o usuário em caso de ambiguidade.
-- Respeite a whitelist — só mencione monitoramento de contatos que estão nela.
-- Se o usuário perguntar "tem mensagens novas?", use list_contacts primeiro.
+- Todos os contatos do WhatsApp são monitorados por padrão (modelo opt-out).
+- Use `toggle_monitoring` caso o usuário queira desativar ou ativar o monitoramento de um contato específico.
+- Se o usuário pedir para enviar mensagem a alguém pelo nome, use `get_wa_contacts` para encontrar o número do contato.
