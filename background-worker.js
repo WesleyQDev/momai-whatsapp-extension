@@ -133,7 +133,9 @@ async function connect() {
         connected = true
         // Detect phone number and load per-phone whitelist
         try {
-          const phone = (sock?.user?.id || sock?.authState?.creds?.me?.id || '').split(':')[0].replace(/\D/g, '')
+          const phone = (sock?.user?.id || sock?.authState?.creds?.me?.id || '')
+            .split(':')[0]
+            .replace(/\D/g, '')
           if (phone && phone !== _currentPhone) {
             _currentPhone = phone
             const pw = await momai.storage.get(_getWhitelistKey())
@@ -204,14 +206,23 @@ async function handleMessagesUpsert({ messages }) {
     })
     if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
     totalMessages++
-    momai.log(`Message tracked: from=${displayName} text="${text.substring(0, 50)}" total=${totalMessages}`)
+    momai.log(
+      `Message tracked: from=${displayName} text="${text.substring(0, 50)}" total=${totalMessages}`
+    )
 
     // Notify for: self-messages (fromMe always), or whitelisted incoming messages
-    const shouldNotify = isFromMe || whitelist.some(function(w) {
-      const wDigits = String(w).replace(/\D/g, '')
-      const dDigits = rawNumber.replace(/\D/g, '')
-      return senderJid.includes(w) || w === senderJid || w === rawNumber || (dDigits && wDigits && (dDigits.endsWith(wDigits) || wDigits.endsWith(dDigits)))
-    })
+    const shouldNotify =
+      isFromMe ||
+      whitelist.some(function (w) {
+        const wDigits = String(w).replace(/\D/g, '')
+        const dDigits = rawNumber.replace(/\D/g, '')
+        return (
+          senderJid.includes(w) ||
+          w === senderJid ||
+          w === rawNumber ||
+          (dDigits && wDigits && (dDigits.endsWith(wDigits) || wDigits.endsWith(dDigits)))
+        )
+      })
     if (shouldNotify) {
       momai.sendEvent('whatsapp_notification', {
         contact: displayName,
@@ -255,11 +266,17 @@ process.on('message', async (msg) => {
         case 'send_message':
           try {
             result = await sendMessage(msg.payload.args?.contact, msg.payload.args?.message)
-            momai.log(`send_message OK: to=${msg.payload.args?.contact} msg="${(msg.payload.args?.message || '').substring(0, 50)}"`)
+            momai.log(
+              `send_message OK: to=${msg.payload.args?.contact} msg="${(msg.payload.args?.message || '').substring(0, 50)}"`
+            )
             result.directResponse = `Mensagem enviada`
           } catch (err) {
             momai.log(`send_message FAILED: ${err.message}`)
-            result = { ok: false, error: err.message, directResponse: `Erro ao enviar: ${err.message}` }
+            result = {
+              ok: false,
+              error: err.message,
+              directResponse: `Erro ao enviar: ${err.message}`
+            }
           }
           break
         case 'list_contacts':
@@ -308,20 +325,42 @@ process.on('message', async (msg) => {
           break
         default: {
           // Voice command via "responda": reply to last contact
-          const lastIncoming = [...chatHistory].reverse().find(m => m.direction === 'incoming')
-          if (lastIncoming && msg.payload?.content && msg.payload.content.toLowerCase().includes('responda')) {
+          const lastIncoming = [...chatHistory].reverse().find((m) => m.direction === 'incoming')
+          if (
+            lastIncoming &&
+            msg.payload?.content &&
+            msg.payload.content.toLowerCase().includes('responda')
+          ) {
             const replyMsg = msg.payload.content.replace(/responda\s+/i, '').trim()
             if (replyMsg) {
               await sendMessage(lastIncoming.jid, replyMsg)
-              result = { ok: true, to: lastIncoming.from, message: replyMsg, directResponse: `Mensagem enviada para ${lastIncoming.from}` }
+              result = {
+                ok: true,
+                to: lastIncoming.from,
+                message: replyMsg,
+                directResponse: `Mensagem enviada para ${lastIncoming.from}`
+              }
             } else {
-              result = { ok: false, error: 'mensagem vazia', directResponse: 'Fale a mensagem depois de responda' }
+              result = {
+                ok: false,
+                error: 'mensagem vazia',
+                directResponse: 'Fale a mensagem depois de responda'
+              }
             }
-          } else if (lastIncoming && msg.payload?.content && msg.payload.content.toLowerCase().startsWith('responda')) {
+          } else if (
+            lastIncoming &&
+            msg.payload?.content &&
+            msg.payload.content.toLowerCase().startsWith('responda')
+          ) {
             const replyMsg = msg.payload.content.replace(/^responda\s+/i, '').trim()
             if (replyMsg) {
               await sendMessage(lastIncoming.jid, replyMsg)
-              result = { ok: true, to: lastIncoming.from, message: replyMsg, directResponse: `Mensagem enviada para ${lastIncoming.from}` }
+              result = {
+                ok: true,
+                to: lastIncoming.from,
+                message: replyMsg,
+                directResponse: `Mensagem enviada para ${lastIncoming.from}`
+              }
             } else {
               result = { ok: false, error: 'mensagem vazia' }
             }
