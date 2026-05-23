@@ -75,6 +75,21 @@ module.exports = {
       }
     },
     {
+      name: 'get_avatars',
+      description: 'Busca fotos de perfil para uma lista de JIDs (contatos ou grupos)',
+      parameters: {
+        type: 'object',
+        properties: {
+          jids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Lista de JIDs WhatsApp (@s.whatsapp.net ou @g.us)'
+          }
+        },
+        required: ['jids']
+      }
+    },
+    {
       name: 'get_wa_contacts',
       description:
         'Lista os contatos do WhatsApp importados automaticamente do telefone. Retorna nome e numero.',

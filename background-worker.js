@@ -2,6 +2,8 @@
 // Persistent worker for WhatsApp Web connection via Baileys
 
 const MAX_HISTORY = 50
+const MAX_PERSISTED_CONVERSATIONS = 3
+const CHAT_HISTORY_KEY = 'chat_history'
 
 let makeWASocket,
   useMultiFileAuthState,
@@ -53,7 +55,9 @@ const CHECK_INTERVAL = 5000
 // Self-contained momai bridge (not loaded via extension-host-worker)
 const _skillId = process.env.MOMAI_EXTENSION_ID || 'whatsapp'
 const _dataDir =
-  process.env.MOMAI_DATA_DIR || path.resolve(__dirname, '..', '..', '..', '..', 'data')
+  process.env.MOMAI_DATA_DIR ||
+  process.env.MOMAI_NODE_CORE_DATA_DIR ||
+  path.resolve(__dirname, '..', '..', '..', '..', 'data')
 const _storageBase = path.join(_dataDir, 'extensions', _skillId)
 
 const momai = {
@@ -238,6 +242,79 @@ function _getWaContactsKey() {
   return _currentPhone ? `wa_contacts-${_currentPhone}` : WA_CONTACTS_KEY
 }
 
+function _getChatHistoryKey() {
+  return _currentPhone ? `${CHAT_HISTORY_KEY}-${_currentPhone}` : CHAT_HISTORY_KEY
+}
+
+function buildPersistedHistorySnapshot(limit = MAX_PERSISTED_CONVERSATIONS) {
+  if (chatHistory.length === 0) return []
+
+  const latestByJid = new Map()
+  for (const m of chatHistory) {
+    const ts = Number(m.timestamp) || 0
+    const prev = latestByJid.get(m.jid) || 0
+    if (ts > prev) latestByJid.set(m.jid, ts)
+  }
+
+  const keepJids = new Set(
+    [...latestByJid.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([jid]) => jid)
+  )
+
+  return chatHistory.filter((m) => keepJids.has(m.jid))
+}
+
+/** Grava em disco as 3 conversas mais recentes sem alterar o historico em memoria. */
+async function persistChatHistorySnapshot() {
+  try {
+    const snapshot = buildPersistedHistorySnapshot()
+    if (snapshot.length === 0) return
+    await momai.storage.set(_getChatHistoryKey(), snapshot)
+  } catch (e) {
+    momai.log(`persistChatHistorySnapshot: ${e.message}`)
+  }
+}
+
+/** Ao fechar o app: grava snapshot e alinha memoria ao que foi salvo. */
+async function flushPersistedChatHistory() {
+  if (chatHistory.length === 0) return
+  try {
+    chatHistory = buildPersistedHistorySnapshot()
+    await momai.storage.set(_getChatHistoryKey(), chatHistory)
+  } catch (e) {
+    momai.log(`flushPersistedChatHistory: ${e.message}`)
+  }
+}
+
+async function loadChatHistory() {
+  if (chatHistory.length > 0) return true
+  try {
+    const keys = [...new Set([_currentPhone ? _getChatHistoryKey() : null, CHAT_HISTORY_KEY].filter(Boolean))]
+    for (const key of keys) {
+      const saved = await momai.storage.get(key)
+      if (!Array.isArray(saved) || saved.length === 0) continue
+      chatHistory = saved
+      totalMessages = Math.max(totalMessages, chatHistory.length)
+      momai.log(`loadChatHistory: ${saved.length} msgs from ${key}`)
+      return true
+    }
+  } catch (e) {
+    momai.log(`loadChatHistory: ${e.message}`)
+  }
+  return false
+}
+
+let _persistHistoryTimer = null
+function schedulePersistChatHistory() {
+  if (_persistHistoryTimer) clearTimeout(_persistHistoryTimer)
+  _persistHistoryTimer = setTimeout(() => {
+    _persistHistoryTimer = null
+    persistChatHistorySnapshot().catch(() => {})
+  }, 2000)
+}
+
 function resolveStandardJid(jid) {
   if (!jid) return null
   if (jid.endsWith('@lid')) {
@@ -283,6 +360,71 @@ function resolveContactName(jid) {
   }
 
   return rawNumber
+}
+
+function getStoredAvatarUrl(jid) {
+  if (!jid || !waContacts[jid]) return null
+  return waContacts[jid].profilePicUrl || null
+}
+
+function resolveChatAvatarUrl(jid, isGroup, senderJid) {
+  if (!jid) return null
+  if (isGroup || jid.endsWith('@g.us')) {
+    return getStoredAvatarUrl(jid)
+  }
+  return getStoredAvatarUrl(jid) || (senderJid ? getStoredAvatarUrl(senderJid) : null)
+}
+
+async function ensureAvatarForJid(jid) {
+  if (!jid) return null
+
+  const cached = getStoredAvatarUrl(jid)
+  if (!sock || !connected) return cached
+
+  if (!waContacts[jid]) {
+    if (jid.endsWith('@g.us')) {
+      waContacts[jid] = {
+        id: jid,
+        name: 'Grupo',
+        phone: jid.split('@')[0]
+      }
+    } else if (jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid')) {
+      waContacts[jid] = {
+        id: jid,
+        name: resolveContactName(jid),
+        phone: jid.split('@')[0]
+      }
+    } else {
+      return cached
+    }
+  }
+
+  const entry = waContacts[jid]
+  const now = Date.now()
+  const ONE_DAY = 24 * 60 * 60 * 1000
+  const RETRY_DELAY = 10 * 60 * 1000
+  const lastChecked = entry.profilePicCheckedAt || 0
+  const isFailedRecently = !entry.profilePicUrl && now - lastChecked < RETRY_DELAY
+  const isSuccessRecently = entry.profilePicUrl && now - lastChecked < ONE_DAY
+
+  if (cached && (isSuccessRecently || isFailedRecently)) {
+    return entry.profilePicUrl || null
+  }
+
+  try {
+    const url = await Promise.race([
+      sock.profilePictureUrl(jid, 'image'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+    ])
+    entry.profilePicUrl = url
+    entry.profilePicCheckedAt = now
+    await momai.storage.set(_getWaContactsKey(), waContacts)
+    return url
+  } catch {
+    entry.profilePicCheckedAt = now - ONE_DAY + RETRY_DELAY
+    await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+    return entry.profilePicUrl || null
+  }
 }
 
 function _isContactDisabled(jid) {
@@ -345,6 +487,8 @@ async function _loadPerPhoneData() {
         await momai.storage.set(_getContactNamesKey(), contactNames)
         momai.log('Automatically cleaned up stale @lid contacts from phone storage')
       }
+
+      await loadChatHistory()
     }
   } catch {
     momai.log('_loadPerPhoneData: no creds.json (fresh start)')
@@ -352,16 +496,16 @@ async function _loadPerPhoneData() {
 }
 
 async function main() {
-  // Signal ready
-  process.send({ type: 'ready' })
-
   // Load whitelist (generic fallback)
   disabledContacts = (await momai.storage.get(DISABLED_CONTACTS_KEY)) || []
   contactNames = (await momai.storage.get(CONTACT_NAMES_KEY)) || {}
   waContacts = (await momai.storage.get(WA_CONTACTS_KEY)) || {}
 
-  // Try to load per-phone data from existing creds
+  // Try to load per-phone data from existing creds (includes chat history)
   await _loadPerPhoneData()
+  if (!chatHistory.length) {
+    await loadChatHistory()
+  }
 
   if (_cleanupStaleContacts()) {
     await momai.storage.set(WA_CONTACTS_KEY, waContacts)
@@ -371,6 +515,15 @@ async function main() {
 
   // Start connection
   await connect()
+
+  setInterval(() => {
+    persistChatHistorySnapshot().catch(() => {})
+  }, 30000)
+
+  process.send({ type: 'ready' })
+  if (chatHistory.length > 0) {
+    momai.sendEvent('history_loaded', { count: chatHistory.length })
+  }
 
   // Periodic heartbeat — keeps SSE clients aware of current state
   setInterval(() => {
@@ -486,9 +639,14 @@ async function connect() {
               await momai.storage.set(_getContactNamesKey(), contactNames)
               momai.log('Automatically cleaned up stale @lid contacts on active phone detection')
             }
+
+          }
+          if (phone && !chatHistory.length) {
+            await loadChatHistory()
           }
         } catch {}
         momai.sendEvent('authenticated', { status: 'connected' })
+        momai.sendEvent('history_loaded', { count: chatHistory.length })
         momai.log('WhatsApp connected')
 
         // Start pruning timer to remove deleted contacts from WhatsApp
@@ -843,6 +1001,7 @@ async function handleMessagesUpsert({ messages }) {
     })
     if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
     totalMessages++
+    schedulePersistChatHistory()
     momai.log(
       `Message tracked: from=${displayName} text="${text.substring(0, 50)}" total=${totalMessages}`
     )
@@ -858,8 +1017,8 @@ async function handleMessagesUpsert({ messages }) {
         contactAvatar: isGroup
           ? waContacts[msg.key.remoteJid]?.profilePicUrl || null
           : waContacts[resolvedSenderJid]?.profilePicUrl || null,
-        isGroup,
-        groupName
+        isGroup: !!isGroup,
+        groupName: isGroup ? groupName : undefined
       })
     }
   }
@@ -992,6 +1151,7 @@ async function sendMessage(contact, message) {
   })
   if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
   totalMessages++
+  schedulePersistChatHistory()
 
   momai.sendEvent('message_sent', { contact: displayName, jid })
 
@@ -1009,8 +1169,24 @@ async function getPanelData() {
   }
 }
 
+process.on('SIGINT', () => {
+  flushPersistedChatHistory()
+    .catch(() => {})
+    .finally(() => process.exit(0))
+})
+process.on('SIGTERM', () => {
+  flushPersistedChatHistory()
+    .catch(() => {})
+    .finally(() => process.exit(0))
+})
+
 // IPC listener for tool execution from LLM
 process.on('message', async (msg) => {
+  if (msg.type === 'shutdown') {
+    await flushPersistedChatHistory()
+    process.exit(0)
+    return
+  }
   if (msg.type === 'execute') {
     try {
       let result
@@ -1223,8 +1399,35 @@ process.on('message', async (msg) => {
           break
         }
         case 'get_history':
-          result = { history: chatHistory.slice(0, 20) }
+          if (chatHistory.length === 0) {
+            await loadChatHistory()
+          }
+          result = {
+            history: chatHistory.slice(0, 50).map((h) => {
+              const isGroupMsg = h.isGroup || (h.jid && h.jid.endsWith('@g.us'))
+              return {
+                ...h,
+                profilePicUrl: resolveChatAvatarUrl(h.jid, isGroupMsg, h.senderJid)
+              }
+            })
+          }
           break
+        case 'flush_history':
+          await flushPersistedChatHistory()
+          result = { ok: true, count: chatHistory.length }
+          break
+        case 'get_avatars': {
+          const jids = Array.isArray(msg.payload.args?.jids) ? msg.payload.args.jids : []
+          const unique = [...new Set(jids.filter((j) => typeof j === 'string' && j.includes('@')))]
+          const avatars = {}
+          for (let i = 0; i < unique.length; i++) {
+            if (i > 0) await new Promise((r) => setTimeout(r, 300))
+            avatars[unique[i]] = await ensureAvatarForJid(unique[i])
+          }
+          result = { avatars }
+          momai.sendEvent('contacts_updated', {})
+          break
+        }
         case 'logout':
           if (sock && connected) {
             momai.log('Logging out from WhatsApp...')
