@@ -115,6 +115,16 @@ const groupMetaCache = new Map()
 
 let sock = null
 let preventAutoReconnect = false
+let reconnectTimer = null
+let isConnecting = false
+
+function _clearReconnectTimer() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+}
+
 let disabledContacts = []
 let contactNames = {}
 let waContacts = {}
@@ -504,13 +514,21 @@ function schedulePersistChatHistory() {
 
 function resolveStandardJid(jid) {
   if (!jid) return null
-  if (jid.endsWith('@lid')) {
-    const matched = Object.values(waContacts).find((c) => c.lid === jid)
+
+  // Strip Baileys device suffix (e.g. 55...:1@s.whatsapp.net -> 55...@s.whatsapp.net)
+  let standard = jid
+  if (jid.includes(':') && jid.includes('@')) {
+    const [user, domain] = jid.split('@')
+    standard = user.split(':')[0] + '@' + domain
+  }
+
+  if (standard.endsWith('@lid')) {
+    const matched = Object.values(waContacts).find((c) => c.lid === standard)
     if (matched && matched.id) {
       return matched.id
     }
   }
-  return jid
+  return standard
 }
 
 /** DM via @lid: Baileys may put a @g.us JID in participant — ignore for 1:1 chats. */
@@ -571,6 +589,8 @@ function enrichHistoryEntry(h) {
 
 function resolveContactName(jid) {
   if (!jid) return ''
+
+  jid = resolveStandardJid(jid)
 
   if (jid.endsWith('@lid')) {
     if (waContacts[jid]) {
@@ -795,7 +815,23 @@ async function main() {
 }
 
 async function connect() {
+  if (isConnecting && sock) return
+  isConnecting = true
+  _clearReconnectTimer()
+
   try {
+    if (sock) {
+      try {
+        sock.ev.removeAllListeners('connection.update')
+        sock.ev.removeAllListeners('creds.update')
+        sock.ev.removeAllListeners('messages.upsert')
+        sock.end(undefined)
+      } catch (e) {
+        momai.log(`Error closing old socket: ${e.message}`)
+      }
+      sock = null
+    }
+
     receivedJids.clear()
     const { version } = await fetchLatestBaileysVersion()
     const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
@@ -877,6 +913,8 @@ async function connect() {
       }
 
       if (connection === 'open') {
+        _clearReconnectTimer()
+        isConnecting = false
         lastQr = null
         lastQrAt = 0
         connected = true
@@ -963,6 +1001,7 @@ async function connect() {
         }, 10000)
       } else if (connection === 'close') {
         connected = false
+        isConnecting = false
         if (preventAutoReconnect) {
           preventAutoReconnect = false
           momai.sendEvent('authenticated', { status: 'logged_out' })
@@ -973,7 +1012,8 @@ async function connect() {
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut
         if (shouldReconnect) {
           momai.sendEvent('connection_status', { status: 'reconnecting' })
-          setTimeout(connect, CHECK_INTERVAL)
+          _clearReconnectTimer()
+          reconnectTimer = setTimeout(connect, CHECK_INTERVAL)
         } else {
           momai.sendEvent('authenticated', { status: 'logged_out' })
           momai.sendEvent('connection_status', { status: 'disconnected' })
@@ -1139,8 +1179,10 @@ async function connect() {
 
     sock.ev.on('messages.upsert', handleMessagesUpsert)
   } catch (err) {
+    isConnecting = false
     momai.log(`Connection error: ${err.message}`)
-    setTimeout(connect, 5000)
+    _clearReconnectTimer()
+    reconnectTimer = setTimeout(connect, 5000)
   }
 }
 
@@ -1274,9 +1316,7 @@ async function handleMessagesUpsert({ messages }) {
       : null
     const displayName = isFromMe
       ? resolvedSenderJid.split('@')[0] || resolvedSenderJid
-      : isGroup
-        ? resolveContactName(msg.key.participant || senderJid)
-        : resolveContactName(senderJid)
+      : resolveContactName(resolvedSenderJid)
 
     const replyJid = isGroup ? remoteJid : resolveStandardJid(remoteJid) || remoteJid
 
@@ -1300,7 +1340,15 @@ async function handleMessagesUpsert({ messages }) {
       `Message tracked: from=${displayName} text="${text.substring(0, 50)}" total=${totalMessages}`
     )
 
-    const shouldNotify = isFromMe || !_isContactDisabled(resolvedSenderJid)
+    const standardizedRemoteJid = resolveStandardJid(remoteJid)
+    const isNoteToSelf =
+      isFromMe &&
+      standardizedRemoteJid &&
+      _currentPhone &&
+      (standardizedRemoteJid === _currentPhone + '@s.whatsapp.net' ||
+        standardizedRemoteJid === _currentPhone + '@c.us')
+
+    const shouldNotify = (!isFromMe && !_isContactDisabled(resolvedSenderJid)) || isNoteToSelf
     if (shouldNotify) {
       momai.sendEvent('whatsapp_notification', {
         contact: displayName,
