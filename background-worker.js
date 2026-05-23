@@ -103,6 +103,7 @@ class MessageRetryCache {
   }
 }
 const msgRetryCounterCache = new MessageRetryCache()
+const sentMessagesCache = new Map()
 
 let sock = null
 let disabledContacts = []
@@ -275,17 +276,29 @@ async function connect() {
     momai.log(`connect: creds.json=${hasCreds}`)
     const { state, saveCreds } = await useMultiFileAuthState(authDir)
 
-    // Setup logger with pino or fallback
+    // Setup logger with pino or fallback, redirecting warning/error events to momai.log
     let logger
     if (pino) {
-      logger = pino({ level: 'silent' })
+      logger = pino({ level: 'warn' }, {
+        write: (msg) => {
+          try {
+            const parsed = JSON.parse(msg)
+            let levelStr = 'WARN'
+            if (parsed.level >= 50) levelStr = 'ERROR'
+            const detail = parsed.err?.message || parsed.error || ''
+            momai.log(`[Baileys:${levelStr}] ${parsed.msg} ${detail ? '(' + detail + ')' : ''}`)
+          } catch {
+            momai.log(`[Baileys] ${msg}`)
+          }
+        }
+      })
     } else {
       const makeMockLogger = () => {
         const mock = {
           info: () => {},
           debug: () => {},
-          warn: () => {},
-          error: () => {},
+          warn: (obj, msg) => momai.log(`[Baileys:WARN] ${msg || JSON.stringify(obj)}`),
+          error: (obj, msg) => momai.log(`[Baileys:ERROR] ${msg || JSON.stringify(obj)}`),
           trace: () => {},
           child: () => mock
         }
@@ -304,7 +317,16 @@ async function connect() {
       printQRInTerminal: false,
       emitOwnEvents: false,
       generateHighQualityLinkPreview: false,
-      msgRetryCounterCache
+      msgRetryCounterCache,
+      getMessage: async (key) => {
+        if (sentMessagesCache) {
+          const cached = sentMessagesCache.get(key.id)
+          if (cached) {
+            return cached
+          }
+        }
+        return undefined
+      }
     })
 
     sock.ev.on('creds.update', saveCreds)
@@ -320,6 +342,30 @@ async function connect() {
 
       if (connection === 'open') {
         connected = true
+
+        // Force sender key redistribution to all group participants
+        // Stale sender-key-memory entries cause Baileys to skip SKDM distribution,
+        // resulting in "Aguardando mensagem" on recipients' devices
+        try {
+          const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+          const fsSync = require('fs')
+          const files = fsSync.readdirSync(authDir)
+          let cleared = 0
+          for (const file of files) {
+            if (file.startsWith('sender-key-memory-')) {
+              try {
+                fsSync.unlinkSync(path.join(authDir, file))
+                cleared++
+              } catch {}
+            }
+          }
+          if (cleared > 0) {
+            momai.log(`Cleared ${cleared} sender-key-memory files to force SKDM redistribution`)
+          }
+        } catch (e) {
+          momai.log(`Failed to clear sender-key-memory: ${e.message}`)
+        }
+
         // Detect phone number and load per-phone whitelist
         try {
           const phone = (sock?.user?.id || sock?.authState?.creds?.me?.id || '')
@@ -567,6 +613,13 @@ async function connect() {
 
 async function handleMessagesUpsert({ messages }) {
   for (const msg of messages) {
+    if (msg.message && msg.key?.id) {
+      sentMessagesCache.set(msg.key.id, msg.message)
+      if (sentMessagesCache.size > 5000) {
+        const firstKey = sentMessagesCache.keys().next().value
+        sentMessagesCache.delete(firstKey)
+      }
+    }
     if (!msg.message?.conversation && !msg.message?.extendedTextMessage) continue
 
     const isFromMe = msg.key.fromMe
@@ -808,7 +861,14 @@ async function sendMessage(contact, message) {
   let lastError
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      await sock.sendMessage(jid, { text: message })
+      const sent = await sock.sendMessage(jid, { text: message })
+      if (sent?.key?.id && sent?.message) {
+        sentMessagesCache.set(sent.key.id, sent.message)
+        if (sentMessagesCache.size > 5000) {
+          const firstKey = sentMessagesCache.keys().next().value
+          sentMessagesCache.delete(firstKey)
+        }
+      }
       lastError = null
       break
     } catch (err) {
