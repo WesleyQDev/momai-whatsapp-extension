@@ -154,6 +154,107 @@ function _compareContactsForList(a, b) {
   })
 }
 
+async function _fetchPaginatedWaEntries({ groupsOnly, search, page, perPage }) {
+  const q = String(search || '').toLowerCase()
+  const pageNum = parseInt(page) || 1
+  const perPageNum = parseInt(perPage) || 20
+
+  let entries = Object.values(waContacts).filter((c) =>
+    groupsOnly ? c.id.endsWith('@g.us') : c.phone && !c.id.endsWith('@g.us')
+  )
+
+  if (q) {
+    entries = entries.filter((c) => {
+      const label = _resolveWaContactDisplayName(c, c.id).toLowerCase()
+      return (
+        label.includes(q) ||
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.notify || '').toLowerCase().includes(q) ||
+        (c.verifiedName || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(q) ||
+        (c.id || '').toLowerCase().includes(q)
+      )
+    })
+  }
+
+  const sorted = entries
+    .map((c) => {
+      const resolvedLabel = _resolveWaContactDisplayName(c, c.id)
+      const hasName = Boolean(
+        _pickContactLabel(
+          contactNames[c.id],
+          contactNames[c.phone],
+          c.name,
+          c.notify,
+          c.verifiedName
+        )
+      )
+      return {
+        id: c.id,
+        displayName: resolvedLabel,
+        hasName,
+        name: _isUsableDisplayName(c.name) ? c.name : null,
+        notify: _isUsableDisplayName(c.notify) ? c.notify : null,
+        phone: c.phone || c.id.split('@')[0],
+        monitoring: !_isContactDisabled(c.id),
+        profilePicUrl: c.profilePicUrl || null,
+        isGroup: groupsOnly
+      }
+    })
+    .sort(_compareContactsForList)
+
+  const totalFiltered = sorted.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / perPageNum))
+  const start = (pageNum - 1) * perPageNum
+  const paginated = sorted.slice(start, start + perPageNum)
+
+  if (sock && connected) {
+    const now = Date.now()
+    const ONE_DAY = 24 * 60 * 60 * 1000
+    const RETRY_DELAY = 10 * 60 * 1000
+
+    ;(async () => {
+      for (const c of paginated) {
+        const lastChecked = waContacts[c.id]?.profilePicCheckedAt || 0
+        const isFailedRecently =
+          !waContacts[c.id]?.profilePicUrl && now - lastChecked < RETRY_DELAY
+        const isSuccessRecently =
+          waContacts[c.id]?.profilePicUrl && now - lastChecked < ONE_DAY
+
+        if (!isFailedRecently && !isSuccessRecently) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          try {
+            const url = await Promise.race([
+              sock.profilePictureUrl(c.id, 'image'),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+            ])
+            if (waContacts[c.id]) {
+              waContacts[c.id].profilePicUrl = url
+              waContacts[c.id].profilePicCheckedAt = now
+              await momai.storage.set(_getWaContactsKey(), waContacts)
+              momai.sendEvent('contacts_updated', {})
+            }
+          } catch {
+            if (waContacts[c.id]) {
+              waContacts[c.id].profilePicCheckedAt = now - ONE_DAY + RETRY_DELAY
+              await momai.storage.set(_getWaContactsKey(), waContacts)
+            }
+          }
+        }
+      }
+    })().catch(() => {})
+  }
+
+  return {
+    contacts: paginated,
+    total: entries.length,
+    totalFiltered,
+    page: pageNum,
+    totalPages,
+    perPage: perPageNum
+  }
+}
+
 /** WhatsApp often syncs "." or ".." when the user hides their display name. */
 function _isUsableDisplayName(value) {
   const trimmed = String(value ?? '').trim()
@@ -1564,100 +1665,21 @@ process.on('message', async (msg) => {
           break
         }
         case 'get_wa_contacts': {
-          const search = (msg.payload.args?.search || '').toLowerCase()
-          const page = parseInt(msg.payload.args?.page) || 1
-          const perPage = parseInt(msg.payload.args?.perPage) || 20
-          let entries = Object.values(waContacts).filter((c) => c.phone && !c.id.endsWith('@g.us'))
-          if (search) {
-            entries = entries.filter(
-              (c) =>
-                (c.name || '').toLowerCase().includes(search) ||
-                (c.notify || '').toLowerCase().includes(search) ||
-                (c.verifiedName || '').toLowerCase().includes(search) ||
-                c.phone.includes(search)
-            )
-          }
-          const sorted = entries
-            .map((c) => {
-              const resolvedLabel = _resolveWaContactDisplayName(c, c.id)
-              const hasName = Boolean(
-                _pickContactLabel(
-                  contactNames[c.phone],
-                  contactNames[c.id],
-                  c.name,
-                  c.notify,
-                  c.verifiedName
-                )
-              )
-              return {
-                id: c.id,
-                displayName: resolvedLabel,
-                hasName,
-                name: _isUsableDisplayName(c.name) ? c.name : null,
-                notify: _isUsableDisplayName(c.notify) ? c.notify : null,
-                phone: c.phone,
-                monitoring: !_isContactDisabled(c.id),
-                profilePicUrl: c.profilePicUrl || null
-              }
-            })
-            .sort(_compareContactsForList)
-          const totalFiltered = sorted.length
-          const totalPages = Math.ceil(totalFiltered / perPage)
-          const start = (page - 1) * perPage
-          const paginated = sorted.slice(start, start + perPage)
-
-          // Fetch profile pictures in background for this page if missing or checked > 1 day ago
-          if (sock && connected) {
-            const now = Date.now()
-            const ONE_DAY = 24 * 60 * 60 * 1000
-            const RETRY_DELAY = 10 * 60 * 1000 // 10 minutes on failure
-
-            // Fetch sequentially with 300ms delay to avoid rate limiting
-            ;(async () => {
-              for (const c of paginated) {
-                const lastChecked = waContacts[c.id]?.profilePicCheckedAt || 0
-                const isFailedRecently =
-                  !waContacts[c.id]?.profilePicUrl && now - lastChecked < RETRY_DELAY
-                const isSuccessRecently =
-                  waContacts[c.id]?.profilePicUrl && now - lastChecked < ONE_DAY
-
-                if (!isFailedRecently && !isSuccessRecently) {
-                  // Wait 300ms between requests to avoid rate limit
-                  await new Promise((resolve) => setTimeout(resolve, 300))
-
-                  try {
-                    const url = await Promise.race([
-                      sock.profilePictureUrl(c.id, 'image'),
-                      new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('timeout')), 5000)
-                      )
-                    ])
-                    if (waContacts[c.id]) {
-                      waContacts[c.id].profilePicUrl = url
-                      waContacts[c.id].profilePicCheckedAt = now
-                      await momai.storage.set(_getWaContactsKey(), waContacts)
-                      momai.sendEvent('contacts_updated', {})
-                    }
-                  } catch {
-                    if (waContacts[c.id]) {
-                      // On failure, allow retry after RETRY_DELAY
-                      waContacts[c.id].profilePicCheckedAt = now - ONE_DAY + RETRY_DELAY
-                      await momai.storage.set(_getWaContactsKey(), waContacts)
-                    }
-                  }
-                }
-              }
-            })().catch(() => {})
-          }
-
-          result = {
-            contacts: paginated,
-            total: Object.keys(waContacts).length,
-            totalFiltered,
-            page,
-            totalPages,
-            perPage
-          }
+          result = await _fetchPaginatedWaEntries({
+            groupsOnly: false,
+            search: msg.payload.args?.search,
+            page: msg.payload.args?.page,
+            perPage: msg.payload.args?.perPage
+          })
+          break
+        }
+        case 'get_wa_groups': {
+          result = await _fetchPaginatedWaEntries({
+            groupsOnly: true,
+            search: msg.payload.args?.search,
+            page: msg.payload.args?.page,
+            perPage: msg.payload.args?.perPage
+          })
           break
         }
         case 'get_history':

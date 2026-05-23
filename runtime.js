@@ -99,6 +99,18 @@ module.exports = {
           search: { type: 'string', description: 'Busca por nome ou numero (opcional)' }
         }
       }
+    },
+    {
+      name: 'get_wa_groups',
+      description: 'Lista os grupos do WhatsApp sincronizados. Suporta busca e paginacao.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Busca por nome do grupo (opcional)' },
+          page: { type: 'number', description: 'Pagina (opcional)' },
+          perPage: { type: 'number', description: 'Itens por pagina (opcional)' }
+        }
+      }
     }
   ],
 
