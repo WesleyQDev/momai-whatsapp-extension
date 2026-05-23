@@ -114,6 +114,7 @@ const messageStore = new Map()
 const groupMetaCache = new Map()
 
 let sock = null
+let preventAutoReconnect = false
 let disabledContacts = []
 let contactNames = {}
 let waContacts = {}
@@ -698,13 +699,20 @@ async function connect() {
         }, 10000)
       } else if (connection === 'close') {
         connected = false
-        const shouldReconnect =
-          lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+        if (preventAutoReconnect) {
+          preventAutoReconnect = false
+          momai.sendEvent('authenticated', { status: 'logged_out' })
+          momai.sendEvent('connection_status', { status: 'disconnected' })
+          return
+        }
+        const statusCode = lastDisconnect?.error?.output?.statusCode
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut
         if (shouldReconnect) {
           momai.sendEvent('connection_status', { status: 'reconnecting' })
           setTimeout(connect, CHECK_INTERVAL)
         } else {
           momai.sendEvent('authenticated', { status: 'logged_out' })
+          momai.sendEvent('connection_status', { status: 'disconnected' })
         }
       }
     })
@@ -1428,14 +1436,29 @@ process.on('message', async (msg) => {
           momai.sendEvent('contacts_updated', {})
           break
         }
-        case 'logout':
-          if (sock && connected) {
-            momai.log('Logging out from WhatsApp...')
-            connected = false
-            await sock.logout()
+        case 'disconnect':
+        case 'logout': {
+          preventAutoReconnect = true
+          connected = false
+          momai.log('WhatsApp disconnect requested')
+          if (sock) {
+            try {
+              await sock.logout()
+            } catch (e) {
+              momai.log(`disconnect logout: ${e.message}`)
+            }
+            try {
+              sock.end(undefined)
+            } catch (e) {
+              momai.log(`disconnect end: ${e.message}`)
+            }
+            sock = null
           }
+          momai.sendEvent('authenticated', { status: 'logged_out' })
+          momai.sendEvent('connection_status', { status: 'disconnected' })
           result = { ok: true }
           break
+        }
         case 'panel':
           result = await getPanelData()
           break
