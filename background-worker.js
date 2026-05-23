@@ -80,6 +80,8 @@ const momai = {
   }
 }
 
+
+
 class MessageRetryCache {
   constructor() {
     this.store = new Map()
@@ -292,9 +294,8 @@ async function connect() {
       logger = makeMockLogger()
     }
 
-    const authConfig = makeCacheableSignalKeyStore
-      ? { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) }
-      : state
+    // Use the raw keys directly from disk (disabling cache to prevent Bad MAC and No Sessions out-of-sync desyncs)
+    const authConfig = state
 
     sock = makeWASocket({
       version,
@@ -717,6 +718,7 @@ async function handleMessagesUpsert({ messages }) {
 }
 
 function resolveJidForSending(contact) {
+  momai.log(`[resolveJidForSending] Input contact="${contact}"`)
   if (!contact || typeof contact !== 'string' || contact.trim() === '') {
     return null
   }
@@ -812,6 +814,7 @@ async function sendMessage(contact, message) {
     } catch (err) {
       lastError = err
       momai.log(`sendMessage attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`)
+
       if (attempt < MAX_RETRIES) {
         await new Promise((r) => setTimeout(r, 1500 * attempt))
       }
