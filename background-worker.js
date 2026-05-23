@@ -3,7 +3,7 @@
 
 const MAX_HISTORY = 50
 
-let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion
+let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore
 try {
   const baileys = require('@whiskeysockets/baileys')
   makeWASocket = baileys.makeWASocket || baileys.default?.makeWASocket
@@ -11,6 +11,8 @@ try {
   DisconnectReason = baileys.DisconnectReason
   fetchLatestBaileysVersion =
     baileys.fetchLatestBaileysVersion || baileys.default?.fetchLatestBaileysVersion
+  makeCacheableSignalKeyStore =
+    baileys.makeCacheableSignalKeyStore || baileys.default?.makeCacheableSignalKeyStore
   process.send({ type: 'log', message: 'Baileys loaded successfully' })
 } catch (err) {
   process.send({ type: 'log', message: `Baileys load error: ${err.message}` })
@@ -54,6 +56,28 @@ const momai = {
   }
 }
 
+class MessageRetryCache {
+  constructor() {
+    this.store = new Map()
+  }
+  get(key) {
+    return this.store.get(key)
+  }
+  set(key, value) {
+    this.store.set(key, value)
+  }
+  del(key) {
+    this.store.delete(key)
+  }
+  delete(key) {
+    this.store.delete(key)
+  }
+  has(key) {
+    return this.store.has(key)
+  }
+}
+const msgRetryCounterCache = new MessageRetryCache()
+
 let sock = null
 let disabledContacts = []
 let contactNames = {}
@@ -76,6 +100,15 @@ function _getWaContactsKey() {
 }
 
 function resolveContactName(jid) {
+  if (!jid) return ''
+
+  if (jid.endsWith('@lid')) {
+    const matched = Object.values(waContacts).find((c) => c.lid === jid)
+    if (matched) {
+      return resolveContactName(matched.id)
+    }
+  }
+
   const rawNumber = (jid || '').split('@')[0] || jid
 
   if (contactNames[jid]) return contactNames[jid]
@@ -184,11 +217,17 @@ async function connect() {
     momai.log(`connect: creds.json=${hasCreds}`)
     const { state, saveCreds } = await useMultiFileAuthState(authDir)
 
+    const authConfig = makeCacheableSignalKeyStore
+      ? { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys) }
+      : state
+
     sock = makeWASocket({
       version,
-      auth: state,
+      auth: authConfig,
       printQRInTerminal: false,
-      emitOwnEvents: false
+      emitOwnEvents: false,
+      generateHighQualityLinkPreview: false,
+      msgRetryCounterCache
     })
 
     sock.ev.on('creds.update', saveCreds)
@@ -256,7 +295,8 @@ async function connect() {
           name: c.name || null,
           notify: c.notify || null,
           verifiedName: c.verifiedName || null,
-          phone
+          phone,
+          lid: c.lid || null
         }
         added++
       }
@@ -266,7 +306,7 @@ async function connect() {
         momai.log(`Contacts stored: ${added} new, ${Object.keys(waContacts).length} total`)
       }
     })
-
+ 
     sock.ev.on('contacts.upsert', (contacts) => {
       let updated = 0
       for (const c of contacts) {
@@ -279,7 +319,8 @@ async function connect() {
           name: c.name || waContacts[c.id]?.name || null,
           notify: c.notify || waContacts[c.id]?.notify || null,
           verifiedName: c.verifiedName || waContacts[c.id]?.verifiedName || null,
-          phone
+          phone,
+          lid: c.lid || waContacts[c.id]?.lid || null
         }
         updated++
       }
@@ -320,6 +361,22 @@ async function handleMessagesUpsert({ messages }) {
     if (!senderJid) continue
 
     const isGroup = msg.key.remoteJid.endsWith('@g.us')
+
+    // Self-healing LID association for incoming messages
+    if (senderJid.endsWith('@lid')) {
+      const hasLidMapping = Object.values(waContacts).some((c) => c.lid === senderJid)
+      if (!hasLidMapping && msg.pushName) {
+        const match = Object.values(waContacts).find((c) =>
+          !c.id.endsWith('@lid') &&
+          (c.notify === msg.pushName || c.name === msg.pushName)
+        )
+        if (match) {
+          waContacts[match.id].lid = senderJid
+          await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => { })
+          momai.log(`Self-healed JID mapping: associated LID ${senderJid} with standard JID ${match.id} via pushName "${msg.pushName}"`)
+        }
+      }
+    }
 
     // Ensure group/contact exists in waContacts
     if (isGroup) {
@@ -429,17 +486,101 @@ async function handleMessagesUpsert({ messages }) {
   }
 }
 
+function resolveJidForSending(contact) {
+  if (!contact || typeof contact !== 'string' || contact.trim() === '') {
+    return null
+  }
+
+  let jid = contact.trim()
+
+  // 1. If it's already a valid group JID, return it directly
+  if (jid.endsWith('@g.us')) {
+    return jid
+  }
+
+  // 2. If it ends with @lid, resolve to s.whatsapp.net JID from waContacts
+  if (jid.endsWith('@lid')) {
+    const matched = Object.values(waContacts).find((c) => c.lid === jid || c.id === jid)
+    if (matched && matched.id && !matched.id.endsWith('@lid')) {
+      return matched.id
+    }
+    return jid // fallback
+  }
+
+  // 3. If it contains letters (i.e. it is a display name like "Pai Tenebroso")
+  const isJid = jid.includes('@')
+  const hasLetters = /[a-zA-Z\s]/.test(jid.split('@')[0])
+
+  if (!isJid || hasLetters) {
+    const cleanContact = jid.split('@')[0].trim().toLowerCase()
+    
+    // First try: Find match in contactNames
+    for (const [key, name] of Object.entries(contactNames)) {
+      if (name && name.toLowerCase() === cleanContact) {
+        let resolved = key
+        if (!resolved.includes('@')) {
+          resolved = `${resolved}@s.whatsapp.net`
+        }
+        if (resolved.endsWith('@s.whatsapp.net')) {
+          return resolved
+        }
+      }
+    }
+
+    // Second try: Find in waContacts displayName / name / notify / phone
+    for (const [cId, c] of Object.entries(waContacts)) {
+      if (cId.endsWith('@lid')) continue
+
+      const displayName = (contactNames[c.phone] || c.name || c.notify || c.verifiedName || '').toLowerCase()
+      if (
+        displayName === cleanContact ||
+        (c.name && c.name.toLowerCase() === cleanContact) ||
+        (c.notify && c.notify.toLowerCase() === cleanContact) ||
+        (c.phone && c.phone === cleanContact)
+      ) {
+        return cId
+      }
+    }
+  }
+
+  // 4. If it's just a raw number (digits only), format as @s.whatsapp.net
+  if (!jid.includes('@')) {
+    const digitsOnly = jid.replace(/\D/g, '')
+    if (digitsOnly) {
+      return `${digitsOnly}@s.whatsapp.net`
+    }
+  }
+
+  return jid
+}
+
 async function sendMessage(contact, message) {
   if (!sock || !connected) throw new Error('WhatsApp not connected')
 
-  let jid = contact
-  if (!jid.includes('@')) {
-    jid = `${jid}@s.whatsapp.net`
+  const jid = resolveJidForSending(contact)
+  if (!jid) {
+    throw new Error(`Invalid contact: "${contact}"`)
   }
 
-  await sock.sendMessage(jid, { text: message })
+  momai.log(`sendMessage: contact="${contact}" resolved_jid="${jid}" msg="${(message || '').substring(0, 40)}"`)
 
-  // Manually add the sent message to chatHistory to immediately reflect in UI
+  const MAX_RETRIES = 3
+  let lastError
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await sock.sendMessage(jid, { text: message })
+      lastError = null
+      break
+    } catch (err) {
+      lastError = err
+      momai.log(`sendMessage attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`)
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt))
+      }
+    }
+  }
+  if (lastError) throw lastError
+
   const displayName = resolveContactName(jid)
   chatHistory.unshift({
     from: displayName,
@@ -451,7 +592,6 @@ async function sendMessage(contact, message) {
   if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
   totalMessages++
 
-  // Notify frontend to refresh immediately
   momai.sendEvent('message_sent', { contact: displayName, jid })
 
   return { ok: true }
@@ -637,7 +777,7 @@ process.on('message', async (msg) => {
           break
         default: {
           // Voice command via "responda": reply to last contact
-          const lastIncoming = [...chatHistory].reverse().find((m) => m.direction === 'incoming')
+          const lastIncoming = chatHistory.find((m) => m.direction === 'incoming')
           if (
             lastIncoming &&
             msg.payload?.content &&
