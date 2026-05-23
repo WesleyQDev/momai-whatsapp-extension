@@ -119,6 +119,90 @@ let disabledContacts = []
 let contactNames = {}
 let waContacts = {}
 let connected = false
+let lastQr = null
+let lastQrAt = 0
+const QR_TTL_MS = 45000
+
+function _qrStillValid() {
+  return Boolean(lastQr && Date.now() - lastQrAt < QR_TTL_MS)
+}
+
+function _emitQrCode(qr) {
+  lastQr = qr
+  lastQrAt = Date.now()
+  const expiresIn = Math.max(1, Math.ceil((QR_TTL_MS - (Date.now() - lastQrAt)) / 1000))
+  momai.sendEvent('qr_code', { qr, expiresIn })
+}
+
+/** 0 = name starts with a letter (A–Z, including accented); 1 = digits, symbols, emoji, etc. */
+function _contactDisplayNameSortTier(displayName) {
+  const trimmed = String(displayName || '').trim()
+  if (!trimmed) return 1
+  return /^\p{L}/u.test(trimmed) ? 0 : 1
+}
+
+function _compareContactsForList(a, b) {
+  if (a.hasName !== b.hasName) {
+    return a.hasName ? -1 : 1
+  }
+  const tierA = _contactDisplayNameSortTier(a.displayName)
+  const tierB = _contactDisplayNameSortTier(b.displayName)
+  if (tierA !== tierB) return tierA - tierB
+  return String(a.displayName || '').localeCompare(String(b.displayName || ''), 'pt-BR', {
+    sensitivity: 'base',
+    numeric: true
+  })
+}
+
+/** WhatsApp often syncs "." or ".." when the user hides their display name. */
+function _isUsableDisplayName(value) {
+  const trimmed = String(value ?? '').trim()
+  if (!trimmed) return false
+  if (/^[\p{P}\p{S}]+$/u.test(trimmed)) return false
+  return true
+}
+
+function _pickContactLabel(...candidates) {
+  for (const candidate of candidates) {
+    if (_isUsableDisplayName(candidate)) return String(candidate).trim()
+  }
+  return null
+}
+
+function _formatPhoneLabel(phone) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (!digits) return 'Contato'
+  return `+${digits}`
+}
+
+function _resolveWaContactDisplayName(contact, jid) {
+  const phone = contact?.phone || (jid || '').split('@')[0]
+  const custom = _pickContactLabel(contactNames[jid], contactNames[phone])
+  const fromWa = _pickContactLabel(contact?.name, contact?.notify, contact?.verifiedName)
+  if (custom) return custom
+  if (fromWa) return fromWa
+  if (jid?.endsWith('@g.us')) return 'Grupo'
+  return _formatPhoneLabel(phone)
+}
+
+function _sanitizeStoredContactNames() {
+  let changed = false
+  for (const contact of Object.values(waContacts)) {
+    if (contact.name && !_isUsableDisplayName(contact.name)) {
+      contact.name = null
+      changed = true
+    }
+    if (contact.notify && !_isUsableDisplayName(contact.notify)) {
+      contact.notify = null
+      changed = true
+    }
+    if (contact.verifiedName && !_isUsableDisplayName(contact.verifiedName)) {
+      contact.verifiedName = null
+      changed = true
+    }
+  }
+  return changed
+}
 let chatHistory = []
 let totalMessages = 0
 let _currentPhone = null
@@ -296,9 +380,10 @@ async function loadChatHistory() {
     for (const key of keys) {
       const saved = await momai.storage.get(key)
       if (!Array.isArray(saved) || saved.length === 0) continue
-      chatHistory = saved
+      chatHistory = saved.map(enrichHistoryEntry)
       totalMessages = Math.max(totalMessages, chatHistory.length)
       momai.log(`loadChatHistory: ${saved.length} msgs from ${key}`)
+      schedulePersistChatHistory()
       return true
     }
   } catch (e) {
@@ -327,10 +412,69 @@ function resolveStandardJid(jid) {
   return jid
 }
 
+/** DM via @lid: Baileys may put a @g.us JID in participant — ignore for 1:1 chats. */
+function resolveMessageSenderJid(remoteJid, participant) {
+  const isGroup = remoteJid?.endsWith('@g.us')
+  if (isGroup) {
+    const sender = participant || remoteJid
+    return resolveStandardJid(sender) || sender
+  }
+  if (participant && !participant.endsWith('@g.us')) {
+    return resolveStandardJid(participant) || participant
+  }
+  return resolveStandardJid(remoteJid) || remoteJid
+}
+
+function enrichHistoryEntry(h) {
+  if (!h) return h
+  const remoteJid = h.jid || ''
+  const isGroupChat = remoteJid.endsWith('@g.us')
+
+  let senderJid = h.senderJid || remoteJid
+  if (!isGroupChat && senderJid.endsWith('@g.us')) {
+    senderJid = resolveStandardJid(remoteJid) || remoteJid
+  } else {
+    senderJid = resolveMessageSenderJid(remoteJid, isGroupChat ? h.senderJid : senderJid)
+  }
+
+  const replyJid = isGroupChat ? remoteJid : resolveStandardJid(remoteJid) || remoteJid
+
+  const groupLabel = _pickContactLabel(
+    waContacts[remoteJid]?.name,
+    waContacts[remoteJid]?.verifiedName,
+    h.groupName
+  )
+
+  let from = h.from
+  const fromInvalid =
+    !from ||
+    !_isUsableDisplayName(from) ||
+    (!isGroupChat && from === 'Grupo')
+  if (fromInvalid) {
+    from = isGroupChat
+      ? groupLabel || 'Grupo'
+      : resolveContactName(senderJid) || resolveContactName(remoteJid)
+  }
+
+  return {
+    ...h,
+    jid: remoteJid,
+    senderJid,
+    replyJid,
+    from,
+    isGroup: isGroupChat,
+    groupName: isGroupChat ? groupLabel || h.groupName || from : null,
+    profilePicUrl: resolveChatAvatarUrl(remoteJid, isGroupChat, senderJid)
+  }
+}
+
 function resolveContactName(jid) {
   if (!jid) return ''
 
   if (jid.endsWith('@lid')) {
+    if (waContacts[jid]) {
+      return _resolveWaContactDisplayName(waContacts[jid], jid)
+    }
     const matched = Object.values(waContacts).find((c) => c.lid === jid)
     if (matched) {
       return resolveContactName(matched.id)
@@ -339,28 +483,32 @@ function resolveContactName(jid) {
 
   const rawNumber = (jid || '').split('@')[0] || jid
 
-  if (contactNames[jid]) return contactNames[jid]
-  if (contactNames[rawNumber]) return contactNames[rawNumber]
+  const customByJid = _pickContactLabel(contactNames[jid])
+  if (customByJid) return customByJid
+  const customByNumber = _pickContactLabel(contactNames[rawNumber])
+  if (customByNumber) return customByNumber
 
   const digitsOnly = rawNumber.replace(/\D/g, '')
   for (const key of Object.keys(contactNames)) {
     const keyDigits = String(key).replace(/\D/g, '')
     if (keyDigits && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
-      return contactNames[key]
+      const matched = _pickContactLabel(contactNames[key])
+      if (matched) return matched
     }
   }
 
   const wc = waContacts[jid]
-  if (wc) return wc.name || wc.notify || wc.verifiedName || rawNumber
+  if (wc) return _resolveWaContactDisplayName(wc, jid)
 
   for (const [key, contact] of Object.entries(waContacts)) {
     const keyDigits = key.split('@')[0].replace(/\D/g, '')
     if (keyDigits && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
-      return contact.name || contact.notify || contact.verifiedName || rawNumber
+      return _resolveWaContactDisplayName(contact, key)
     }
   }
 
-  return rawNumber
+  if (jid.endsWith('@g.us')) return 'Grupo'
+  return _formatPhoneLabel(rawNumber)
 }
 
 function getStoredAvatarUrl(jid) {
@@ -373,7 +521,17 @@ function resolveChatAvatarUrl(jid, isGroup, senderJid) {
   if (isGroup || jid.endsWith('@g.us')) {
     return getStoredAvatarUrl(jid)
   }
-  return getStoredAvatarUrl(jid) || (senderJid ? getStoredAvatarUrl(senderJid) : null)
+  const direct = getStoredAvatarUrl(jid)
+  if (direct) return direct
+  const standard = resolveStandardJid(jid)
+  if (standard && standard !== jid) {
+    const fromStandard = getStoredAvatarUrl(standard)
+    if (fromStandard) return fromStandard
+  }
+  if (senderJid && !senderJid.endsWith('@g.us')) {
+    return getStoredAvatarUrl(senderJid)
+  }
+  return null
 }
 
 async function ensureAvatarForJid(jid) {
@@ -483,10 +641,13 @@ async function _loadPerPhoneData() {
       const wc = await momai.storage.get(_getWaContactsKey())
       if (wc) waContacts = wc
 
-      if (_cleanupStaleContacts()) {
+      let storageDirty = false
+      if (_cleanupStaleContacts()) storageDirty = true
+      if (_sanitizeStoredContactNames()) storageDirty = true
+      if (storageDirty) {
         await momai.storage.set(_getWaContactsKey(), waContacts)
         await momai.storage.set(_getContactNamesKey(), contactNames)
-        momai.log('Automatically cleaned up stale @lid contacts from phone storage')
+        momai.log('Cleaned up stale or placeholder WhatsApp contacts from phone storage')
       }
 
       await loadChatHistory()
@@ -508,10 +669,10 @@ async function main() {
     await loadChatHistory()
   }
 
-  if (_cleanupStaleContacts()) {
+  if (_cleanupStaleContacts() || _sanitizeStoredContactNames()) {
     await momai.storage.set(WA_CONTACTS_KEY, waContacts)
     await momai.storage.set(CONTACT_NAMES_KEY, contactNames)
-    momai.log('Automatically cleaned up stale @lid contacts from fallback storage')
+    momai.log('Cleaned up stale or placeholder WhatsApp contacts from fallback storage')
   }
 
   // Start connection
@@ -610,11 +771,13 @@ async function connect() {
       momai.log(`conn: qr=${!!qr} ${connection}`)
 
       if (qr) {
-        momai.sendEvent('qr_code', { qr, expiresIn: 30 })
+        _emitQrCode(qr)
         momai.log('QR_CODE_EVENT_SENT')
       }
 
       if (connection === 'open') {
+        lastQr = null
+        lastQrAt = 0
         connected = true
         groupMetaCache.clear()
 
@@ -761,18 +924,20 @@ async function connect() {
           if (!waContacts[c.id]) {
             waContacts[c.id] = {
               id: c.id,
-              name: c.name || null,
-              notify: c.notify || null,
-              verifiedName: c.verifiedName || null,
+              name: _isUsableDisplayName(c.name) ? String(c.name).trim() : null,
+              notify: _isUsableDisplayName(c.notify) ? String(c.notify).trim() : null,
+              verifiedName: _isUsableDisplayName(c.verifiedName) ? String(c.verifiedName).trim() : null,
               phone,
               lid: c.lid || null
             }
             added++
           } else {
             // Update existing contact with fresh data
-            if (c.name) waContacts[c.id].name = c.name
-            if (c.notify) waContacts[c.id].notify = c.notify
-            if (c.verifiedName) waContacts[c.id].verifiedName = c.verifiedName
+            if (_isUsableDisplayName(c.name)) waContacts[c.id].name = String(c.name).trim()
+            if (_isUsableDisplayName(c.notify)) waContacts[c.id].notify = String(c.notify).trim()
+            if (_isUsableDisplayName(c.verifiedName)) {
+              waContacts[c.id].verifiedName = String(c.verifiedName).trim()
+            }
             if (c.lid) waContacts[c.id].lid = c.lid
             updated++
           }
@@ -809,23 +974,26 @@ async function connect() {
           if (existingMatch) {
             existingMatch.lid = c.id
             if (c.verifiedName) existingMatch.verifiedName = c.verifiedName
-            if (c.name) existingMatch.name = c.name
+            if (_isUsableDisplayName(c.name)) existingMatch.name = String(c.name).trim()
             continue
           }
           // If no name details, skip
-          if (!c.name && !c.verifiedName && !c.notify) {
+          if (!_pickContactLabel(c.name, c.verifiedName, c.notify)) {
             continue
           }
         }
 
         const phone = c.id.split('@')[0].replace(/\D/g, '')
         if (!phone) continue
+        const nextName = _isUsableDisplayName(c.name) ? String(c.name).trim() : null
+        const nextNotify = _isUsableDisplayName(c.notify) ? String(c.notify).trim() : null
+        const nextVerified = _isUsableDisplayName(c.verifiedName) ? String(c.verifiedName).trim() : null
         waContacts[c.id] = {
           ...waContacts[c.id],
           id: c.id,
-          name: c.name || waContacts[c.id]?.name || null,
-          notify: c.notify || waContacts[c.id]?.notify || null,
-          verifiedName: c.verifiedName || waContacts[c.id]?.verifiedName || null,
+          name: nextName || waContacts[c.id]?.name || null,
+          notify: nextNotify || waContacts[c.id]?.notify || null,
+          verifiedName: nextVerified || waContacts[c.id]?.verifiedName || null,
           phone,
           lid: c.lid || waContacts[c.id]?.lid || null
         }
@@ -850,12 +1018,12 @@ async function connect() {
 
         if (!target) continue
 
-        if (u.notify) {
-          target.notify = u.notify
+        if (_isUsableDisplayName(u.notify)) {
+          target.notify = String(u.notify).trim()
           changed++
         }
-        if (u.name) {
-          target.name = u.name
+        if (_isUsableDisplayName(u.name)) {
+          target.name = String(u.name).trim()
           changed++
         }
         if (u.verifiedName) {
@@ -886,23 +1054,26 @@ async function handleMessagesUpsert({ messages }) {
     const text = msg.message.conversation || msg.message.extendedTextMessage?.text
     if (!text) continue
 
-    const senderJid = msg.key.participant || msg.key.remoteJid
+    const remoteJid = msg.key.remoteJid
+    if (!remoteJid) continue
+
+    const isGroup = remoteJid.endsWith('@g.us')
+    const senderJid = resolveMessageSenderJid(remoteJid, msg.key.participant)
     if (!senderJid) continue
 
-    const isGroup = msg.key.remoteJid.endsWith('@g.us')
-
     // Self-healing LID association for incoming messages
-    if (senderJid.endsWith('@lid')) {
-      const hasLidMapping = Object.values(waContacts).some((c) => c.lid === senderJid)
+    const lidJid = remoteJid.endsWith('@lid') ? remoteJid : senderJid.endsWith('@lid') ? senderJid : null
+    if (lidJid) {
+      const hasLidMapping = Object.values(waContacts).some((c) => c.lid === lidJid)
       if (!hasLidMapping && msg.pushName) {
         const match = Object.values(waContacts).find(
           (c) => !c.id.endsWith('@lid') && (c.notify === msg.pushName || c.name === msg.pushName)
         )
         if (match) {
-          waContacts[match.id].lid = senderJid
+          waContacts[match.id].lid = lidJid
           await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
           momai.log(
-            `Self-healed JID mapping: associated LID ${senderJid} with standard JID ${match.id} via pushName "${msg.pushName}"`
+            `Self-healed JID mapping: associated LID ${lidJid} with standard JID ${match.id} via pushName "${msg.pushName}"`
           )
         }
       }
@@ -922,18 +1093,23 @@ async function handleMessagesUpsert({ messages }) {
         await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
       }
     } else {
-      if (!resolvedSenderJid.endsWith('@lid') && !waContacts[resolvedSenderJid]) {
-        const phone = resolvedSenderJid.split('@')[0].replace(/\D/g, '')
+      const storeJid = remoteJid.endsWith('@lid') ? remoteJid : resolvedSenderJid
+      if (!storeJid.endsWith('@g.us') && !waContacts[storeJid]) {
+        const phone = storeJid.split('@')[0].replace(/\D/g, '')
         if (phone) {
-          waContacts[resolvedSenderJid] = {
-            id: resolvedSenderJid,
+          waContacts[storeJid] = {
+            id: storeJid,
             name: null,
-            notify: msg.pushName || null,
+            notify: _isUsableDisplayName(msg.pushName) ? String(msg.pushName).trim() : null,
             verifiedName: null,
-            phone
+            phone,
+            ...(remoteJid.endsWith('@lid') ? { lid: remoteJid } : {})
           }
           await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
         }
+      } else if (remoteJid.endsWith('@lid') && waContacts[storeJid] && !waContacts[storeJid].lid) {
+        waContacts[storeJid].lid = remoteJid
+        await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
       }
     }
 
@@ -964,7 +1140,7 @@ async function handleMessagesUpsert({ messages }) {
     }
 
     // Fetch avatar picture (group avatar if group, sender avatar if private)
-    const avatarTarget = isGroup ? msg.key.remoteJid : resolvedSenderJid
+    const avatarTarget = isGroup ? remoteJid : remoteJid.endsWith('@lid') ? remoteJid : resolvedSenderJid
     if (sock && connected && waContacts[avatarTarget]) {
       const lastChecked = waContacts[avatarTarget].profilePicCheckedAt || 0
       const isFailedRecently =
@@ -992,21 +1168,30 @@ async function handleMessagesUpsert({ messages }) {
       }
     }
 
-    const groupName = isGroup ? waContacts[msg.key.remoteJid]?.name || 'Grupo' : null
+    const groupName = isGroup
+      ? _pickContactLabel(waContacts[remoteJid]?.name, waContacts[remoteJid]?.verifiedName) || 'Grupo'
+      : null
     const displayName = isFromMe
       ? resolvedSenderJid.split('@')[0] || resolvedSenderJid
-      : resolveContactName(resolvedSenderJid)
+      : isGroup
+        ? resolveContactName(msg.key.participant || senderJid)
+        : resolveContactName(senderJid)
 
-    chatHistory.unshift({
-      from: displayName,
-      jid: msg.key.remoteJid, // Target JID for replies
-      senderJid: resolvedSenderJid,
-      text,
-      timestamp: msg.messageTimestamp,
-      direction: isFromMe ? 'outgoing' : 'incoming',
-      isGroup,
-      groupName
-    })
+    const replyJid = isGroup ? remoteJid : resolveStandardJid(remoteJid) || remoteJid
+
+    chatHistory.unshift(
+      enrichHistoryEntry({
+        from: displayName,
+        jid: remoteJid,
+        senderJid,
+        replyJid,
+        text,
+        timestamp: msg.messageTimestamp,
+        direction: isFromMe ? 'outgoing' : 'incoming',
+        isGroup,
+        groupName
+      })
+    )
     if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
     totalMessages++
     schedulePersistChatHistory()
@@ -1018,13 +1203,11 @@ async function handleMessagesUpsert({ messages }) {
     if (shouldNotify) {
       momai.sendEvent('whatsapp_notification', {
         contact: displayName,
-        contactJid: msg.key.remoteJid, // Send to group JID if group, sender JID if private
-        senderJid: resolvedSenderJid,
+        contactJid: replyJid,
+        senderJid,
         message: text,
         timestamp: msg.messageTimestamp,
-        contactAvatar: isGroup
-          ? waContacts[msg.key.remoteJid]?.profilePicUrl || null
-          : waContacts[resolvedSenderJid]?.profilePicUrl || null,
+        contactAvatar: resolveChatAvatarUrl(remoteJid, isGroup, senderJid),
         isGroup: !!isGroup,
         groupName: isGroup ? groupName : undefined
       })
@@ -1220,7 +1403,7 @@ process.on('message', async (msg) => {
             .filter((c) => c.phone && !c.id.endsWith('@g.us'))
             .map((c) => ({
               id: c.id,
-              name: contactNames[c.phone] || c.name || c.notify || c.verifiedName || c.phone,
+              name: _resolveWaContactDisplayName(c, c.id),
               phone: c.phone,
               monitoring: !_isContactDisabled(c.id),
               profilePicUrl: c.profilePicUrl || null
@@ -1264,18 +1447,85 @@ process.on('message', async (msg) => {
             (c) => !_isContactDisabled(c.id)
           ).length
 
+          const fsSync = require('fs')
+          const credsPath = path.join(momai.storage.storageDir, 'baileys-auth', 'creds.json')
+          const hasCredentials = fsSync.existsSync(credsPath)
+
           result = {
             connected,
+            hasCredentials,
             totalMessages,
             syncedContacts: syncedContactsCount,
             disabledCount: disabledContacts.length,
-            monitoredCount: monitoredContactsCount
+            monitoredCount: monitoredContactsCount,
+            ...(!connected && _qrStillValid()
+              ? {
+                  qr: lastQr,
+                  qrExpiresIn: Math.max(
+                    1,
+                    Math.ceil((QR_TTL_MS - (Date.now() - lastQrAt)) / 1000)
+                  )
+                }
+              : {})
           }
+          break
+        }
+        case 'request_qr': {
+          const forcePairing = Boolean(msg.payload.args?.force)
+          if (connected) {
+            result = { ok: true, connected: true }
+            break
+          }
+          if (_qrStillValid()) {
+            _emitQrCode(lastQr)
+            result = { ok: true, qr: lastQr }
+            break
+          }
+          const fsSync = require('fs')
+          const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+          const credsPath = path.join(authDir, 'creds.json')
+          const hasCredentials = fsSync.existsSync(credsPath)
+          if (hasCredentials && !forcePairing) {
+            momai.log('request_qr: session on disk, reconnecting without QR reset')
+            if (!sock) {
+              preventAutoReconnect = false
+              connect().catch((err) =>
+                momai.log(`request_qr connect failed: ${err.message}`)
+              )
+            }
+            result = { ok: true, pending: true, hasCredentials: true }
+            break
+          }
+          if (hasCredentials && forcePairing) {
+            momai.log('request_qr: force pairing — clearing saved session')
+            try {
+              if (fsSync.existsSync(authDir)) {
+                fsSync.rmSync(authDir, { recursive: true, force: true })
+              }
+            } catch {
+              try {
+                if (fsSync.existsSync(credsPath)) fsSync.unlinkSync(credsPath)
+              } catch {}
+            }
+            lastQr = null
+            lastQrAt = 0
+          } else {
+            momai.log('request_qr: no credentials, starting pairing')
+          }
+          if (sock) {
+            try {
+              sock.end(undefined)
+            } catch {}
+            sock = null
+          }
+          preventAutoReconnect = false
+          connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
+          result = { ok: true, pending: true, hasCredentials: false }
           break
         }
         case 'sync_contacts': {
           momai.log('Manual contacts sync requested')
-          const cleaned = _cleanupStaleContacts()
+          const cleaned = _cleanupStaleContacts() || _sanitizeStoredContactNames()
           if (cleaned) {
             await momai.storage.set(_getWaContactsKey(), waContacts)
             await momai.storage.set(_getContactNamesKey(), contactNames)
@@ -1329,24 +1579,28 @@ process.on('message', async (msg) => {
           }
           const sorted = entries
             .map((c) => {
-              const hasName = !!(contactNames[c.phone] || c.name || c.notify || c.verifiedName)
+              const resolvedLabel = _resolveWaContactDisplayName(c, c.id)
+              const hasName = Boolean(
+                _pickContactLabel(
+                  contactNames[c.phone],
+                  contactNames[c.id],
+                  c.name,
+                  c.notify,
+                  c.verifiedName
+                )
+              )
               return {
                 id: c.id,
-                displayName:
-                  contactNames[c.phone] || c.name || c.notify || c.verifiedName || c.phone,
+                displayName: resolvedLabel,
                 hasName,
-                name: c.name || null,
-                notify: c.notify || null,
+                name: _isUsableDisplayName(c.name) ? c.name : null,
+                notify: _isUsableDisplayName(c.notify) ? c.notify : null,
                 phone: c.phone,
                 monitoring: !_isContactDisabled(c.id),
                 profilePicUrl: c.profilePicUrl || null
               }
             })
-            .sort((a, b) => {
-              if (a.hasName && !b.hasName) return -1
-              if (!a.hasName && b.hasName) return 1
-              return (a.displayName || '').localeCompare(b.displayName || '')
-            })
+            .sort(_compareContactsForList)
           const totalFiltered = sorted.length
           const totalPages = Math.ceil(totalFiltered / perPage)
           const start = (page - 1) * perPage
@@ -1411,13 +1665,7 @@ process.on('message', async (msg) => {
             await loadChatHistory()
           }
           result = {
-            history: chatHistory.slice(0, 50).map((h) => {
-              const isGroupMsg = h.isGroup || (h.jid && h.jid.endsWith('@g.us'))
-              return {
-                ...h,
-                profilePicUrl: resolveChatAvatarUrl(h.jid, isGroupMsg, h.senderJid)
-              }
-            })
+            history: chatHistory.slice(0, 50).map(enrichHistoryEntry)
           }
           break
         case 'flush_history':
@@ -1440,6 +1688,8 @@ process.on('message', async (msg) => {
         case 'logout': {
           preventAutoReconnect = true
           connected = false
+          lastQr = null
+          lastQrAt = 0
           momai.log('WhatsApp disconnect requested')
           if (sock) {
             try {
