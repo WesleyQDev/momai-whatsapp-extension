@@ -104,6 +104,10 @@ class MessageRetryCache {
 }
 const msgRetryCounterCache = new MessageRetryCache()
 const sentMessagesCache = new Map()
+/** Full message protos keyed by remoteJid:messageId for Baileys retries/decrypt */
+const messageStore = new Map()
+/** @type {Map<string, { data: object, fetchedAt: number }>} */
+const groupMetaCache = new Map()
 
 let sock = null
 let disabledContacts = []
@@ -114,6 +118,113 @@ let chatHistory = []
 let totalMessages = 0
 let _currentPhone = null
 let receivedJids = new Set()
+
+function _messageCacheKey(key) {
+  if (!key?.id) return null
+  return `${key.remoteJid || ''}:${key.id}`
+}
+
+function _trimMessageCaches() {
+  if (sentMessagesCache.size > 5000) {
+    const firstKey = sentMessagesCache.keys().next().value
+    sentMessagesCache.delete(firstKey)
+  }
+  if (messageStore.size > 5000) {
+    const firstKey = messageStore.keys().next().value
+    messageStore.delete(firstKey)
+  }
+}
+
+function cacheMessage(key, message) {
+  if (!key?.id || !message) return
+  sentMessagesCache.set(key.id, message)
+  const composite = _messageCacheKey(key)
+  if (composite) messageStore.set(composite, message)
+  _trimMessageCaches()
+}
+
+/**
+ * Stale sender-key-memory makes Baileys skip SKDM distribution → "Aguardando mensagem" in groups.
+ */
+async function resetGroupSenderKeyMemory(groupJid) {
+  if (!groupJid?.endsWith('@g.us')) return
+
+  const fsSync = require('fs')
+  const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+  const memFile = path.join(authDir, `sender-key-memory-${groupJid}.json`)
+
+  try {
+    if (fsSync.existsSync(memFile)) {
+      fsSync.unlinkSync(memFile)
+      momai.log(`Cleared sender-key-memory for ${groupJid}`)
+    }
+  } catch (e) {
+    momai.log(`Failed to clear sender-key-memory file: ${e.message}`)
+  }
+
+  if (sock?.authState?.keys?.set) {
+    try {
+      await sock.authState.keys.set({ 'sender-key-memory': { [groupJid]: {} } })
+    } catch (e) {
+      momai.log(`Failed to reset in-memory sender-key-memory: ${e.message}`)
+    }
+  }
+}
+
+function isSenderKeyMemoryStale(groupJid, participantIds) {
+  if (!participantIds?.length) return false
+
+  const fsSync = require('fs')
+  const memFile = path.join(
+    momai.storage.storageDir,
+    'baileys-auth',
+    `sender-key-memory-${groupJid}.json`
+  )
+  if (!fsSync.existsSync(memFile)) return true
+
+  try {
+    const mem = JSON.parse(fsSync.readFileSync(memFile, 'utf-8'))
+    const marked = Object.keys(mem).filter((k) => mem[k])
+    if (marked.length === 0) return true
+
+    const participantBases = new Set(
+      participantIds.map((p) => (p || '').split('@')[0].split(':')[0]).filter(Boolean)
+    )
+    if (participantBases.size === 0) return false
+
+    let covered = 0
+    for (const base of participantBases) {
+      if (marked.some((m) => m.split('@')[0].split(':')[0] === base)) covered++
+    }
+    return covered < Math.ceil(participantBases.size * 0.4)
+  } catch {
+    return true
+  }
+}
+
+async function prepareGroupForSend(groupJid) {
+  if (!sock || !connected) return
+
+  let meta
+  try {
+    meta = await Promise.race([
+      sock.groupMetadata(groupJid),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+    ])
+    groupMetaCache.set(groupJid, { data: meta, fetchedAt: Date.now() })
+  } catch (e) {
+    momai.log(`prepareGroupForSend metadata: ${e.message}`)
+    return
+  }
+
+  const participantIds = meta?.participants?.map((p) => p.id) || []
+  if (isSenderKeyMemoryStale(groupJid, participantIds)) {
+    momai.log(
+      `prepareGroupForSend: stale sender-key-memory for ${groupJid} (${participantIds.length} participants)`
+    )
+    await resetGroupSenderKeyMemory(groupJid)
+  }
+}
 
 function _getDisabledContactsKey() {
   return _currentPhone ? `disabled_contacts-${_currentPhone}` : DISABLED_CONTACTS_KEY
@@ -318,14 +429,23 @@ async function connect() {
       emitOwnEvents: false,
       generateHighQualityLinkPreview: false,
       msgRetryCounterCache,
-      getMessage: async (key) => {
-        if (sentMessagesCache) {
-          const cached = sentMessagesCache.get(key.id)
-          if (cached) {
-            return cached
-          }
+      cachedGroupMetadata: async (jid) => {
+        const entry = groupMetaCache.get(jid)
+        if (entry && Date.now() - entry.fetchedAt < 5 * 60 * 1000) {
+          return entry.data
         }
         return undefined
+      },
+      getMessage: async (key) => {
+        if (!key?.id) return { conversation: '' }
+        const composite = _messageCacheKey(key)
+        if (composite && messageStore.has(composite)) {
+          return messageStore.get(composite)
+        }
+        const cached = sentMessagesCache.get(key.id)
+        if (cached) return cached
+        // Empty proto lets Baileys complete retries instead of hanging on "Aguardando mensagem"
+        return { conversation: '' }
       }
     })
 
@@ -342,29 +462,7 @@ async function connect() {
 
       if (connection === 'open') {
         connected = true
-
-        // Force sender key redistribution to all group participants
-        // Stale sender-key-memory entries cause Baileys to skip SKDM distribution,
-        // resulting in "Aguardando mensagem" on recipients' devices
-        try {
-          const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
-          const fsSync = require('fs')
-          const files = fsSync.readdirSync(authDir)
-          let cleared = 0
-          for (const file of files) {
-            if (file.startsWith('sender-key-memory-')) {
-              try {
-                fsSync.unlinkSync(path.join(authDir, file))
-                cleared++
-              } catch {}
-            }
-          }
-          if (cleared > 0) {
-            momai.log(`Cleared ${cleared} sender-key-memory files to force SKDM redistribution`)
-          }
-        } catch (e) {
-          momai.log(`Failed to clear sender-key-memory: ${e.message}`)
-        }
+        groupMetaCache.clear()
 
         // Detect phone number and load per-phone whitelist
         try {
@@ -614,11 +712,7 @@ async function connect() {
 async function handleMessagesUpsert({ messages }) {
   for (const msg of messages) {
     if (msg.message && msg.key?.id) {
-      sentMessagesCache.set(msg.key.id, msg.message)
-      if (sentMessagesCache.size > 5000) {
-        const firstKey = sentMessagesCache.keys().next().value
-        sentMessagesCache.delete(firstKey)
-      }
+      cacheMessage(msg.key, msg.message)
     }
     if (!msg.message?.conversation && !msg.message?.extendedTextMessage) continue
 
@@ -697,6 +791,7 @@ async function handleMessagesUpsert({ messages }) {
           waContacts[msg.key.remoteJid].name = meta.subject
           await momai.storage.set(_getWaContactsKey(), waContacts)
         }
+        groupMetaCache.set(msg.key.remoteJid, { data: meta, fetchedAt: Date.now() })
       } catch (err) {
         momai.log(`Failed to fetch group metadata: ${err.message}`)
       }
@@ -853,21 +948,22 @@ async function sendMessage(contact, message) {
     throw new Error(`Invalid contact: "${contact}"`)
   }
 
+  const isGroup = jid.endsWith('@g.us')
   momai.log(
-    `sendMessage: contact="${contact}" resolved_jid="${jid}" msg="${(message || '').substring(0, 40)}"`
+    `sendMessage: contact="${contact}" resolved_jid="${jid}" group=${isGroup} msg="${(message || '').substring(0, 40)}"`
   )
 
-  const MAX_RETRIES = 3
+  if (isGroup) {
+    await prepareGroupForSend(jid)
+  }
+
+  const MAX_RETRIES = isGroup ? 4 : 3
   let lastError
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const sent = await sock.sendMessage(jid, { text: message })
       if (sent?.key?.id && sent?.message) {
-        sentMessagesCache.set(sent.key.id, sent.message)
-        if (sentMessagesCache.size > 5000) {
-          const firstKey = sentMessagesCache.keys().next().value
-          sentMessagesCache.delete(firstKey)
-        }
+        cacheMessage(sent.key, sent.message)
       }
       lastError = null
       break
@@ -876,7 +972,11 @@ async function sendMessage(contact, message) {
       momai.log(`sendMessage attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`)
 
       if (attempt < MAX_RETRIES) {
-        await new Promise((r) => setTimeout(r, 1500 * attempt))
+        const delayMs = (isGroup ? 2500 : 1500) * attempt
+        if (isGroup) {
+          await resetGroupSenderKeyMemory(jid)
+        }
+        await new Promise((r) => setTimeout(r, delayMs))
       }
     }
   }
