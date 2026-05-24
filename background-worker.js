@@ -565,6 +565,7 @@ function enrichHistoryEntry(h) {
   const replyJid = isGroupChat ? remoteJid : resolveStandardJid(remoteJid) || remoteJid
 
   const groupLabel = _pickContactLabel(
+    contactNames[remoteJid],
     waContacts[remoteJid]?.name,
     waContacts[remoteJid]?.verifiedName,
     h.groupName
@@ -572,12 +573,13 @@ function enrichHistoryEntry(h) {
 
   let from = h.from
   const fromInvalid =
+    h.forceUpdateNames ||
     !from ||
     !_isUsableDisplayName(from) ||
     (!isGroupChat && from === 'Grupo')
   if (fromInvalid) {
     from = isGroupChat
-      ? groupLabel || 'Grupo'
+      ? groupLabel || resolveContactName(remoteJid) || 'Grupo'
       : resolveContactName(senderJid) || resolveContactName(remoteJid)
   }
 
@@ -588,7 +590,7 @@ function enrichHistoryEntry(h) {
     replyJid,
     from,
     isGroup: isGroupChat,
-    groupName: isGroupChat ? groupLabel || h.groupName || from : null,
+    groupName: isGroupChat ? groupLabel || resolveContactName(remoteJid) || from : null,
     profilePicUrl: resolveChatAvatarUrl(remoteJid, isGroupChat, senderJid)
   }
 }
@@ -1322,8 +1324,8 @@ async function handleMessagesUpsert({ messages }) {
       }
     }
 
-    const groupName = isGroup
-      ? _pickContactLabel(waContacts[remoteJid]?.name, waContacts[remoteJid]?.verifiedName) || 'Grupo'
+    const resGroupName = isGroup
+      ? resolveContactName(remoteJid) || _pickContactLabel(waContacts[remoteJid]?.name, waContacts[remoteJid]?.verifiedName) || 'Grupo'
       : null
     const displayName = isFromMe
       ? resolvedSenderJid.split('@')[0] || resolvedSenderJid
@@ -1341,7 +1343,8 @@ async function handleMessagesUpsert({ messages }) {
         timestamp: msg.messageTimestamp,
         direction: isFromMe ? 'outgoing' : 'incoming',
         isGroup,
-        groupName
+        groupName: resGroupName,
+        forceUpdateNames: true
       })
     )
     if (chatHistory.length > MAX_HISTORY) chatHistory.pop()
@@ -1360,17 +1363,20 @@ async function handleMessagesUpsert({ messages }) {
         standardizedRemoteJid === _currentPhone + '@c.us')
 
     const shouldNotify =
-      !notificationsDisabled && ((!isFromMe && !_isContactDisabled(resolvedSenderJid)) || isNoteToSelf)
+      !notificationsDisabled &&
+      ((!isFromMe && !_isContactDisabled(resolvedSenderJid) && !_isContactDisabled(remoteJid)) ||
+        isNoteToSelf)
     if (shouldNotify) {
+      const finalDisplayName = isGroup ? resGroupName : displayName
       momai.sendEvent('whatsapp_notification', {
-        contact: displayName,
+        contact: finalDisplayName,
         contactJid: replyJid,
         senderJid,
         message: text,
         timestamp: msg.messageTimestamp,
         contactAvatar: resolveChatAvatarUrl(remoteJid, isGroup, senderJid),
         isGroup: !!isGroup,
-        groupName: isGroup ? groupName : undefined
+        groupName: isGroup ? resGroupName : undefined
       })
     }
   }
