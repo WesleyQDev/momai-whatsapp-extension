@@ -1324,6 +1324,40 @@ async function handleMessagesUpsert({ messages }) {
       }
     }
 
+    // Fetch group metadata (announce status)
+    let groupAnnounce = false
+    if (sock && connected && isGroup) {
+      // Re-fetch metadata if we don't have it or if it's potentially stale (60s)
+      const cached = groupMetaCache.get(msg.key.remoteJid)
+      const isMissingMetadata = !cached || !cached.data?.subject
+      const isStale = cached && Date.now() - cached.fetchedAt > 60 * 1000
+
+      if (isMissingMetadata || isStale) {
+        try {
+          const meta = await Promise.race([
+            sock.groupMetadata(msg.key.remoteJid),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+          ])
+          if (meta) {
+            groupAnnounce = !!meta.announce
+            groupMetaCache.set(msg.key.remoteJid, { data: meta, fetchedAt: Date.now() })
+            
+            // Update the subject in waContacts while we're at it
+            if (meta.subject && waContacts[msg.key.remoteJid]) {
+              waContacts[msg.key.remoteJid].name = meta.subject
+              await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+            }
+          }
+        } catch (err) {
+          momai.log(`Failed to fetch fresh group metadata: ${err.message}`)
+          // Fallback to cache if exists
+          if (cached) groupAnnounce = !!cached.data?.announce
+        }
+      } else {
+        groupAnnounce = !!cached.data?.announce
+      }
+    }
+
     const resGroupName = isGroup
       ? resolveContactName(remoteJid) || _pickContactLabel(waContacts[remoteJid]?.name, waContacts[remoteJid]?.verifiedName) || 'Grupo'
       : null
@@ -1368,6 +1402,26 @@ async function handleMessagesUpsert({ messages }) {
         isNoteToSelf)
     if (shouldNotify) {
       const finalDisplayName = isGroup ? resGroupName : displayName
+
+      // Check if I am admin in this group
+      let isMeAdmin = false
+      if (isGroup && groupAnnounce) {
+        const meta = groupMetaCache.get(remoteJid)?.data
+        const myJid = sock?.user?.id || sock?.authState?.creds?.me?.id
+        const meId = resolveStandardJid(myJid)
+        
+        if (meId && meta?.participants) {
+          const meParticipant = meta.participants.find((p) => resolveStandardJid(p.id) === meId)
+          isMeAdmin = !!(meParticipant?.admin || meParticipant?.isSuperAdmin)
+          
+          if (isMeAdmin) {
+            momai.log(`Verified: Current user is ADMIN in group ${resGroupName || remoteJid}`)
+          }
+        } else {
+          momai.log(`Warning: Could not verify admin status for group ${remoteJid} (meId=${meId})`)
+        }
+      }
+
       momai.sendEvent('whatsapp_notification', {
         contact: finalDisplayName,
         contactJid: replyJid,
@@ -1376,7 +1430,8 @@ async function handleMessagesUpsert({ messages }) {
         timestamp: msg.messageTimestamp,
         contactAvatar: resolveChatAvatarUrl(remoteJid, isGroup, senderJid),
         isGroup: !!isGroup,
-        groupName: isGroup ? resGroupName : undefined
+        groupName: isGroup ? resGroupName : undefined,
+        isAdminsOnly: !!groupAnnounce && !isMeAdmin
       })
     }
   }
