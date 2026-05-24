@@ -50,6 +50,7 @@ process.on('unhandledRejection', (err) => {
 const DISABLED_CONTACTS_KEY = 'disabled_contacts'
 const CONTACT_NAMES_KEY = 'contact_names'
 const WA_CONTACTS_KEY = 'wa_contacts'
+const SETTINGS_KEY = 'settings'
 const CHECK_INTERVAL = 5000
 
 // Self-contained momai bridge (not loaded via extension-host-worker)
@@ -128,6 +129,7 @@ function _clearReconnectTimer() {
 let disabledContacts = []
 let contactNames = {}
 let waContacts = {}
+let notificationsDisabled = false
 let connected = false
 let lastQr = null
 let lastQrAt = 0
@@ -436,6 +438,10 @@ function _getContactNamesKey() {
 
 function _getWaContactsKey() {
   return _currentPhone ? `wa_contacts-${_currentPhone}` : WA_CONTACTS_KEY
+}
+
+function _getSettingsKey() {
+  return _currentPhone ? `settings-${_currentPhone}` : SETTINGS_KEY
 }
 
 function _getChatHistoryKey() {
@@ -761,6 +767,11 @@ async function _loadPerPhoneData() {
       if (pn) contactNames = pn
       const wc = await momai.storage.get(_getWaContactsKey())
       if (wc) waContacts = wc
+      const st = await momai.storage.get(_getSettingsKey())
+      if (st) {
+        if (st.notificationsDisabled !== undefined)
+          notificationsDisabled = st.notificationsDisabled
+      }
 
       let storageDirty = false
       if (_cleanupStaleContacts()) storageDirty = true
@@ -1348,7 +1359,8 @@ async function handleMessagesUpsert({ messages }) {
       (standardizedRemoteJid === _currentPhone + '@s.whatsapp.net' ||
         standardizedRemoteJid === _currentPhone + '@c.us')
 
-    const shouldNotify = (!isFromMe && !_isContactDisabled(resolvedSenderJid)) || isNoteToSelf
+    const shouldNotify =
+      !notificationsDisabled && ((!isFromMe && !_isContactDisabled(resolvedSenderJid)) || isNoteToSelf)
     if (shouldNotify) {
       momai.sendEvent('whatsapp_notification', {
         contact: displayName,
@@ -1777,6 +1789,19 @@ process.on('message', async (msg) => {
           momai.sendEvent('authenticated', { status: 'logged_out' })
           momai.sendEvent('connection_status', { status: 'disconnected' })
           result = { ok: true }
+          break
+        }
+        case 'update_settings': {
+          const args = msg.payload.args || {}
+          if (args.notificationsDisabled !== undefined) {
+            notificationsDisabled = args.notificationsDisabled
+          }
+          await momai.storage.set(_getSettingsKey(), { notificationsDisabled })
+          result = { ok: true, notificationsDisabled }
+          break
+        }
+        case 'get_settings': {
+          result = { ok: true, settings: { notificationsDisabled } }
           break
         }
         case 'panel':
