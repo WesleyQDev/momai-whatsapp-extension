@@ -1,0 +1,13 @@
+{
+  "id": "whatsapp",
+  "name": "WhatsApp",
+  "kind": "packaged",
+  "description": "Monitora e responde mensagens do WhatsApp",
+  "icon": "💚",
+  "author": "WesleyQDev",
+  "sidebar": true,
+  "background": true,
+  "backgroundScript": "background-worker.js",
+  "permissions": ["network:persistent", "storage:persistent"],
+  "version": "0.1.0"
+}

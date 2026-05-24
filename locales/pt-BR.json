@@ -1,0 +1,19 @@
+{
+  "name": "WhatsApp",
+  "description": "Monitore e responda mensagens do WhatsApp",
+  "panel": {
+    "title": "WhatsApp",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "qr_instructions": "Abra o WhatsApp no celular e escaneie o QR code",
+    "whitelist": "Contatos Monitorados",
+    "add_contact": "Adicionar Contato",
+    "remove_contact": "Remover",
+    "no_contacts": "Nenhum contato na whitelist"
+  },
+  "notification": {
+    "message_from": "Nova mensagem de",
+    "dismiss": "Ignorar",
+    "reply": "Responder"
+  }
+}
