@@ -48,6 +48,7 @@ process.on('unhandledRejection', (err) => {
 })
 
 const DISABLED_CONTACTS_KEY = 'disabled_contacts'
+const workerStartTime = Math.floor(Date.now() / 1000)
 const CONTACT_NAMES_KEY = 'contact_names'
 const WA_CONTACTS_KEY = 'wa_contacts'
 const SETTINGS_KEY = 'settings'
@@ -1396,8 +1397,11 @@ async function handleMessagesUpsert({ messages }) {
       (standardizedRemoteJid === _currentPhone + '@s.whatsapp.net' ||
         standardizedRemoteJid === _currentPhone + '@c.us')
 
+    const isOldMessage = msg.messageTimestamp && Number(msg.messageTimestamp) < workerStartTime
+
     const shouldNotify =
       !notificationsDisabled &&
+      !isOldMessage &&
       ((!isFromMe && !_isContactDisabled(resolvedSenderJid) && !_isContactDisabled(remoteJid)) ||
         isNoteToSelf)
     if (shouldNotify) {
