@@ -529,12 +529,16 @@ function resolveStandardJid(jid) {
     standard = user.split(':')[0] + '@' + domain
   }
 
-  if (standard.endsWith('@lid')) {
-    const matched = Object.values(waContacts).find((c) => c.lid === standard)
-    if (matched && matched.id) {
-      return matched.id
-    }
-  }
+  const rawNumber = standard.split('@')[0]
+
+  // Try to find by LID mapping
+  const matchByLid = Object.values(waContacts).find((c) => c.lid === standard || c.lid === rawNumber)
+  if (matchByLid) return matchByLid.id
+
+  // Try to find by phone (for LID-like JIDs that are actually mapped)
+  const matchByPhone = Object.values(waContacts).find((c) => c.phone === rawNumber)
+  if (matchByPhone) return matchByPhone.id
+
   return standard
 }
 
@@ -565,6 +569,8 @@ function enrichHistoryEntry(h) {
 
   const replyJid = isGroupChat ? remoteJid : resolveStandardJid(remoteJid) || remoteJid
 
+  const timestamp = h.timestamp ? Number(h.timestamp) : Math.floor(Date.now() / 1000)
+
   const groupLabel = _pickContactLabel(
     contactNames[remoteJid],
     waContacts[remoteJid]?.name,
@@ -589,6 +595,7 @@ function enrichHistoryEntry(h) {
     jid: remoteJid,
     senderJid,
     replyJid,
+    timestamp,
     from,
     isGroup: isGroupChat,
     groupName: isGroupChat ? groupLabel || resolveContactName(remoteJid) || from : null,
@@ -611,23 +618,27 @@ function resolveContactName(jid) {
     }
   }
 
-  const rawNumber = (jid || '').split('@')[0] || jid
+  const digitsOnly = rawNumber.replace(/\D/g, '')
 
+  // Try exact match in contactNames
   const customByJid = _pickContactLabel(contactNames[jid])
   if (customByJid) return customByJid
   const customByNumber = _pickContactLabel(contactNames[rawNumber])
   if (customByNumber) return customByNumber
+  const customByDigits = _pickContactLabel(contactNames[digitsOnly])
+  if (customByDigits) return customByDigits
 
-  const digitsOnly = rawNumber.replace(/\D/g, '')
+  // Try partial digit match in contactNames
   for (const key of Object.keys(contactNames)) {
     const keyDigits = String(key).replace(/\D/g, '')
-    if (keyDigits && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
+    if (keyDigits && keyDigits.length >= 8 && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
       const matched = _pickContactLabel(contactNames[key])
       if (matched) return matched
     }
   }
 
-  const wc = waContacts[jid]
+  const wc = waContacts[jid] || Object.values(waContacts).find(c => c.id.split('@')[0] === rawNumber)
+  if (wc) return _resolveWaContactDisplayName(wc, jid)
   if (wc) return _resolveWaContactDisplayName(wc, jid)
 
   for (const [key, contact] of Object.entries(waContacts)) {
@@ -981,7 +992,7 @@ async function connect() {
               const total = Object.values(waContacts).filter(
                 (c) => c.phone && !c.id.endsWith('@g.us')
               ).length
-              momai.sendEvent('contacts_synced', { count: total })
+              momai.sendEvent('contacts_synced', { count: total, isFinal: true })
               return
             }
 
@@ -1008,7 +1019,7 @@ async function connect() {
             const total = Object.values(waContacts).filter(
               (c) => c.phone && !c.id.endsWith('@g.us')
             ).length
-            momai.sendEvent('contacts_synced', { count: total })
+            momai.sendEvent('contacts_synced', { count: total, isFinal: true })
           } catch (err) {
             momai.log(`Error finalizing contact sync: ${err.message}`)
           }
@@ -1107,7 +1118,7 @@ async function connect() {
       // Always emit contacts_synced so the UI knows the current count
       const total = Object.keys(waContacts).length
       if (total > 0) {
-        momai.sendEvent('contacts_synced', { count: total })
+        momai.sendEvent('contacts_synced', { count: total, isFinal: false })
       }
     })
 
@@ -1375,7 +1386,7 @@ async function handleMessagesUpsert({ messages }) {
         senderJid,
         replyJid,
         text,
-        timestamp: msg.messageTimestamp,
+        timestamp: msg.messageTimestamp ? Number(msg.messageTimestamp) : Math.floor(Date.now() / 1000),
         direction: isFromMe ? 'outgoing' : 'incoming',
         isGroup,
         groupName: resGroupName,
@@ -1784,7 +1795,7 @@ process.on('message', async (msg) => {
           const total = Object.values(waContacts).filter(
             (c) => c.phone && !c.id.endsWith('@g.us')
           ).length
-          momai.sendEvent('contacts_synced', { count: total })
+          momai.sendEvent('contacts_synced', { count: total, isFinal: true })
 
           result = { ok: true, syncedContacts: total }
           break
