@@ -618,6 +618,7 @@ function resolveContactName(jid) {
     }
   }
 
+  const rawNumber = jid.split('@')[0]
   const digitsOnly = rawNumber.replace(/\D/g, '')
 
   // Try exact match in contactNames
@@ -1886,12 +1887,13 @@ process.on('message', async (msg) => {
         default: {
           // Voice command via "responda": reply to last contact
           const lastIncoming = chatHistory.find((m) => m.direction === 'incoming')
+          const cmdContent = String(msg.payload?.content || '').toLowerCase().trim()
+          
           if (
             lastIncoming &&
-            msg.payload?.content &&
-            msg.payload.content.toLowerCase().includes('responda')
+            (cmdContent.startsWith('responda') || cmdContent.startsWith('responde'))
           ) {
-            const replyMsg = msg.payload.content.replace(/responda\s+/i, '').trim()
+            const replyMsg = msg.payload.content.replace(/^(responda|responde)\s+/i, '').trim()
             if (replyMsg) {
               await sendMessage(lastIncoming.jid, replyMsg)
               result = {
@@ -1906,23 +1908,6 @@ process.on('message', async (msg) => {
                 error: 'mensagem vazia',
                 directResponse: 'Fale a mensagem depois de responda'
               }
-            }
-          } else if (
-            lastIncoming &&
-            msg.payload?.content &&
-            msg.payload.content.toLowerCase().startsWith('responda')
-          ) {
-            const replyMsg = msg.payload.content.replace(/^responda\s+/i, '').trim()
-            if (replyMsg) {
-              await sendMessage(lastIncoming.jid, replyMsg)
-              result = {
-                ok: true,
-                to: lastIncoming.from,
-                message: replyMsg,
-                directResponse: `Mensagem enviada para ${lastIncoming.from}`
-              }
-            } else {
-              result = { ok: false, error: 'mensagem vazia' }
             }
           } else {
             result = await getPanelData()
