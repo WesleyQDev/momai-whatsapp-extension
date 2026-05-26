@@ -9,7 +9,13 @@ intents:
   - enviar mensagem no whatsapp
   - mandar zap
   - whatsapp
+  - enviar mensagem
+  - mandar mensagem
+  - mensagem no whatsapp
   - falar com contato
+  - responder no whatsapp
+  - enviar para contato
+  - enviar para grupo
   - whitelist do whatsapp
   - responda
   - responder
