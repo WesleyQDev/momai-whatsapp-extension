@@ -139,6 +139,20 @@ function _qrStillValid() {
   return Boolean(lastQr && Date.now() - lastQrAt < QR_TTL_MS)
 }
 
+/* creds.json exists after useMultiFileAuthState even without a real session.
+   Only treat it as "valid" if Baileys saved a real registrationId. */
+function _hasSavedSession() {
+  try {
+    const cp = path.join(momai.storage.storageDir, 'baileys-auth', 'creds.json')
+    if (!require('fs').existsSync(cp)) return false
+    const raw = require('fs').readFileSync(cp, 'utf8')
+    const creds = JSON.parse(raw)
+    return Number.isFinite(creds.registrationId) && creds.registrationId > 0
+  } catch {
+    return false
+  }
+}
+
 function _emitQrCode(qr) {
   lastQr = qr
   lastQrAt = Date.now()
@@ -1669,9 +1683,7 @@ process.on('message', async (msg) => {
             (c) => !_isContactDisabled(c.id)
           ).length
 
-          const fsSync = require('fs')
-          const credsPath = path.join(momai.storage.storageDir, 'baileys-auth', 'creds.json')
-          const hasCredentials = fsSync.existsSync(credsPath)
+          const hasCredentials = _hasSavedSession()
 
           result = {
             connected,
@@ -1706,7 +1718,7 @@ process.on('message', async (msg) => {
           const fsSync = require('fs')
           const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
           const credsPath = path.join(authDir, 'creds.json')
-          const hasCredentials = fsSync.existsSync(credsPath)
+          const hasCredentials = _hasSavedSession()
           if (hasCredentials && !forcePairing) {
             momai.log('request_qr: session on disk, reconnecting without QR reset')
             if (!sock) {
