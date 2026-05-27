@@ -1440,6 +1440,7 @@ async function handleMessagesUpsert({ messages }) {
 
       momai.sendEvent('whatsapp_notification', {
         contact: finalDisplayName,
+        senderName: isGroup ? displayName : undefined,
         contactJid: replyJid,
         senderJid,
         message: text,
