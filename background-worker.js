@@ -86,8 +86,6 @@ const momai = {
   }
 }
 
-
-
 class MessageRetryCache {
   constructor() {
     this.store = new Map()
@@ -243,10 +241,8 @@ async function _fetchPaginatedWaEntries({ groupsOnly, search, page, perPage }) {
     ;(async () => {
       for (const c of paginated) {
         const lastChecked = waContacts[c.id]?.profilePicCheckedAt || 0
-        const isFailedRecently =
-          !waContacts[c.id]?.profilePicUrl && now - lastChecked < RETRY_DELAY
-        const isSuccessRecently =
-          waContacts[c.id]?.profilePicUrl && now - lastChecked < ONE_DAY
+        const isFailedRecently = !waContacts[c.id]?.profilePicUrl && now - lastChecked < RETRY_DELAY
+        const isSuccessRecently = waContacts[c.id]?.profilePicUrl && now - lastChecked < ONE_DAY
 
         if (!isFailedRecently && !isSuccessRecently) {
           await new Promise((resolve) => setTimeout(resolve, 300))
@@ -508,7 +504,9 @@ async function flushPersistedChatHistory() {
 async function loadChatHistory() {
   if (chatHistory.length > 0) return true
   try {
-    const keys = [...new Set([_currentPhone ? _getChatHistoryKey() : null, CHAT_HISTORY_KEY].filter(Boolean))]
+    const keys = [
+      ...new Set([_currentPhone ? _getChatHistoryKey() : null, CHAT_HISTORY_KEY].filter(Boolean))
+    ]
     for (const key of keys) {
       const saved = await momai.storage.get(key)
       if (!Array.isArray(saved) || saved.length === 0) continue
@@ -546,7 +544,9 @@ function resolveStandardJid(jid) {
   const rawNumber = standard.split('@')[0]
 
   // Try to find by LID mapping
-  const matchByLid = Object.values(waContacts).find((c) => c.lid === standard || c.lid === rawNumber)
+  const matchByLid = Object.values(waContacts).find(
+    (c) => c.lid === standard || c.lid === rawNumber
+  )
   if (matchByLid) return matchByLid.id
 
   // Try to find by phone (for LID-like JIDs that are actually mapped)
@@ -594,10 +594,7 @@ function enrichHistoryEntry(h) {
 
   let from = h.from
   const fromInvalid =
-    h.forceUpdateNames ||
-    !from ||
-    !_isUsableDisplayName(from) ||
-    (!isGroupChat && from === 'Grupo')
+    h.forceUpdateNames || !from || !_isUsableDisplayName(from) || (!isGroupChat && from === 'Grupo')
   if (fromInvalid) {
     from = isGroupChat
       ? groupLabel || resolveContactName(remoteJid) || 'Grupo'
@@ -646,13 +643,18 @@ function resolveContactName(jid) {
   // Try partial digit match in contactNames
   for (const key of Object.keys(contactNames)) {
     const keyDigits = String(key).replace(/\D/g, '')
-    if (keyDigits && keyDigits.length >= 8 && (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))) {
+    if (
+      keyDigits &&
+      keyDigits.length >= 8 &&
+      (digitsOnly.endsWith(keyDigits) || keyDigits.endsWith(digitsOnly))
+    ) {
       const matched = _pickContactLabel(contactNames[key])
       if (matched) return matched
     }
   }
 
-  const wc = waContacts[jid] || Object.values(waContacts).find(c => c.id.split('@')[0] === rawNumber)
+  const wc =
+    waContacts[jid] || Object.values(waContacts).find((c) => c.id.split('@')[0] === rawNumber)
   if (wc) return _resolveWaContactDisplayName(wc, jid)
   if (wc) return _resolveWaContactDisplayName(wc, jid)
 
@@ -798,8 +800,7 @@ async function _loadPerPhoneData() {
       if (wc) waContacts = wc
       const st = await momai.storage.get(_getSettingsKey())
       if (st) {
-        if (st.notificationsDisabled !== undefined)
-          notificationsDisabled = st.notificationsDisabled
+        if (st.notificationsDisabled !== undefined) notificationsDisabled = st.notificationsDisabled
       }
 
       let storageDirty = false
@@ -882,19 +883,22 @@ async function connect() {
     // Setup logger with pino or fallback, redirecting warning/error events to momai.log
     let logger
     if (pino) {
-      logger = pino({ level: 'warn' }, {
-        write: (msg) => {
-          try {
-            const parsed = JSON.parse(msg)
-            let levelStr = 'WARN'
-            if (parsed.level >= 50) levelStr = 'ERROR'
-            const detail = parsed.err?.message || parsed.error || ''
-            momai.log(`[Baileys:${levelStr}] ${parsed.msg} ${detail ? '(' + detail + ')' : ''}`)
-          } catch {
-            momai.log(`[Baileys] ${msg}`)
+      logger = pino(
+        { level: 'warn' },
+        {
+          write: (msg) => {
+            try {
+              const parsed = JSON.parse(msg)
+              let levelStr = 'WARN'
+              if (parsed.level >= 50) levelStr = 'ERROR'
+              const detail = parsed.err?.message || parsed.error || ''
+              momai.log(`[Baileys:${levelStr}] ${parsed.msg} ${detail ? '(' + detail + ')' : ''}`)
+            } catch {
+              momai.log(`[Baileys] ${msg}`)
+            }
           }
         }
-      })
+      )
     } else {
       const makeMockLogger = () => {
         const mock = {
@@ -982,7 +986,6 @@ async function connect() {
               await momai.storage.set(_getContactNamesKey(), contactNames)
               momai.log('Automatically cleaned up stale @lid contacts on active phone detection')
             }
-
           }
           if (phone && !chatHistory.length) {
             await loadChatHistory()
@@ -995,9 +998,7 @@ async function connect() {
         // Start pruning timer to remove deleted contacts from WhatsApp
         setTimeout(async () => {
           try {
-            const existingWhatsAppKeys = Object.keys(waContacts).filter(
-              (k) => !k.endsWith('@g.us')
-            )
+            const existingWhatsAppKeys = Object.keys(waContacts).filter((k) => !k.endsWith('@g.us'))
             const minRequired = Math.max(3, Math.floor(existingWhatsAppKeys.length * 0.3))
 
             if (receivedJids.size < minRequired) {
@@ -1092,7 +1093,7 @@ async function connect() {
               if (c.name) existingMatch.name = c.name
               continue // Link established, skip storing LID separately
             }
-            
+
             // If we don't have a name/verifiedName/notify, it's anonymous, skip it
             if (!c.name && !c.verifiedName && !c.notify) {
               continue
@@ -1107,7 +1108,9 @@ async function connect() {
               id: c.id,
               name: _isUsableDisplayName(c.name) ? String(c.name).trim() : null,
               notify: _isUsableDisplayName(c.notify) ? String(c.notify).trim() : null,
-              verifiedName: _isUsableDisplayName(c.verifiedName) ? String(c.verifiedName).trim() : null,
+              verifiedName: _isUsableDisplayName(c.verifiedName)
+                ? String(c.verifiedName).trim()
+                : null,
               phone,
               lid: c.lid || null
             }
@@ -1168,7 +1171,9 @@ async function connect() {
         if (!phone) continue
         const nextName = _isUsableDisplayName(c.name) ? String(c.name).trim() : null
         const nextNotify = _isUsableDisplayName(c.notify) ? String(c.notify).trim() : null
-        const nextVerified = _isUsableDisplayName(c.verifiedName) ? String(c.verifiedName).trim() : null
+        const nextVerified = _isUsableDisplayName(c.verifiedName)
+          ? String(c.verifiedName).trim()
+          : null
         waContacts[c.id] = {
           ...waContacts[c.id],
           id: c.id,
@@ -1245,7 +1250,11 @@ async function handleMessagesUpsert({ messages }) {
     if (!senderJid) continue
 
     // Self-healing LID association for incoming messages
-    const lidJid = remoteJid.endsWith('@lid') ? remoteJid : senderJid.endsWith('@lid') ? senderJid : null
+    const lidJid = remoteJid.endsWith('@lid')
+      ? remoteJid
+      : senderJid.endsWith('@lid')
+        ? senderJid
+        : null
     if (lidJid) {
       const hasLidMapping = Object.values(waContacts).some((c) => c.lid === lidJid)
       if (!hasLidMapping && msg.pushName) {
@@ -1323,7 +1332,11 @@ async function handleMessagesUpsert({ messages }) {
     }
 
     // Fetch avatar picture (group avatar if group, sender avatar if private)
-    const avatarTarget = isGroup ? remoteJid : remoteJid.endsWith('@lid') ? remoteJid : resolvedSenderJid
+    const avatarTarget = isGroup
+      ? remoteJid
+      : remoteJid.endsWith('@lid')
+        ? remoteJid
+        : resolvedSenderJid
     if (sock && connected && waContacts[avatarTarget]) {
       const lastChecked = waContacts[avatarTarget].profilePicCheckedAt || 0
       const isFailedRecently =
@@ -1368,7 +1381,7 @@ async function handleMessagesUpsert({ messages }) {
           if (meta) {
             groupAnnounce = !!meta.announce
             groupMetaCache.set(msg.key.remoteJid, { data: meta, fetchedAt: Date.now() })
-            
+
             // Update the subject in waContacts while we're at it
             if (meta.subject && waContacts[msg.key.remoteJid]) {
               waContacts[msg.key.remoteJid].name = meta.subject
@@ -1386,7 +1399,9 @@ async function handleMessagesUpsert({ messages }) {
     }
 
     const resGroupName = isGroup
-      ? resolveContactName(remoteJid) || _pickContactLabel(waContacts[remoteJid]?.name, waContacts[remoteJid]?.verifiedName) || 'Grupo'
+      ? resolveContactName(remoteJid) ||
+        _pickContactLabel(waContacts[remoteJid]?.name, waContacts[remoteJid]?.verifiedName) ||
+        'Grupo'
       : null
     const displayName = isFromMe
       ? resolvedSenderJid.split('@')[0] || resolvedSenderJid
@@ -1401,7 +1416,9 @@ async function handleMessagesUpsert({ messages }) {
         senderJid,
         replyJid,
         text,
-        timestamp: msg.messageTimestamp ? Number(msg.messageTimestamp) : Math.floor(Date.now() / 1000),
+        timestamp: msg.messageTimestamp
+          ? Number(msg.messageTimestamp)
+          : Math.floor(Date.now() / 1000),
         direction: isFromMe ? 'outgoing' : 'incoming',
         isGroup,
         groupName: resGroupName,
@@ -1439,11 +1456,11 @@ async function handleMessagesUpsert({ messages }) {
         const meta = groupMetaCache.get(remoteJid)?.data
         const myJid = sock?.user?.id || sock?.authState?.creds?.me?.id
         const meId = resolveStandardJid(myJid)
-        
+
         if (meId && meta?.participants) {
           const meParticipant = meta.participants.find((p) => resolveStandardJid(p.id) === meId)
           isMeAdmin = !!(meParticipant?.admin || meParticipant?.isSuperAdmin)
-          
+
           if (isMeAdmin) {
             momai.log(`Verified: Current user is ADMIN in group ${resGroupName || remoteJid}`)
           }
@@ -1603,9 +1620,7 @@ async function sendMessage(contact, message) {
 }
 
 async function getPanelData() {
-  const validContacts = Object.values(waContacts).filter(
-    (c) => c.phone && !c.id.endsWith('@g.us')
-  )
+  const validContacts = Object.values(waContacts).filter((c) => c.phone && !c.id.endsWith('@g.us'))
   return {
     connected,
     syncedContacts: validContacts.length,
@@ -1712,10 +1727,7 @@ process.on('message', async (msg) => {
             ...(!connected && _qrStillValid()
               ? {
                   qr: lastQr,
-                  qrExpiresIn: Math.max(
-                    1,
-                    Math.ceil((QR_TTL_MS - (Date.now() - lastQrAt)) / 1000)
-                  )
+                  qrExpiresIn: Math.max(1, Math.ceil((QR_TTL_MS - (Date.now() - lastQrAt)) / 1000))
                 }
               : {})
           }
@@ -1740,9 +1752,7 @@ process.on('message', async (msg) => {
             momai.log('request_qr: session on disk, reconnecting without QR reset')
             if (!sock) {
               preventAutoReconnect = false
-              connect().catch((err) =>
-                momai.log(`request_qr connect failed: ${err.message}`)
-              )
+              connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
             }
             result = { ok: true, pending: true, hasCredentials: true }
             break
@@ -1900,8 +1910,10 @@ process.on('message', async (msg) => {
         default: {
           // Voice command via "responda": reply to last contact
           const lastIncoming = chatHistory.find((m) => m.direction === 'incoming')
-          const cmdContent = String(msg.payload?.content || '').toLowerCase().trim()
-          
+          const cmdContent = String(msg.payload?.content || '')
+            .toLowerCase()
+            .trim()
+
           if (
             lastIncoming &&
             (cmdContent.startsWith('responda') || cmdContent.startsWith('responde'))
