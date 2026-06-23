@@ -4,7 +4,7 @@ name: WhatsApp
 description: Monitora e responde mensagens do WhatsApp
 icon: 💚
 author: WesleyQDev
-version: 0.1.0
+version: 0.2.0
 intents:
   - enviar mensagem no whatsapp
   - mandar zap
@@ -67,3 +67,12 @@ Você pode interagir com o WhatsApp do usuário através das tools abaixo.
 - Todos os contatos do WhatsApp são monitorados por padrão (modelo opt-out).
 - Use `toggle_monitoring` caso o usuário queira desativar ou ativar o monitoramento de um contato específico.
 - Se o usuário pedir para enviar mensagem a alguém pelo nome, use `get_wa_contacts` para encontrar o número do contato.
+
+## Comportamento do Pairing (v0.2.0+)
+
+A skill agora **auto-detecta credenciais obsoletas** e força um novo pareamento sem exigir que o usuário clique "Gerar QR":
+
+- Se existem credenciais salvas mas a sessão WhatsApp não está realmente conectada (caso comum após longo tempo offline ou troca de dispositivo), o worker limpa a pasta de auth automaticamente e abre um QR novo. O usuário só precisa escanear.
+- O QR permanece válido por **65 segundos** (acima da rotação natural do Baileys, ~60s), eliminando a "zona morta" em que o QR era descartado cedo demais.
+- O worker faz **cache da versão do protocolo Baileys por 24h** em processo, então conexões subsequentes não pagam a latência do HTTP ao servidor do WhatsApp.
+- O Node Core mantém um **buffer de replay de eventos SSE** (último evento por tipo) e um **keepalive de 15s**, então abrir a view do WhatsApp depois do QR estar pronto entrega o QR imediatamente em vez de esperar o próximo polling.
