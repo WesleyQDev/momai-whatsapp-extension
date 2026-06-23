@@ -13,6 +13,7 @@ const {
   encryptForStorage,
   decryptFromStorage
 } = require('./secure-storage-bridge')
+const { secureWriteFileSync } = require('./fs-permissions')
 
 function _plainCredsPath(baseAuth) {
   return path.join(baseAuth, 'creds.json')
@@ -40,7 +41,7 @@ function createMigration(bridge) {
         const plain = fs.readFileSync(plainCreds, 'utf-8')
         const encrypted = await bridge.encryptForStorage(plain)
         if (encrypted) {
-          fs.writeFileSync(encCreds, Buffer.from(encrypted, 'base64'))
+          secureWriteFileSync(encCreds, Buffer.from(encrypted, 'base64'))
           fs.unlinkSync(plainCreds)
           console.log('[whatsapp] migrated plain creds.json → creds.json.enc')
           return true
@@ -62,7 +63,7 @@ function createMigration(bridge) {
         const encrypted = fs.readFileSync(encCreds).toString('base64')
         const plain = await bridge.decryptFromStorage(encrypted)
         if (plain) {
-          fs.writeFileSync(plainCreds, plain, 'utf-8')
+          secureWriteFileSync(plainCreds, plain, 'utf-8')
           console.log('[whatsapp] decrypted creds.json.enc → creds.json for runtime')
           return true
         }
@@ -83,7 +84,7 @@ function createMigration(bridge) {
         const plain = fs.readFileSync(plainCreds, 'utf-8')
         const encrypted = await bridge.encryptForStorage(plain)
         if (encrypted) {
-          fs.writeFileSync(encCreds, Buffer.from(encrypted, 'base64'))
+          secureWriteFileSync(encCreds, Buffer.from(encrypted, 'base64'))
           fs.unlinkSync(plainCreds)
           console.log('[whatsapp] re-encrypted creds.json → creds.json.enc')
           return true

@@ -39,6 +39,7 @@ const {
   decryptCredsForBaileys,
   reEncryptCredsAfterBaileys
 } = require('./baileys-cred-migration')
+const { secureWriteFile } = require('./fs-permissions')
 
 // Crash protection — log instead of exiting on unhandled errors
 process.on('uncaughtException', (err) => {
@@ -86,7 +87,7 @@ const momai = {
       await fs.mkdir(_storageBase, { recursive: true })
       const serialized = JSON.stringify(value, null, 2)
       if (serialized.length > 5 * 1024 * 1024) throw new Error('Storage quota exceeded')
-      await fs.writeFile(path.join(_storageBase, `${key}.json`), serialized, 'utf-8')
+      await secureWriteFile(path.join(_storageBase, `${key}.json`), serialized)
     }
   }
 }
