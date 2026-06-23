@@ -34,6 +34,11 @@ try {
 }
 const path = require('path')
 const fs = require('node:fs/promises')
+const {
+  migratePlainCredsToEncrypted,
+  decryptCredsForBaileys,
+  reEncryptCredsAfterBaileys
+} = require('./baileys-cred-migration')
 
 // Crash protection — log instead of exiting on unhandled errors
 process.on('uncaughtException', (err) => {
@@ -891,6 +896,38 @@ async function connect() {
     const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
     const hasCreds = _hasSavedSession()
     momai.log(`connect: savedSession=${hasCreds}`)
+    // Decrypt creds.json.enc → creds.json before Baileys reads it, and
+    // migrate any legacy plain creds.json to creds.json.enc on first run.
+    // Trade-off: plain creds.json lives on disk while Baileys is running.
+    await migratePlainCredsToEncrypted(authDir)
+    const decrypted = await decryptCredsForBaileys(authDir)
+    // Guard against silent auth loss: if creds.json.enc exists but the
+    // decrypt call failed (e.g. OS keychain locked, safeStorage flipped
+    // unavailable), do NOT let useMultiFileAuthState create a fresh
+    // creds.json — that would overwrite the encrypted session on the
+    // next re-encrypt and silently log the user out. Surface the error
+    // and exit so the host can prompt the user to re-pair.
+    const encCredsPath = path.join(authDir, 'creds.json.enc')
+    const encCredsExists = await fs.access(encCredsPath).then(
+      () => true,
+      () => false
+    )
+    if (encCredsExists && !decrypted) {
+      const errorMsg =
+        'WhatsApp credentials are encrypted but could not be decrypted. ' +
+        'OS keychain may be unavailable. Please reconnect.'
+      momai.log(`[whatsapp] FATAL: ${errorMsg}`)
+      momai.sendEvent('authenticated', {
+        status: 'logged_out',
+        reason: 'keychain_unavailable',
+        message: errorMsg
+      })
+      momai.sendEvent('connection_status', {
+        status: 'disconnected',
+        reason: 'keychain_unavailable'
+      })
+      process.exit(1)
+    }
     const { state, saveCreds } = await useMultiFileAuthState(authDir)
 
     // Setup logger with pino or fallback, redirecting warning/error events to momai.log
@@ -977,6 +1014,14 @@ async function connect() {
         connected = true
         groupMetaCache.clear()
 
+        // Baileys has loaded creds.json and is now running. Move the Signal
+        // protocol keys back to encrypted-at-rest storage. While Baileys is
+        // connected, creds.json stays plain on disk (Baileys needs it there).
+        // On the next worker restart (or on close/disconnect) we'll re-encrypt.
+        reEncryptCredsAfterBaileys(authDir).catch((err) =>
+          momai.log(`post-connect re-encrypt failed: ${err.message}`)
+        )
+
         // Detect phone number and load per-phone whitelist
         try {
           const phone = (sock?.user?.id || sock?.authState?.creds?.me?.id || '')
@@ -1056,6 +1101,10 @@ async function connect() {
       } else if (connection === 'close') {
         connected = false
         isConnecting = false
+        // Move creds back to encrypted-at-rest before the next reconnect.
+        reEncryptCredsAfterBaileys(authDir).catch((err) =>
+          momai.log(`post-close re-encrypt failed: ${err.message}`)
+        )
         if (preventAutoReconnect) {
           preventAutoReconnect = false
           momai.sendEvent('authenticated', { status: 'logged_out' })
@@ -1642,21 +1691,33 @@ async function getPanelData() {
 }
 
 process.on('SIGINT', () => {
-  flushPersistedChatHistory()
+  reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth'))
     .catch(() => {})
-    .finally(() => process.exit(0))
+    .finally(() =>
+      flushPersistedChatHistory()
+        .catch(() => {})
+        .finally(() => process.exit(0))
+    )
 })
 process.on('SIGTERM', () => {
-  flushPersistedChatHistory()
+  reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth'))
     .catch(() => {})
-    .finally(() => process.exit(0))
+    .finally(() =>
+      flushPersistedChatHistory()
+        .catch(() => {})
+        .finally(() => process.exit(0))
+    )
 })
 
 // IPC listener for tool execution from LLM
 process.on('message', async (msg) => {
   if (msg.type === 'shutdown') {
-    await flushPersistedChatHistory()
-    process.exit(0)
+    reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth'))
+      .catch(() => {})
+      .finally(async () => {
+        await flushPersistedChatHistory()
+        process.exit(0)
+      })
     return
   }
   if (msg.type === 'execute') {
