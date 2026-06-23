@@ -132,7 +132,20 @@ let notificationsDisabled = false
 let connected = false
 let lastQr = null
 let lastQrAt = 0
-const QR_TTL_MS = 45000
+const QR_TTL_MS = 65000
+
+let cachedBaileysVersion = null
+let cachedBaileysVersionAt = 0
+
+async function getBaileysVersion() {
+  if (cachedBaileysVersion && Date.now() - cachedBaileysVersionAt < 86400000) {
+    return cachedBaileysVersion
+  }
+  const { version } = await fetchLatestBaileysVersion()
+  cachedBaileysVersion = version
+  cachedBaileysVersionAt = Date.now()
+  return version
+}
 
 function _qrStillValid() {
   return Boolean(lastQr && Date.now() - lastQrAt < QR_TTL_MS)
@@ -856,7 +869,7 @@ async function main() {
 }
 
 async function connect() {
-  if (isConnecting && sock) return
+  if (isConnecting) return
   isConnecting = true
   _clearReconnectTimer()
 
@@ -874,7 +887,7 @@ async function connect() {
     }
 
     receivedJids.clear()
-    const { version } = await fetchLatestBaileysVersion()
+    const version = await getBaileysVersion()
     const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
     const hasCreds = _hasSavedSession()
     momai.log(`connect: savedSession=${hasCreds}`)
@@ -1749,12 +1762,32 @@ process.on('message', async (msg) => {
           const credsPath = path.join(authDir, 'creds.json')
           const hasCredentials = _hasSavedSession()
           if (hasCredentials && !forcePairing) {
-            momai.log('request_qr: session on disk, reconnecting without QR reset')
-            if (!sock) {
-              preventAutoReconnect = false
-              connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
+            if (sock && connected) {
+              momai.log('request_qr: already connected, returning current state')
+              result = { ok: true, pending: true, hasCredentials: true, connected: true }
+              break
             }
-            result = { ok: true, pending: true, hasCredentials: true }
+            momai.log('request_qr: stale credentials detected, force-pairing to self-heal')
+            try {
+              if (fsSync.existsSync(authDir)) {
+                fsSync.rmSync(authDir, { recursive: true, force: true })
+              }
+            } catch {
+              try {
+                if (fsSync.existsSync(credsPath)) fsSync.unlinkSync(credsPath)
+              } catch {}
+            }
+            lastQr = null
+            lastQrAt = 0
+            if (sock) {
+              try {
+                sock.end(undefined)
+              } catch {}
+              sock = null
+            }
+            preventAutoReconnect = false
+            connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
+            result = { ok: true, pending: true, hasCredentials: false }
             break
           }
           if (hasCredentials && forcePairing) {
