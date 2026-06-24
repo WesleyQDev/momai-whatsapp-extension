@@ -9,7 +9,7 @@
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "version": "0.3.6",
+  "version": "0.3.7",
   "ui": {
     "page": "dist/page.js",
     "pageType": "whatsapp-page",
@@ -50,9 +50,4 @@
     "label": "WHATSAPP",
     "rule": "monitor, reply, or send WhatsApp messages via the whatsapp tools."
   },
-  "voice_triggers": [
-    "whatsapp",
-    "mandar mensagem",
-    "responder"
-  ]
 }
