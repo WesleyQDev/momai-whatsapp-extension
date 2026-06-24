@@ -914,20 +914,29 @@ async function connect() {
       () => false
     )
     if (encCredsExists && !decrypted) {
-      const errorMsg =
-        'WhatsApp credentials are encrypted but could not be decrypted. ' +
-        'OS keychain may be unavailable. Please reconnect.'
-      momai.log(`[whatsapp] FATAL: ${errorMsg}`)
+      // creds.json.enc exists but cannot be decrypted (e.g. OS keychain
+      // locked, safeStorage unavailable in dev mode). The encrypted session
+      // is already lost — there is nothing to preserve. Delete the stale
+      // encrypted file and continue with a fresh start so the user can
+      // scan a new QR code. Exiting (process.exit(1)) would trap the app
+      // in an infinite restart loop with no way to re-pair.
+      momai.log(
+        '[whatsapp] WARN: creds.json.enc could not be decrypted ' +
+          '(safeStorage unavailable?). Clearing stale credentials for fresh re-pair.'
+      )
+      try {
+        await fs.unlink(encCredsPath)
+      } catch {}
+      try {
+        const plainCreds = path.join(authDir, 'creds.json')
+        await fs.unlink(plainCreds).catch(() => {})
+      } catch {}
       momai.sendEvent('authenticated', {
         status: 'logged_out',
         reason: 'keychain_unavailable',
-        message: errorMsg
+        message:
+          'Credenciais anteriores não puderam ser descriptografadas. Por favor, reconecte com um novo QR code.'
       })
-      momai.sendEvent('connection_status', {
-        status: 'disconnected',
-        reason: 'keychain_unavailable'
-      })
-      process.exit(1)
     }
     const { state, saveCreds } = await useMultiFileAuthState(authDir)
 
