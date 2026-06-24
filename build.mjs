@@ -21,8 +21,7 @@ mkdirSync(path.join(__dirname, 'dist'), { recursive: true })
 const options = {
   entryPoints: entries.map(e => ({ in: e.in, out: e.out })),
   bundle: true,
-  format: 'iife',
-  globalName: '__skillBundle',
+  format: 'esm',
   jsx: 'automatic',
   jsxImportSource: 'react',
   target: 'es2022',
