@@ -9,6 +9,45 @@
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "version": "0.2.2"
+  "version": "0.3.0",
+  "ui": {
+    "page": "dist/page.js",
+    "pageType": "whatsapp-page",
+    "panel": "dist/panel.js",
+    "panelType": "whatsapp-panel"
+  },
+  "eventTypes": [
+    "qr_code",
+    "authenticated",
+    "connection_status",
+    "contacts_synced",
+    "history_loaded",
+    "whatsapp_message"
+  ],
+  "routes": [
+    { "method": "POST", "path": "/disconnect",           "tool": "disconnect" },
+    { "method": "POST", "path": "/restart",              "tool": "restart" },
+    { "method": "POST", "path": "/sync",                 "tool": "sync" },
+    { "method": "POST", "path": "/flush-history",        "tool": "flush_history" },
+    { "method": "POST", "path": "/process-notification", "tool": "process_notification" }
+  ],
+  "storage": {
+    "description": "Sessão WhatsApp criptografada (credenciais Baileys), contatos, histórico de mensagens, preferências de monitoramento.",
+    "locations": ["baileys-auth/", "*.json (contatos, histórico, settings)"]
+  },
+  "voiceHooks": {
+    "reply": {
+      "tool": "get_history",
+      "promptTemplate": "[INSTRUCAO: O usuario esta respondendo a \"{contactName}\" no WhatsApp. A ultima mensagem dele foi: \"{lastMessage}\". Use a ferramenta send_message para enviar a resposta. NAO responda no chat, apenas execute o send_message.]"
+    }
+  },
+  "persistOnQuit": "flush_history",
+  "theme": {
+    "gradient": "from-emerald-500 to-green-600",
+    "accent": "emerald"
+  },
+  "toolPriority": {
+    "label": "WHATSAPP",
+    "rule": "monitor, reply, or send WhatsApp messages via the whatsapp tools."
+  }
 }
-

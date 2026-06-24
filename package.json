@@ -1,13 +1,28 @@
 {
   "name": "momai-whatsapp-extension",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "WhatsApp extension for MomAI - Monitor and reply to WhatsApp messages via voice or text",
+  "type": "module",
+  "description": "Extensão WhatsApp para MomAI",
   "author": "WesleyQDev",
   "license": "MIT",
   "main": "background-worker.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.0.0",
     "pino": "^8.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }
