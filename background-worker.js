@@ -157,6 +157,23 @@ function _qrStillValid() {
   return Boolean(lastQr && Date.now() - lastQrAt < QR_TTL_MS)
 }
 
+// Baileys fires `creds.update` very frequently (every few hundred ms while
+// connected). Re-encrypting on every event would thrash safeStorage. Debounce
+// so the .enc is at most RE_ENCRYPT_DEBOUNCE_MS behind the plain file. The
+// migration in baileys-cred-migration.js picks up any remaining drift on the
+// next worker restart as a safety net.
+const RE_ENCRYPT_DEBOUNCE_MS = 1000
+let reEncryptDebounceTimer = null
+function _scheduleReEncrypt() {
+  if (reEncryptDebounceTimer) return
+  reEncryptDebounceTimer = setTimeout(() => {
+    reEncryptDebounceTimer = null
+    reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth')).catch(
+      (err) => momai.log(`debounced re-encrypt failed: ${err.message}`)
+    )
+  }, RE_ENCRYPT_DEBOUNCE_MS)
+}
+
 /* creds.json exists after useMultiFileAuthState even without a real session.
    Only treat it as "valid" if Baileys saved a real registrationId. */
 function _hasSavedSession() {
@@ -1005,7 +1022,10 @@ async function connect() {
       }
     })
 
-    sock.ev.on('creds.update', saveCreds)
+    sock.ev.on('creds.update', () => {
+      saveCreds()
+      _scheduleReEncrypt()
+    })
 
     sock.ev.on('connection.update', async (update) => {
       const { qr, connection, lastDisconnect } = update
@@ -1128,8 +1148,30 @@ async function connect() {
           _clearReconnectTimer()
           reconnectTimer = setTimeout(connect, CHECK_INTERVAL)
         } else {
+          // LOGGED OUT: Baileys confirmed the stored creds are invalid.
+          // Wipe the auth dir immediately and trigger a fresh connection
+          // so the user sees a QR without having to navigate to the page
+          // (the UI's beginPairing() flow used to do this, but it raced
+          // with the page load and wiped prematurely on every open).
+          momai.log('WhatsApp logged out — wiping stale auth dir for fresh re-pair')
+          try {
+            const fsSync = require('fs')
+            if (fsSync.existsSync(authDir)) {
+              fsSync.rmSync(authDir, { recursive: true, force: true })
+            }
+          } catch (err) {
+            momai.log(`logged-out wipe failed: ${err.message}`)
+          }
+          lastQr = null
+          lastQrAt = 0
           momai.sendEvent('authenticated', { status: 'logged_out' })
           momai.sendEvent('connection_status', { status: 'disconnected' })
+          _clearReconnectTimer()
+          setTimeout(() => {
+            connect().catch((err) =>
+              momai.log(`post-loggedout connect failed: ${err.message}`)
+            )
+          }, 500)
         }
       }
     })
@@ -1823,59 +1865,28 @@ process.on('message', async (msg) => {
             result = { ok: true, connected: true }
             break
           }
-          if (_qrStillValid()) {
+          if (_qrStillValid() && !forcePairing) {
             _emitQrCode(lastQr)
             result = { ok: true, qr: lastQr }
             break
           }
           const fsSync = require('fs')
           const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
-          const credsPath = path.join(authDir, 'creds.json')
-          const hasCredentials = _hasSavedSession()
-          if (hasCredentials && !forcePairing) {
-            if (sock && connected) {
-              momai.log('request_qr: already connected, returning current state')
-              result = { ok: true, pending: true, hasCredentials: true, connected: true }
-              break
-            }
-            momai.log('request_qr: stale credentials detected, force-pairing to self-heal')
-            try {
-              if (fsSync.existsSync(authDir)) {
-                fsSync.rmSync(authDir, { recursive: true, force: true })
-              }
-            } catch {
-              try {
-                if (fsSync.existsSync(credsPath)) fsSync.unlinkSync(credsPath)
-              } catch {}
-            }
-            lastQr = null
-            lastQrAt = 0
-            if (sock) {
-              try {
-                sock.end(undefined)
-              } catch {}
-              sock = null
-            }
-            preventAutoReconnect = false
-            connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
-            result = { ok: true, pending: true, hasCredentials: false }
-            break
-          }
-          if (hasCredentials && forcePairing) {
+          if (forcePairing) {
             momai.log('request_qr: force pairing — clearing saved session')
             try {
               if (fsSync.existsSync(authDir)) {
                 fsSync.rmSync(authDir, { recursive: true, force: true })
               }
-            } catch {
-              try {
-                if (fsSync.existsSync(credsPath)) fsSync.unlinkSync(credsPath)
-              } catch {}
+            } catch (err) {
+              momai.log(`force-pairing wipe failed: ${err.message}`)
             }
             lastQr = null
             lastQrAt = 0
           } else {
-            momai.log('request_qr: no credentials, starting pairing')
+            momai.log(
+              'request_qr: triggering connect (no wipe; loggedOut handler manages cleanup)'
+            )
           }
           if (sock) {
             try {
@@ -1957,6 +1968,17 @@ process.on('message', async (msg) => {
         case 'flush_history':
           await flushPersistedChatHistory()
           result = { ok: true, count: chatHistory.length }
+          break
+        case 'flush_credentials':
+          try {
+            const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+            const reEncrypted = await reEncryptCredsAfterBaileys(authDir)
+            await flushPersistedChatHistory()
+            result = { ok: true, reEncrypted, count: chatHistory.length }
+          } catch (err) {
+            momai.log(`flush_credentials failed: ${err.message}`)
+            result = { ok: false, error: err.message }
+          }
           break
         case 'get_avatars': {
           const jids = Array.isArray(msg.payload.args?.jids) ? msg.payload.args.jids : []

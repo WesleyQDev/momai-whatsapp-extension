@@ -9,7 +9,7 @@
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "version": "0.3.4",
+  "version": "0.3.6",
   "ui": {
     "page": "dist/page.js",
     "pageType": "whatsapp-page",
@@ -41,7 +41,7 @@
       "promptTemplate": "[INSTRUCAO: O usuario esta respondendo a \"{contactName}\" no WhatsApp. A ultima mensagem dele foi: \"{lastMessage}\". Use a ferramenta send_message para enviar a resposta. NAO responda no chat, apenas execute o send_message.]"
     }
   },
-  "persistOnQuit": "flush_history",
+  "persistOnQuit": "flush_credentials",
   "theme": {
     "gradient": "from-emerald-500 to-green-600",
     "accent": "emerald"
@@ -49,5 +49,10 @@
   "toolPriority": {
     "label": "WHATSAPP",
     "rule": "monitor, reply, or send WhatsApp messages via the whatsapp tools."
-  }
+  },
+  "voice_triggers": [
+    "whatsapp",
+    "mandar mensagem",
+    "responder"
+  ]
 }

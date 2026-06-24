@@ -357,9 +357,16 @@ export default function WhatsAppView() {
       if (qrRequestInFlight.current) return false
       qrRequestInFlight.current = true
       try {
+        // Default `force` to false. The worker only wipes the auth dir when
+        // `force: true` is explicitly passed (e.g. an explicit "Reset session"
+        // button). Auto-pairing (beginPairing) must NOT wipe, otherwise we
+        // delete the Baileys creds the worker just decrypted and the user
+        // gets a QR on every page open. The worker now self-heals on
+        // `loggedOut` (background-worker.js) so the QR appears when the
+        // session is genuinely invalid.
         const { data } = await api.post('/extensions/whatsapp/command', {
           toolName: 'request_qr',
-          args: { force: opts?.force ?? pairingActive }
+          args: { force: opts?.force ?? false }
         })
         if (data?.qr) {
           applyQrString(data.qr)
@@ -372,7 +379,7 @@ export default function WhatsAppView() {
         qrRequestInFlight.current = false
       }
     },
-    [applyQrString, pairingActive]
+    [applyQrString]
   )
 
   const beginPairing = useCallback(() => {
@@ -380,7 +387,8 @@ export default function WhatsAppView() {
     setHasCredentials(false)
     setQrUrl(null)
     qrRequestInFlight.current = false
-    requestQr({ force: true }).catch(() => {})
+    // No `force: true` — see comment in requestQr above.
+    requestQr().catch(() => {})
   }, [requestQr])
 
   const loadAvatars = useCallback(async (jids: string[]) => {
@@ -694,7 +702,8 @@ export default function WhatsAppView() {
     const poll = async () => {
       for (let attempt = 0; attempt < 30 && !cancelled; attempt++) {
         await loadStats()
-        const gotQr = await requestQr({ force: true })
+        // No `force: true` here either — see comment in requestQr.
+        const gotQr = await requestQr()
         if (cancelled || gotQr || qrUrl) return
         await new Promise((r) => setTimeout(r, Math.min(400 + attempt * 80, 1200)))
       }

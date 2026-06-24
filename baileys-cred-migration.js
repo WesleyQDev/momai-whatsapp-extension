@@ -31,22 +31,40 @@ function createMigration(bridge) {
   return {
     /**
      * One-time migration: encrypt any legacy `creds.json` to `creds.json.enc` and remove the plain file.
-     * Idempotent — a no-op if `creds.json.enc` already exists, or if `creds.json` is missing.
-     * Returns true when a migration was performed, false otherwise (incl. safeStorage unavailable).
+     * Also re-encrypts when `creds.json.enc` exists but is older than `creds.json` — that means
+     * Baileys updated the plain file after the last re-encrypt (e.g. user closed the app while
+     * connected, before the post-close re-encrypt completed) and the .enc on disk is stale.
+     * Returns true when a (re-)encryption was performed, false otherwise.
      */
     async migratePlainCredsToEncrypted(baseAuth) {
       const plainCreds = _plainCredsPath(baseAuth)
       const encCreds = _encCredsPath(baseAuth)
-      if (fs.existsSync(plainCreds) && !fs.existsSync(encCreds)) {
-        const plain = fs.readFileSync(plainCreds, 'utf-8')
-        const encrypted = await bridge.encryptForStorage(plain)
-        if (encrypted) {
-          secureWriteFileSync(encCreds, Buffer.from(encrypted, 'base64'))
-          fs.unlinkSync(plainCreds)
-          console.log('[whatsapp] migrated plain creds.json → creds.json.enc')
-          return true
+      if (fs.existsSync(plainCreds)) {
+        let shouldMigrate = false
+        if (!fs.existsSync(encCreds)) {
+          shouldMigrate = true
+        } else {
+          try {
+            const plainStat = fs.statSync(plainCreds)
+            const encStat = fs.statSync(encCreds)
+            if (plainStat.mtimeMs > encStat.mtimeMs) {
+              shouldMigrate = true
+            }
+          } catch {
+            shouldMigrate = true
+          }
         }
-        console.warn('[whatsapp] migration skipped: safeStorage unavailable')
+        if (shouldMigrate) {
+          const plain = fs.readFileSync(plainCreds, 'utf-8')
+          const encrypted = await bridge.encryptForStorage(plain)
+          if (encrypted) {
+            secureWriteFileSync(encCreds, Buffer.from(encrypted, 'base64'))
+            fs.unlinkSync(plainCreds)
+            console.log('[whatsapp] (re-)encrypted creds.json → creds.json.enc')
+            return true
+          }
+          console.warn('[whatsapp] migration skipped: safeStorage unavailable')
+        }
       }
       return false
     },
