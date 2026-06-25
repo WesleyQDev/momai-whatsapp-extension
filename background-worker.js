@@ -1598,12 +1598,16 @@ async function handleMessagesUpsert({ messages }) {
       }
 
       momai.log(
-        `[notif-debug] Sending whatsapp_notification event: contact=${finalDisplayName} isGroup=${!!isGroup}`
+        `[notif-debug] Sending whatsapp_notification event: contact=${finalDisplayName} isGroup=${!!isGroup} isNoteToSelf=${isNoteToSelf}`
       )
+      // For self-messages, use the user's own JID (not the corrupted LID-resolved one)
+      const notifContactJid = isNoteToSelf
+        ? (myJidStandardized || replyJid)
+        : replyJid
       momai.sendEvent('whatsapp_notification', {
         contact: finalDisplayName,
         senderName: isGroup ? displayName : undefined,
-        contactJid: replyJid,
+        contactJid: notifContactJid,
         senderJid,
         message: text,
         timestamp: msg.messageTimestamp,
