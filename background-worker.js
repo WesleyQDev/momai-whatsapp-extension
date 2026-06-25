@@ -1579,6 +1579,9 @@ async function handleMessagesUpsert({ messages }) {
         }
       }
 
+      momai.log(
+        `[notif-debug] Sending whatsapp_notification event: contact=${finalDisplayName} isGroup=${!!isGroup}`
+      )
       momai.sendEvent('whatsapp_notification', {
         contact: finalDisplayName,
         senderName: isGroup ? displayName : undefined,
