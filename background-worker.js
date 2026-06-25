@@ -1547,12 +1547,8 @@ async function handleMessagesUpsert({ messages }) {
     )
 
     const standardizedRemoteJid = resolveStandardJid(remoteJid)
-    const isNoteToSelf =
-      isFromMe &&
-      standardizedRemoteJid &&
-      _currentPhone &&
-      (standardizedRemoteJid === _currentPhone + '@s.whatsapp.net' ||
-        standardizedRemoteJid === _currentPhone + '@c.us')
+    const myJid = resolveStandardJid(sock?.user?.id || sock?.authState?.creds?.me?.id)
+    const isNoteToSelf = isFromMe && standardizedRemoteJid && myJid && standardizedRemoteJid === myJid
 
     const isOldMessage = msg.messageTimestamp && Number(msg.messageTimestamp) < workerStartTime
 
