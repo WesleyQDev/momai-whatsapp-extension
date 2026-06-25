@@ -4,6 +4,27 @@ import ImageViewer from 'momai:image-viewer'
 import { API_URL } from 'momai:constants'
 import { registerRenderer } from './registry-bridge'
 
+async function rendererFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const token = window.api.getSessionToken()
+  const headers: Record<string, any> = {
+    'Content-Type': 'application/json'
+  }
+  if (options.headers) {
+    const h = options.headers as Record<string, any> | Headers
+    if (h instanceof Headers) {
+      h.forEach((v, k) => {
+        headers[k] = v
+      })
+    } else {
+      Object.assign(headers, h)
+    }
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return fetch(path, { ...options, headers })
+}
+
 type HistoryLine = {
   direction: 'incoming' | 'outgoing'
   text: string
@@ -140,7 +161,7 @@ export default function WhatsAppNotificationCard({ data }: { data: any }) {
     async (intent: string) => {
       const displayContact = senderName || contact
       try {
-        const res = await window.api.apiFetch(`${API_URL}/extensions/llm/complete`, {
+        const res = await rendererFetch(`${API_URL}/extensions/llm/complete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -190,7 +211,7 @@ export default function WhatsAppNotificationCard({ data }: { data: any }) {
 
       setSending(true)
       try {
-        const res = await window.api.apiFetch(`${API_URL}/extensions/whatsapp/command`, {
+        const res = await rendererFetch(`${API_URL}/extensions/whatsapp/command`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -244,7 +265,7 @@ export default function WhatsAppNotificationCard({ data }: { data: any }) {
     setVoiceStatus('listening')
     ;(async () => {
       try {
-        const res = await window.api.apiFetch(`${API_URL}/voice/whatsapp/reply/wait`, {
+        const res = await rendererFetch(`${API_URL}/voice/whatsapp/reply/wait`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contact_jid: contactJid }),
