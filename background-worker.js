@@ -1550,9 +1550,11 @@ async function handleMessagesUpsert({ messages }) {
     const myJidRaw = sock?.user?.id || sock?.authState?.creds?.me?.id
     const myJidStandardized = resolveStandardJid(myJidRaw)
     const myLidRaw = sock?.user?.lid || sock?.authState?.creds?.me?.lid
-    const myLidStandardized = resolveStandardJid(myLidRaw)
-    // Note to Self: message sent to own number. Compare raw and standardized JIDs,
-    // plus the user's own LID if available (LID mapping in waContacts can be corrupted).
+    // Strip device suffix from LID manually (resolveStandardJid uses corrupted waContacts mapping)
+    const myLidStandardized = myLidRaw?.includes(':') && myLidRaw?.includes('@')
+      ? myLidRaw.split('@')[0].split(':')[0] + '@' + myLidRaw.split('@')[1]
+      : myLidRaw
+    // Note to Self: message sent to own number. Compare raw and standardized JIDs.
     const isNoteToSelf =
       isFromMe &&
       !isGroup &&
