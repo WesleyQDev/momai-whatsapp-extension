@@ -2029,6 +2029,20 @@ process.on('message', async (msg) => {
         case 'panel':
           result = await getPanelData()
           break
+        case 'process_notification': {
+          const notifContact = msg.payload?.args?.contact || 'Desconhecido'
+          const notifMessage = msg.payload?.args?.message || ''
+          const quickReplies = []
+          if (notifMessage) {
+            quickReplies.push(`Obrigado pela mensagem, ${notifContact}!`)
+            quickReplies.push(`Vou verificar e respondo em breve.`)
+          }
+          result = {
+            quickReplies,
+            tts: `${notifContact} diz: ${notifMessage}`
+          }
+          break
+        }
         default: {
           // Voice command via "responda": reply to last contact
           const lastIncoming = chatHistory.find((m) => m.direction === 'incoming')

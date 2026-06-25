@@ -9,7 +9,7 @@
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "version": "0.3.8",
+  "version": "0.3.9",
   "ui": {
     "page": "dist/page.js",
     "pageType": "whatsapp-page",
@@ -22,7 +22,8 @@
     "connection_status",
     "contacts_synced",
     "history_loaded",
-    "whatsapp_message"
+    "whatsapp_message",
+    "whatsapp_notification"
   ],
   "routes": [
     { "method": "POST", "path": "/disconnect",           "tool": "disconnect" },
