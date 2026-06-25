@@ -35,11 +35,53 @@ try {
 const path = require('path')
 const fs = require('node:fs/promises')
 const {
-  migratePlainCredsToEncrypted,
-  decryptCredsForBaileys,
-  reEncryptCredsAfterBaileys
+  migratePlainCredsToEncrypted: _migratePlainCredsToEncrypted,
+  decryptCredsForBaileys: _decryptCredsForBaileys,
+  reEncryptCredsAfterBaileys: _reEncryptCredsAfterBaileys
 } = require('./baileys-cred-migration')
 const { secureWriteFile } = require('./fs-permissions')
+
+// Wrappers that track whether safeStorage is available. If encryption ever fails,
+// we skip it entirely to avoid losing the session on every startup.
+async function migratePlainCredsToEncrypted(baseAuth) {
+  if (!safeStorageAvailable) return false
+  const result = await _migratePlainCredsToEncrypted(baseAuth)
+  if (!result) {
+    // Check if there was a plain file but encryption failed (migration skipped)
+    const fs = require('fs')
+    const path = require('node:path')
+    const plainCreds = path.join(baseAuth, 'creds.json')
+    const encCreds = path.join(baseAuth, 'creds.json.enc')
+    if (fs.existsSync(plainCreds) && !fs.existsSync(encCreds)) {
+      safeStorageAvailable = false
+    }
+  }
+  return result
+}
+
+async function decryptCredsForBaileys(baseAuth) {
+  if (!safeStorageAvailable) return false
+  const result = await _decryptCredsForBaileys(baseAuth)
+  if (!result) {
+    // Check if there was an enc file but decryption failed
+    const fs = require('fs')
+    const path = require('node:path')
+    const encCreds = path.join(baseAuth, 'creds.json.enc')
+    if (fs.existsSync(encCreds)) {
+      safeStorageAvailable = false
+    }
+  }
+  return result
+}
+
+async function reEncryptCredsAfterBaileys(baseAuth) {
+  if (!safeStorageAvailable) return false
+  const result = await _reEncryptCredsAfterBaileys(baseAuth)
+  if (!result) {
+    safeStorageAvailable = false
+  }
+  return result
+}
 
 // Crash protection — log instead of exiting on unhandled errors
 process.on('uncaughtException', (err) => {
@@ -123,6 +165,7 @@ let sock = null
 let preventAutoReconnect = false
 let reconnectTimer = null
 let isConnecting = false
+let safeStorageAvailable = true
 
 function _clearReconnectTimer() {
   if (reconnectTimer) {
@@ -932,28 +975,16 @@ async function connect() {
     )
     if (encCredsExists && !decrypted) {
       // creds.json.enc exists but cannot be decrypted (e.g. OS keychain
-      // locked, safeStorage unavailable in dev mode). The encrypted session
-      // is already lost — there is nothing to preserve. Delete the stale
-      // encrypted file and continue with a fresh start so the user can
-      // scan a new QR code. Exiting (process.exit(1)) would trap the app
-      // in an infinite restart loop with no way to re-pair.
+      // locked, safeStorage unavailable in dev mode). Keep the encrypted
+      // file and let Baileys try to use it. If Baileys can't use it, it
+      // will generate a QR code anyway. We don't wipe the creds here
+      // because that would force a re-scan on every startup when
+      // safeStorage is unavailable, which is annoying for the user.
       momai.log(
         '[whatsapp] WARN: creds.json.enc could not be decrypted ' +
-          '(safeStorage unavailable?). Clearing stale credentials for fresh re-pair.'
+          '(safeStorage unavailable?). Keeping encrypted creds; Baileys will ' +
+          'request a new QR if it cannot use them.'
       )
-      try {
-        await fs.unlink(encCredsPath)
-      } catch {}
-      try {
-        const plainCreds = path.join(authDir, 'creds.json')
-        await fs.unlink(plainCreds).catch(() => {})
-      } catch {}
-      momai.sendEvent('authenticated', {
-        status: 'logged_out',
-        reason: 'keychain_unavailable',
-        message:
-          'Credenciais anteriores não puderam ser descriptografadas. Por favor, reconecte com um novo QR code.'
-      })
     }
     const { state, saveCreds } = await useMultiFileAuthState(authDir)
 

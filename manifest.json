@@ -9,7 +9,7 @@
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "version": "0.3.19",
+  "version": "0.3.20",
   "ui": {
     "page": "dist/page.js",
     "pageType": "whatsapp-page",
