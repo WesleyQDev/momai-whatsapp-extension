@@ -1613,6 +1613,7 @@ async function handleMessagesUpsert({ messages }) {
         timestamp: msg.messageTimestamp,
         contactAvatar: resolveChatAvatarUrl(remoteJid, isGroup, senderJid),
         isGroup: !!isGroup,
+        isNoteToSelf,
         groupName: isGroup ? resGroupName : undefined,
         isAdminsOnly: !!groupAnnounce && !isMeAdmin
       })
@@ -2057,6 +2058,17 @@ process.on('message', async (msg) => {
         case 'process_notification': {
           const notifContact = msg.payload?.args?.contact || 'Desconhecido'
           const notifMessage = msg.payload?.args?.message || ''
+          const isNoteToSelf = !!msg.payload?.args?.isNoteToSelf
+          const isGroupNotif = !!msg.payload?.args?.isGroup
+          const isPhoneNumber = /^\d+$/.test(String(notifContact).replace(/\D/g, ''))
+          let ttsText
+          if (isNoteToSelf) {
+            ttsText = `Você enviou para si mesmo: ${notifMessage}`
+          } else if (isPhoneNumber) {
+            ttsText = `Um número desconhecido disse: ${notifMessage}`
+          } else {
+            ttsText = `${notifContact} disse: ${notifMessage}`
+          }
           const quickReplies = []
           if (notifMessage) {
             quickReplies.push(`Obrigado pela mensagem, ${notifContact}!`)
@@ -2064,7 +2076,7 @@ process.on('message', async (msg) => {
           }
           result = {
             quickReplies,
-            tts: `${notifContact} diz: ${notifMessage}`
+            tts: ttsText
           }
           break
         }
