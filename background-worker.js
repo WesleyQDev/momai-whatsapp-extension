@@ -1552,11 +1552,16 @@ async function handleMessagesUpsert({ messages }) {
 
     const isOldMessage = msg.messageTimestamp && Number(msg.messageTimestamp) < workerStartTime
 
+    const senderDisabled = _isContactDisabled(resolvedSenderJid)
+    const remoteDisabled = _isContactDisabled(remoteJid)
     const shouldNotify =
       !notificationsDisabled &&
       !isOldMessage &&
-      ((!isFromMe && !_isContactDisabled(resolvedSenderJid) && !_isContactDisabled(remoteJid)) ||
+      ((!isFromMe && !senderDisabled && !remoteDisabled) ||
         isNoteToSelf)
+    momai.log(
+      `[notif-debug] shouldNotify=${shouldNotify} isFromMe=${isFromMe} isOldMessage=${isOldMessage} notificationsDisabled=${notificationsDisabled} senderDisabled=${senderDisabled} remoteDisabled=${remoteDisabled} isNoteToSelf=${isNoteToSelf} remoteJid=${remoteJid} resolvedSenderJid=${resolvedSenderJid} disabledContacts=${JSON.stringify(disabledContacts)}`
+    )
     if (shouldNotify) {
       const finalDisplayName = isGroup ? resGroupName : displayName
 
