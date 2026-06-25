@@ -1547,8 +1547,9 @@ async function handleMessagesUpsert({ messages }) {
     )
 
     const standardizedRemoteJid = resolveStandardJid(remoteJid)
-    const myJid = resolveStandardJid(sock?.user?.id || sock?.authState?.creds?.me?.id)
-    const isNoteToSelf = isFromMe && standardizedRemoteJid && myJid && standardizedRemoteJid === myJid
+    const myJidRaw = sock?.user?.id || sock?.authState?.creds?.me?.id
+    const myJidStandardized = resolveStandardJid(myJidRaw)
+    const isNoteToSelf = isFromMe && (remoteJid === myJidRaw || standardizedRemoteJid === myJidStandardized)
 
     const isOldMessage = msg.messageTimestamp && Number(msg.messageTimestamp) < workerStartTime
 
@@ -1560,7 +1561,7 @@ async function handleMessagesUpsert({ messages }) {
       ((!isFromMe && !senderDisabled && !remoteDisabled) ||
         isNoteToSelf)
     momai.log(
-      `[notif-debug] shouldNotify=${shouldNotify} isFromMe=${isFromMe} isOldMessage=${isOldMessage} notificationsDisabled=${notificationsDisabled} senderDisabled=${senderDisabled} remoteDisabled=${remoteDisabled} isNoteToSelf=${isNoteToSelf} remoteJid=${remoteJid} resolvedSenderJid=${resolvedSenderJid} disabledContacts=${JSON.stringify(disabledContacts)}`
+      `[notif-debug] shouldNotify=${shouldNotify} isFromMe=${isFromMe} isOldMessage=${isOldMessage} notificationsDisabled=${notificationsDisabled} senderDisabled=${senderDisabled} remoteDisabled=${remoteDisabled} isNoteToSelf=${isNoteToSelf} remoteJid=${remoteJid} standardizedRemoteJid=${standardizedRemoteJid} resolvedSenderJid=${resolvedSenderJid} myJidRaw=${myJidRaw} myJidStandardized=${myJidStandardized} disabledContacts=${JSON.stringify(disabledContacts)}`
     )
     if (shouldNotify) {
       const finalDisplayName = isGroup ? resGroupName : displayName
