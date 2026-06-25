@@ -1549,14 +1549,16 @@ async function handleMessagesUpsert({ messages }) {
     const standardizedRemoteJid = resolveStandardJid(remoteJid)
     const myJidRaw = sock?.user?.id || sock?.authState?.creds?.me?.id
     const myJidStandardized = resolveStandardJid(myJidRaw)
-    const myLid = sock?.user?.lid || sock?.authState?.creds?.me?.lid
+    const myLidRaw = sock?.user?.lid || sock?.authState?.creds?.me?.lid
+    const myLidStandardized = resolveStandardJid(myLidRaw)
     // Note to Self: message sent to own number. Compare raw and standardized JIDs,
     // plus the user's own LID if available (LID mapping in waContacts can be corrupted).
     const isNoteToSelf =
       isFromMe &&
       !isGroup &&
       (remoteJid === myJidRaw ||
-        remoteJid === myLid ||
+        remoteJid === myLidRaw ||
+        remoteJid === myLidStandardized ||
         standardizedRemoteJid === myJidStandardized)
 
     const isOldMessage = msg.messageTimestamp && Number(msg.messageTimestamp) < workerStartTime
@@ -1569,7 +1571,7 @@ async function handleMessagesUpsert({ messages }) {
       ((!isFromMe && !senderDisabled && !remoteDisabled) ||
         isNoteToSelf)
     momai.log(
-      `[notif-debug] shouldNotify=${shouldNotify} isFromMe=${isFromMe} isOldMessage=${isOldMessage} notificationsDisabled=${notificationsDisabled} senderDisabled=${senderDisabled} remoteDisabled=${remoteDisabled} isNoteToSelf=${isNoteToSelf} remoteJid=${remoteJid} standardizedRemoteJid=${standardizedRemoteJid} resolvedSenderJid=${resolvedSenderJid} myJidRaw=${myJidRaw} myJidStandardized=${myJidStandardized} myLid=${myLid} isGroup=${isGroup} disabledContacts=${JSON.stringify(disabledContacts)}`
+      `[notif-debug] shouldNotify=${shouldNotify} isFromMe=${isFromMe} isOldMessage=${isOldMessage} notificationsDisabled=${notificationsDisabled} senderDisabled=${senderDisabled} remoteDisabled=${remoteDisabled} isNoteToSelf=${isNoteToSelf} remoteJid=${remoteJid} standardizedRemoteJid=${standardizedRemoteJid} resolvedSenderJid=${resolvedSenderJid} myJidRaw=${myJidRaw} myJidStandardized=${myJidStandardized} myLidRaw=${myLidRaw} myLidStandardized=${myLidStandardized} isGroup=${isGroup} disabledContacts=${JSON.stringify(disabledContacts)}`
     )
     if (shouldNotify) {
       const finalDisplayName = isGroup ? resGroupName : displayName
