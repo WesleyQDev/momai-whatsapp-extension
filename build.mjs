@@ -54,6 +54,17 @@ const makeReactGlobalPlugin = {
   }
 }
 
+// Detect where the momai source folder is
+let momaiSrcDir = path.resolve(__dirname, '../../../../src/renderer/src')
+if (!existsSync(momaiSrcDir)) {
+  // Try sibling directory structure (if cloned as a sibling to momai)
+  momaiSrcDir = path.resolve(__dirname, '../momai/apps/momai/src/renderer/src')
+}
+if (!existsSync(momaiSrcDir)) {
+  console.error('[skill:build] Error: Could not find momai source directory. Make sure momai repository is a sibling or parent of this extension.')
+  process.exit(1)
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const options = {
   entryPoints: entries.map((e) => ({ in: e.in, out: e.out })),
@@ -69,25 +80,13 @@ const options = {
   logLevel: 'info',
   plugins: [makeReactGlobalPlugin],
   alias: {
-    'momai:registry': path.resolve(
-      __dirname,
-      '../../../../src/renderer/src/components/chat/SkillResponseRegistry.ts'
-    ),
-    'momai:events': path.resolve(
-      __dirname,
-      '../../../../src/renderer/src/hooks/useExtensionEvents.ts'
-    ),
-    'momai:api': path.resolve(__dirname, '../../../../src/renderer/src/services/api.ts'),
-    'momai:constants': path.resolve(__dirname, '../../../../src/renderer/src/constants.ts'),
-    'momai:text': path.resolve(__dirname, '../../../../src/renderer/src/utils/text.ts'),
-    'momai:tts-service': path.resolve(
-      __dirname,
-      '../../../../src/renderer/src/services/ttsService.ts'
-    ),
-    'momai:image-viewer': path.resolve(
-      __dirname,
-      '../../../../src/renderer/src/components/ImageViewer.tsx'
-    )
+    'momai:registry': path.resolve(momaiSrcDir, 'components/chat/SkillResponseRegistry.ts'),
+    'momai:events': path.resolve(momaiSrcDir, 'hooks/useExtensionEvents.ts'),
+    'momai:api': path.resolve(momaiSrcDir, 'services/api.ts'),
+    'momai:constants': path.resolve(momaiSrcDir, 'constants.ts'),
+    'momai:text': path.resolve(momaiSrcDir, 'utils/text.ts'),
+    'momai:tts-service': path.resolve(momaiSrcDir, 'services/ttsService.ts'),
+    'momai:image-viewer': path.resolve(momaiSrcDir, 'components/ImageViewer.tsx')
   },
   banner: {
     js: `;(function(){if(typeof window!=='undefined'&&!window.__skillRendererRegistry){window.__skillRendererRegistry={registerRenderer:function(){}};}})();`
