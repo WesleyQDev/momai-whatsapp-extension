@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { XMarkIcon, MicrophoneIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
+import QRCode from 'qrcode'
 import ImageViewer from 'momai:image-viewer'
 import { API_URL } from 'momai:constants'
 import { registerRenderer } from './registry-bridge'
@@ -101,11 +102,11 @@ function ContactAvatar({ src, name, id }: { src?: string | null; name: string; i
         style={{ backgroundColor: color }}
       >
         {initials}
-    </div>
-  )
-}
+      </div>
+    )
+  }
 
-registerRenderer('whatsapp-panel', WhatsAppNotificationCard)
+
 
   const isPhone = /^[+\d\s().-]*$/.test(name)
   return (
@@ -486,3 +487,139 @@ export default function WhatsAppNotificationCard({ data }: { data: any }) {
     </div>
   )
 }
+
+export function WhatsAppReconnectCard({ data }: { data: any }) {
+  const onClose = data?.onClose || (() => {})
+  const qr = data?.qr
+  const status = data?.status || 'disconnected'
+  const [qrUrl, setQrUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (status === 'connected') {
+      onClose()
+    }
+  }, [status, onClose])
+
+  useEffect(() => {
+    if (qr) {
+      QRCode.toDataURL(qr, { width: 220, margin: 1 })
+        .then((url) => setQrUrl(url))
+        .catch((err) => {
+          console.error('Failed to generate QR code data URL:', err)
+          setError('Falha ao processar o código QR.')
+        })
+    }
+  }, [qr])
+
+  const handleReconnect = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await rendererFetch(`${API_URL}/extensions/whatsapp/restart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true })
+      })
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+    } catch (err: any) {
+      console.error('Failed to reconnect/restart WhatsApp:', err)
+      setError('Falha ao solicitar novo código. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div
+      className="flex flex-col w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl overflow-hidden px-5 py-4 select-none"
+      style={{ WebkitAppRegion: 'drag' } as any}
+    >
+      <div
+        className="flex justify-between items-center mb-2"
+      >
+        <div className="flex items-center gap-2">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 p-1.5 rounded-lg shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-4 h-4"
+              fill="none"
+              stroke="#10B981"
+              strokeWidth="2"
+            >
+              <path d="M12 2.5C6.753 2.5 2.5 6.753 2.5 12c0 1.7.446 3.296 1.226 4.684L2.5 21.5l4.916-1.29A9.45 9.45 0 0 0 12 21.5c5.247 0 9.5-4.253 9.5-9.5S17.247 2.5 12 2.5z" />
+              <path
+                d="M16.3 14.66c-.2.56-1.18 1.08-1.64 1.12-.42.04-.96.2-2.78-.52-2.32-.92-3.78-3.28-3.9-3.44-.12-.16-.94-1.24-.94-2.36 0-1.12.58-1.68.8-1.9.2-.22.44-.28.6-.28h.46c.14 0 .34.04.52.48l.92 2.24c.08.2.12.4.02.64-.08.16-.18.36-.3.48-.12.12-.24.26-.1.48.52.88 1.16 1.56 2.06 2.08.22.14.38.08.54-.08.14-.16.66-.76.84-1 .18-.24.36-.2.64-.1.26.1 1.68.8 1.96.94.28.14.48.2.54.32.08.12.08.68-.14 1.28z"
+                fill="#10B981"
+                stroke="none"
+              />
+            </svg>
+          </div>
+          <span className="text-xs font-bold text-text">WhatsApp Desconectado</span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1 rounded-md hover:bg-text/10 text-text-muted hover:text-text transition-colors shrink-0"
+          style={{ WebkitAppRegion: 'no-drag' } as any}
+          aria-label="Fechar"
+        >
+          <XMarkIcon className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div
+        className="flex flex-col items-center text-center"
+      >
+        <p className="text-[11px] text-text-muted mb-3 max-w-[280px]">
+          Escaneie o código QR abaixo com o WhatsApp no seu celular para reconectar.
+        </p>
+
+        <div 
+          className="relative w-44 h-44 flex items-center justify-center bg-white rounded-xl p-2.5 border border-border/10 shadow-inner"
+          style={{ WebkitAppRegion: 'no-drag' } as any}
+        >
+          {qrUrl ? (
+            <img
+              src={qrUrl}
+              alt="WhatsApp QR Code"
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2">
+              <div className="w-7 h-7 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+              <span className="text-[10px] text-zinc-500 font-medium">Aguardando código...</span>
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <p className="text-[10px] text-red-400 mt-2 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg max-w-[260px]">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleReconnect}
+          disabled={loading}
+          style={{ WebkitAppRegion: 'no-drag' } as any}
+          className="mt-3 w-full max-w-[200px] py-2 px-4 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all duration-200 border border-emerald-500/30 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {loading ? 'Solicitando...' : 'Gerar Novo QR Code'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const _hostRegister =
+  typeof window !== 'undefined'
+    ? (window as any).__skillRendererRegistry?.registerRenderer
+    : undefined
+const _register = _hostRegister ?? registerRenderer
+_register('whatsapp-panel', WhatsAppNotificationCard)
+_register('whatsapp-reconnect', WhatsAppReconnectCard)

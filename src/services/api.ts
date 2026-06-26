@@ -416,6 +416,8 @@ export interface Extension {
   enabled: boolean
   installed?: boolean
   icon?: string
+  icon_url?: string
+  icon_bg?: string
   version?: string
   error?: string
   author?: string

@@ -155,6 +155,155 @@ class MessageRetryCache {
   }
 }
 const msgRetryCounterCache = new MessageRetryCache()
+
+const fsSync = require('fs')
+const lastSessionReset = new Map()
+
+function isPidRunning(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (e) {
+    return e.code === 'EPERM'
+  }
+}
+
+function acquireLock() {
+  const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+  const lockFile = path.join(authDir, 'worker.lock')
+  if (!fsSync.existsSync(authDir)) {
+    fsSync.mkdirSync(authDir, { recursive: true })
+  }
+  if (fsSync.existsSync(lockFile)) {
+    try {
+      const content = fsSync.readFileSync(lockFile, 'utf-8').trim()
+      const existingPid = parseInt(content, 10)
+      if (!isNaN(existingPid) && isPidRunning(existingPid)) {
+        momai.log(
+          `[whatsapp] Another instance is already running (PID: ${existingPid}). Exiting to prevent key corruption.`
+        )
+        process.exit(0)
+      }
+    } catch (err) {
+      momai.log(`[whatsapp] Error reading lockfile: ${err.message}. Overwriting.`)
+    }
+  }
+  try {
+    fsSync.writeFileSync(lockFile, String(process.pid), 'utf-8')
+    momai.log(`[whatsapp] Acquired worker lock (PID: ${process.pid})`)
+  } catch (err) {
+    momai.log(`[whatsapp] Failed to write lockfile: ${err.message}`)
+  }
+}
+
+function releaseLock() {
+  const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+  const lockFile = path.join(authDir, 'worker.lock')
+  try {
+    if (fsSync.existsSync(lockFile)) {
+      const content = fsSync.readFileSync(lockFile, 'utf-8').trim()
+      const pid = parseInt(content, 10)
+      if (pid === process.pid) {
+        fsSync.unlinkSync(lockFile)
+        momai.log(`[whatsapp] Released worker lock (PID: ${process.pid})`)
+      }
+    }
+  } catch (err) {
+    momai.log(`[whatsapp] Failed to release lockfile: ${err.message}`)
+  }
+}
+
+async function loadMessageCaches() {
+  try {
+    const sent = await momai.storage.get('message_cache_sent')
+    if (sent && typeof sent === 'object') {
+      for (const [k, v] of Object.entries(sent)) {
+        sentMessagesCache.set(k, v)
+      }
+    }
+    const stored = await momai.storage.get('message_cache_store')
+    if (stored && typeof stored === 'object') {
+      for (const [k, v] of Object.entries(stored)) {
+        messageStore.set(k, v)
+      }
+    }
+    momai.log(
+      `[whatsapp] Loaded cached messages: sent=${sentMessagesCache.size}, store=${messageStore.size}`
+    )
+  } catch (err) {
+    momai.log(`[whatsapp] Failed to load message caches: ${err.message}`)
+  }
+}
+
+let saveCacheTimer = null
+function queueSaveMessageCaches() {
+  if (saveCacheTimer) return
+  saveCacheTimer = setTimeout(async () => {
+    saveCacheTimer = null
+    try {
+      const sentObj = Object.fromEntries(sentMessagesCache.entries())
+      const storeObj = Object.fromEntries(messageStore.entries())
+      await momai.storage.set('message_cache_sent', sentObj)
+      await momai.storage.set('message_cache_store', storeObj)
+    } catch (err) {
+      momai.log(`[whatsapp] Failed to save message caches: ${err.message}`)
+    }
+  }, 10000)
+}
+
+async function repairSession(jid) {
+  if (!jid) return
+  const now = Date.now()
+  const lastReset = lastSessionReset.get(jid) || 0
+  // Rate-limit: max 1 reset per 5 minutes (300000 ms)
+  if (now - lastReset < 300000) {
+    momai.log(`[whatsapp] Skipping session repair for ${jid} (rate limit active)`)
+    return
+  }
+  lastSessionReset.set(jid, now)
+
+  if (jid.endsWith('@g.us')) {
+    await resetGroupSenderKeyMemory(jid)
+    return
+  }
+
+  const authDir = path.join(momai.storage.storageDir, 'baileys-auth')
+  const sessionFile = path.join(authDir, `session-${jid}.json`)
+  if (fsSync.existsSync(sessionFile)) {
+    try {
+      fsSync.unlinkSync(sessionFile)
+      momai.log(`[whatsapp] Auto-healed session: deleted stale session file for ${jid}`)
+    } catch (err) {
+      momai.log(`[whatsapp] Failed to delete session file for ${jid}: ${err.message}`)
+    }
+  }
+  if (sock?.authState?.keys?.set) {
+    try {
+      await sock.authState.keys.set({ session: { [jid]: null } })
+    } catch (err) {
+      momai.log(`[whatsapp] Failed to clear memory session for ${jid}: ${err.message}`)
+    }
+  }
+}
+
+function handleLogEvent(obj, msgStr) {
+  const detail = obj?.err?.message || obj?.error || ''
+  const messageText = msgStr || obj?.msg || ''
+
+  if (
+    messageText.includes('failed to decrypt') ||
+    detail.includes('Bad MAC') ||
+    detail.includes('No matching sessions')
+  ) {
+    const jid = obj?.key?.remoteJid
+    if (jid) {
+      momai.log(`[whatsapp] Detected decryption failure for ${jid}. Triggering session repair.`)
+      repairSession(jid).catch((e) => {
+        momai.log(`[whatsapp] Error repairing session for ${jid}: ${e.message}`)
+      })
+    }
+  }
+}
 const sentMessagesCache = new Map()
 /** Full message protos keyed by remoteJid:messageId for Baileys retries/decrypt */
 const messageStore = new Map()
@@ -211,8 +360,8 @@ function _scheduleReEncrypt() {
   if (reEncryptDebounceTimer) return
   reEncryptDebounceTimer = setTimeout(() => {
     reEncryptDebounceTimer = null
-    reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth')).catch(
-      (err) => momai.log(`debounced re-encrypt failed: ${err.message}`)
+    reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth')).catch((err) =>
+      momai.log(`debounced re-encrypt failed: ${err.message}`)
     )
   }, RE_ENCRYPT_DEBOUNCE_MS)
 }
@@ -433,6 +582,7 @@ function cacheMessage(key, message) {
   const composite = _messageCacheKey(key)
   if (composite) messageStore.set(composite, message)
   _trimMessageCaches()
+  queueSaveMessageCaches()
 }
 
 /**
@@ -899,6 +1049,12 @@ async function _loadPerPhoneData() {
 }
 
 async function main() {
+  // Acquire single instance lock
+  acquireLock()
+
+  // Load message caches from storage
+  await loadMessageCaches()
+
   // Load whitelist (generic fallback)
   disabledContacts = (await momai.storage.get(DISABLED_CONTACTS_KEY)) || []
   contactNames = (await momai.storage.get(CONTACT_NAMES_KEY)) || {}
@@ -1001,6 +1157,9 @@ async function connect() {
               if (parsed.level >= 50) levelStr = 'ERROR'
               const detail = parsed.err?.message || parsed.error || ''
               momai.log(`[Baileys:${levelStr}] ${parsed.msg} ${detail ? '(' + detail + ')' : ''}`)
+              if (parsed.level >= 40) {
+                handleLogEvent(parsed)
+              }
             } catch {
               momai.log(`[Baileys] ${msg}`)
             }
@@ -1012,8 +1171,14 @@ async function connect() {
         const mock = {
           info: () => {},
           debug: () => {},
-          warn: (obj, msg) => momai.log(`[Baileys:WARN] ${msg || JSON.stringify(obj)}`),
-          error: (obj, msg) => momai.log(`[Baileys:ERROR] ${msg || JSON.stringify(obj)}`),
+          warn: (obj, msg) => {
+            momai.log(`[Baileys:WARN] ${msg || JSON.stringify(obj)}`)
+            handleLogEvent(obj, msg)
+          },
+          error: (obj, msg) => {
+            momai.log(`[Baileys:ERROR] ${msg || JSON.stringify(obj)}`)
+            handleLogEvent(obj, msg)
+          },
           trace: () => {},
           child: () => mock
         }
@@ -1199,9 +1364,7 @@ async function connect() {
           momai.sendEvent('connection_status', { status: 'disconnected' })
           _clearReconnectTimer()
           setTimeout(() => {
-            connect().catch((err) =>
-              momai.log(`post-loggedout connect failed: ${err.message}`)
-            )
+            connect().catch((err) => momai.log(`post-loggedout connect failed: ${err.message}`))
           }, 500)
         }
       }
@@ -1582,9 +1745,10 @@ async function handleMessagesUpsert({ messages }) {
     const myJidStandardized = resolveStandardJid(myJidRaw)
     const myLidRaw = sock?.user?.lid || sock?.authState?.creds?.me?.lid
     // Strip device suffix from LID manually (resolveStandardJid uses corrupted waContacts mapping)
-    const myLidStandardized = myLidRaw?.includes(':') && myLidRaw?.includes('@')
-      ? myLidRaw.split('@')[0].split(':')[0] + '@' + myLidRaw.split('@')[1]
-      : myLidRaw
+    const myLidStandardized =
+      myLidRaw?.includes(':') && myLidRaw?.includes('@')
+        ? myLidRaw.split('@')[0].split(':')[0] + '@' + myLidRaw.split('@')[1]
+        : myLidRaw
     // Note to Self: message sent to own number. Compare raw and standardized JIDs.
     const isNoteToSelf =
       isFromMe &&
@@ -1601,8 +1765,7 @@ async function handleMessagesUpsert({ messages }) {
     const shouldNotify =
       !notificationsDisabled &&
       !isOldMessage &&
-      ((!isFromMe && !senderDisabled && !remoteDisabled) ||
-        isNoteToSelf)
+      ((!isFromMe && !senderDisabled && !remoteDisabled) || isNoteToSelf)
     momai.log(
       `[notif-debug] shouldNotify=${shouldNotify} isFromMe=${isFromMe} isOldMessage=${isOldMessage} notificationsDisabled=${notificationsDisabled} senderDisabled=${senderDisabled} remoteDisabled=${remoteDisabled} isNoteToSelf=${isNoteToSelf} remoteJid=${remoteJid} standardizedRemoteJid=${standardizedRemoteJid} resolvedSenderJid=${resolvedSenderJid} myJidRaw=${myJidRaw} myJidStandardized=${myJidStandardized} myLidRaw=${myLidRaw} myLidStandardized=${myLidStandardized} isGroup=${isGroup} disabledContacts=${JSON.stringify(disabledContacts)}`
     )
@@ -1632,9 +1795,7 @@ async function handleMessagesUpsert({ messages }) {
         `[notif-debug] Sending whatsapp_notification event: contact=${finalDisplayName} isGroup=${!!isGroup} isNoteToSelf=${isNoteToSelf}`
       )
       // For self-messages, use the user's own JID (not the corrupted LID-resolved one)
-      const notifContactJid = isNoteToSelf
-        ? (myJidStandardized || replyJid)
-        : replyJid
+      const notifContactJid = isNoteToSelf ? myJidStandardized || replyJid : replyJid
       momai.sendEvent('whatsapp_notification', {
         contact: finalDisplayName,
         senderName: isGroup ? displayName : undefined,
@@ -1798,20 +1959,22 @@ async function getPanelData() {
 process.on('SIGINT', () => {
   reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth'))
     .catch(() => {})
-    .finally(() =>
+    .finally(() => {
+      releaseLock()
       flushPersistedChatHistory()
         .catch(() => {})
         .finally(() => process.exit(0))
-    )
+    })
 })
 process.on('SIGTERM', () => {
   reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth'))
     .catch(() => {})
-    .finally(() =>
+    .finally(() => {
+      releaseLock()
       flushPersistedChatHistory()
         .catch(() => {})
         .finally(() => process.exit(0))
-    )
+    })
 })
 
 // IPC listener for tool execution from LLM
@@ -1820,6 +1983,7 @@ process.on('message', async (msg) => {
     reEncryptCredsAfterBaileys(path.join(momai.storage.storageDir, 'baileys-auth'))
       .catch(() => {})
       .finally(async () => {
+        releaseLock()
         await flushPersistedChatHistory()
         process.exit(0)
       })
@@ -1912,6 +2076,7 @@ process.on('message', async (msg) => {
           }
           break
         }
+        case 'restart':
         case 'request_qr': {
           const forcePairing = Boolean(msg.payload.args?.force)
           if (connected) {
@@ -1937,9 +2102,7 @@ process.on('message', async (msg) => {
             lastQr = null
             lastQrAt = 0
           } else {
-            momai.log(
-              'request_qr: triggering connect (no wipe; loggedOut handler manages cleanup)'
-            )
+            momai.log('request_qr: triggering connect (no wipe; loggedOut handler manages cleanup)')
           }
           if (sock) {
             try {
@@ -1948,6 +2111,7 @@ process.on('message', async (msg) => {
             sock = null
           }
           preventAutoReconnect = false
+          isConnecting = false
           connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
           result = { ok: true, pending: true, hasCredentials: false }
           break

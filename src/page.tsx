@@ -224,11 +224,11 @@ function ContactAvatar({ src, name, id }: { src?: string | null; name: string; i
         style={{ backgroundColor: color }}
       >
         {initials}
-    </div>
-  )
-}
+      </div>
+    )
+  }
 
-registerRenderer('whatsapp-page', WhatsAppView)
+  registerRenderer('whatsapp-page', WhatsAppView)
 
   const isPhone = /^[+\d\s().-]*$/.test(name)
   const isGroup = id.endsWith('@g.us')

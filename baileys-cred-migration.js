@@ -9,10 +9,7 @@
 
 const fs = require('fs')
 const path = require('node:path')
-const {
-  encryptForStorage,
-  decryptFromStorage
-} = require('./secure-storage-bridge')
+const { encryptForStorage, decryptFromStorage } = require('./secure-storage-bridge')
 const { secureWriteFileSync } = require('./fs-permissions')
 
 function _plainCredsPath(baseAuth) {
