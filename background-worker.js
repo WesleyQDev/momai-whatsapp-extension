@@ -371,10 +371,17 @@ function _scheduleReEncrypt() {
 function _hasSavedSession() {
   try {
     const cp = path.join(momai.storage.storageDir, 'baileys-auth', 'creds.json')
-    if (!require('fs').existsSync(cp)) return false
-    const raw = require('fs').readFileSync(cp, 'utf8')
-    const creds = JSON.parse(raw)
-    return Number.isFinite(creds.registrationId) && creds.registrationId > 0
+    const ecp = path.join(momai.storage.storageDir, 'baileys-auth', 'creds.json.enc')
+    const fs = require('fs')
+    if (fs.existsSync(cp)) {
+      const raw = fs.readFileSync(cp, 'utf8')
+      const creds = JSON.parse(raw)
+      return Number.isFinite(creds.registrationId) && creds.registrationId > 0
+    }
+    if (fs.existsSync(ecp)) {
+      return true
+    }
+    return false
   } catch {
     return false
   }
@@ -1198,6 +1205,10 @@ async function connect() {
       emitOwnEvents: false,
       generateHighQualityLinkPreview: false,
       msgRetryCounterCache,
+      browser: ['Windows', 'Chrome', '122.0.0'],
+      connectTimeoutMs: 60000,
+      keepAliveIntervalMs: 30000,
+      defaultQueryTimeoutMs: 60000,
       cachedGroupMetadata: async (jid) => {
         const entry = groupMetaCache.get(jid)
         if (entry && Date.now() - entry.fetchedAt < 5 * 60 * 1000) {
@@ -1276,6 +1287,7 @@ async function connect() {
           }
         } catch {}
         momai.sendEvent('authenticated', { status: 'connected' })
+        momai.sendEvent('connection_status', { status: 'connected' })
         momai.sendEvent('history_loaded', { count: chatHistory.length })
         momai.log('WhatsApp connected')
 
@@ -1531,6 +1543,7 @@ async function connect() {
     })
 
     sock.ev.on('messages.upsert', handleMessagesUpsert)
+    sock.ev.on('call', handleIncomingCalls)
   } catch (err) {
     isConnecting = false
     momai.log(`Connection error: ${err.message}`)
@@ -1544,10 +1557,27 @@ async function handleMessagesUpsert({ messages }) {
     if (msg.message && msg.key?.id) {
       cacheMessage(msg.key, msg.message)
     }
-    if (!msg.message?.conversation && !msg.message?.extendedTextMessage) continue
+    const isSticker = !!msg.message?.stickerMessage
+    const isGif = !!msg.message?.videoMessage?.gifPlayback
+    const isConversation = !!msg.message?.conversation || !!msg.message?.extendedTextMessage
+    const isAudio = !!msg.message?.audioMessage
+
+    if (!isConversation && !isSticker && !isGif && !isAudio) continue
 
     const isFromMe = msg.key.fromMe
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text
+    let text = ''
+    let audioFilename = null
+    if (isConversation) {
+      text = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
+    } else if (isSticker) {
+      text = '[Sticker]'
+    } else if (isGif) {
+      text = '[GIF]'
+    } else if (isAudio) {
+      text = '🎙️ Áudio'
+      audioFilename = await saveIncomingAudio(msg)
+    }
+
     if (!text) continue
 
     const remoteJid = msg.key.remoteJid
@@ -1724,6 +1754,7 @@ async function handleMessagesUpsert({ messages }) {
         senderJid,
         replyJid,
         text,
+        audio: audioFilename,
         timestamp: msg.messageTimestamp
           ? Number(msg.messageTimestamp)
           : Math.floor(Date.now() / 1000),
@@ -1802,6 +1833,7 @@ async function handleMessagesUpsert({ messages }) {
         contactJid: notifContactJid,
         senderJid,
         message: text,
+        audio: audioFilename,
         timestamp: msg.messageTimestamp,
         contactAvatar: resolveChatAvatarUrl(remoteJid, isGroup, senderJid),
         isGroup: !!isGroup,
@@ -1811,6 +1843,76 @@ async function handleMessagesUpsert({ messages }) {
       })
     }
   }
+}
+
+async function handleIncomingCalls(calls) {
+  for (const call of calls) {
+    momai.log(`[call-debug] Call received: id=${call.id} status=${call.status} from=${call.from} isGroup=${call.isGroup}`)
+    if (call.status === 'offer' && !notificationsDisabled) {
+      const callerJid = call.from
+      const isGroup = !!call.isGroup
+      const groupJid = call.groupJid
+
+      const displayName = resolveContactName(callerJid) || callerJid.split('@')[0]
+      const groupName = isGroup && groupJid ? resolveContactName(groupJid) || 'Grupo' : null
+      const finalDisplayName = isGroup ? groupName : displayName
+
+      momai.log(`[call-debug] Sending call notification for: ${finalDisplayName}`)
+
+      momai.sendEvent('whatsapp_notification', {
+        contact: finalDisplayName,
+        senderName: isGroup ? displayName : undefined,
+        contactJid: isGroup && groupJid ? groupJid : callerJid,
+        senderJid: callerJid,
+        message: '📞Chamada em curso...',
+        timestamp: Math.floor(Date.now() / 1000),
+        contactAvatar: resolveChatAvatarUrl(isGroup && groupJid ? groupJid : callerJid, isGroup, callerJid),
+        isGroup,
+        isNoteToSelf: false,
+        groupName: isGroup ? groupName : undefined,
+        isAdminsOnly: false
+      })
+    }
+  }
+}
+
+async function saveIncomingAudio(msg) {
+  try {
+    const audioMessage = msg.message?.audioMessage
+    if (!audioMessage) return null
+
+    const baileys = require('@whiskeysockets/baileys')
+    const downloadMediaMessage = baileys.downloadMediaMessage || baileys.default?.downloadMediaMessage
+    if (!downloadMediaMessage) {
+      momai.log(`[whatsapp-audio] downloadMediaMessage helper not found in Baileys`)
+      return null
+    }
+
+    const buffer = await downloadMediaMessage(
+      msg,
+      'buffer',
+      {},
+      {
+        rekey: false
+      }
+    )
+
+    if (buffer) {
+      const fsSync = require('fs')
+      const audioDir = path.join(momai.storage.storageDir, 'audio')
+      if (!fsSync.existsSync(audioDir)) {
+        fsSync.mkdirSync(audioDir, { recursive: true })
+      }
+      const filename = `${msg.key.id || Date.now()}.ogg`
+      const filePath = path.join(audioDir, filename)
+      fsSync.writeFileSync(filePath, buffer)
+      momai.log(`[whatsapp-audio] Saved audio message: ${filename}`)
+      return filename
+    }
+  } catch (err) {
+    momai.log(`[whatsapp-audio] Failed to download audio: ${err.message}`)
+  }
+  return null
 }
 
 function resolveJidForSending(contact) {
@@ -2253,25 +2355,71 @@ process.on('message', async (msg) => {
         case 'process_notification': {
           const notifContact = msg.payload?.args?.contact || 'Desconhecido'
           const notifMessage = msg.payload?.args?.message || ''
+          const notifAudio = msg.payload?.args?.audio || null
           const isNoteToSelf = !!msg.payload?.args?.isNoteToSelf
           const isGroupNotif = !!msg.payload?.args?.isGroup
           const isPhoneNumber = /^\d+$/.test(String(notifContact).replace(/\D/g, ''))
+
+          const hasEmoji = /\p{Extended_Pictographic}/u.test(notifMessage)
+          const isGif = notifMessage === '[GIF]'
+          const isSticker = notifMessage === '[Sticker]'
+          const isCall = notifMessage === '📞Chamada em curso...' || notifMessage.includes('Chamada em curso')
+          const isAudio = notifMessage === '🎙️ Áudio'
+
           let ttsText
-          if (isNoteToSelf) {
-            ttsText = `Você enviou para si mesmo: ${notifMessage}`
-          } else if (isPhoneNumber) {
-            ttsText = `Um número desconhecido disse: ${notifMessage}`
+          if (isCall) {
+            ttsText = `Ligação pendente de contato ${notifContact}`
+          } else if (isAudio) {
+            if (isNoteToSelf) {
+              ttsText = 'Você enviou um áudio para si mesmo'
+            } else if (isPhoneNumber) {
+              ttsText = 'Um número desconhecido enviou um áudio'
+            } else {
+              ttsText = `${notifContact} enviou um áudio`
+            }
+          } else if (isGif) {
+            if (isNoteToSelf) {
+              ttsText = 'Você enviou um gif para si mesmo'
+            } else if (isPhoneNumber) {
+              ttsText = 'Um número desconhecido enviou um gif'
+            } else {
+              ttsText = `${notifContact} enviou um gif`
+            }
+          } else if (isSticker) {
+            if (isNoteToSelf) {
+              ttsText = 'Você enviou um sticker para si mesmo'
+            } else if (isPhoneNumber) {
+              ttsText = 'Um número desconhecido enviou um sticker'
+            } else {
+              ttsText = `${notifContact} enviou um sticker`
+            }
+          } else if (hasEmoji) {
+            if (isNoteToSelf) {
+              ttsText = 'Você enviou um emoji para si mesmo'
+            } else if (isPhoneNumber) {
+              ttsText = 'Um número desconhecido enviou um emoji'
+            } else {
+              ttsText = `${notifContact} enviou um emoji`
+            }
           } else {
-            ttsText = `${notifContact} disse: ${notifMessage}`
+            if (isNoteToSelf) {
+              ttsText = `Você enviou para si mesmo: ${notifMessage}`
+            } else if (isPhoneNumber) {
+              ttsText = `Um número desconhecido disse: ${notifMessage}`
+            } else {
+              ttsText = `${notifContact} disse: ${notifMessage}`
+            }
           }
+
           const quickReplies = []
-          if (notifMessage) {
+          if (notifMessage && !isGif && !isSticker && !isCall && !isAudio) {
             quickReplies.push(`Obrigado pela mensagem, ${notifContact}!`)
             quickReplies.push(`Vou verificar e respondo em breve.`)
           }
           result = {
             quickReplies,
-            tts: ttsText
+            tts: ttsText,
+            audio: notifAudio
           }
           break
         }

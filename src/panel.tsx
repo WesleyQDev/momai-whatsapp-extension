@@ -31,6 +31,7 @@ type HistoryLine = {
   text: string
   timestamp: number
   from?: string
+  audio?: string
 }
 
 const formatHistoryTime = (ts: number) => {
@@ -105,8 +106,6 @@ function ContactAvatar({ src, name, id }: { src?: string | null; name: string; i
       </div>
     )
   }
-
-
 
   const isPhone = /^[+\d\s().-]*$/.test(name)
   return (
@@ -390,12 +389,31 @@ export default function WhatsAppNotificationCard({ data }: { data: any }) {
                   <p className="text-sm text-text/80 mt-0.5 whitespace-pre-wrap break-words select-text">
                     {line.text}
                   </p>
+                  {line.audio && (
+                    <div className="mt-1.5 mb-1 max-w-[280px]">
+                      <audio
+                        src={`${API_URL}/extensions/whatsapp/storage/audio/${line.audio}`}
+                        controls
+                        className="w-full h-8 accent-accent"
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         ) : (
           <p className="text-sm text-text/80 shrink-0 select-text">{message}</p>
+        )}
+
+        {data?.audio && (
+          <div className="mt-1.5 mb-2 max-w-[280px] shrink-0">
+            <audio
+              src={`${API_URL}/extensions/whatsapp/storage/audio/${data.audio}`}
+              controls
+              className="w-full h-8 accent-accent"
+            />
+          </div>
         )}
 
         {isAdminsOnly ? (
@@ -538,9 +556,7 @@ export function WhatsAppReconnectCard({ data }: { data: any }) {
       className="flex flex-col w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl overflow-hidden px-5 py-4 select-none"
       style={{ WebkitAppRegion: 'drag' } as any}
     >
-      <div
-        className="flex justify-between items-center mb-2"
-      >
+      <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
           <div className="bg-emerald-500/10 border border-emerald-500/20 p-1.5 rounded-lg shadow-[0_0_10px_rgba(16,185,129,0.1)]">
             <svg
@@ -571,23 +587,17 @@ export function WhatsAppReconnectCard({ data }: { data: any }) {
         </button>
       </div>
 
-      <div
-        className="flex flex-col items-center text-center"
-      >
+      <div className="flex flex-col items-center text-center">
         <p className="text-[11px] text-text-muted mb-3 max-w-[280px]">
           Escaneie o código QR abaixo com o WhatsApp no seu celular para reconectar.
         </p>
 
-        <div 
+        <div
           className="relative w-44 h-44 flex items-center justify-center bg-white rounded-xl p-2.5 border border-border/10 shadow-inner"
           style={{ WebkitAppRegion: 'no-drag' } as any}
         >
           {qrUrl ? (
-            <img
-              src={qrUrl}
-              alt="WhatsApp QR Code"
-              className="w-full h-full object-contain"
-            />
+            <img src={qrUrl} alt="WhatsApp QR Code" className="w-full h-full object-contain" />
           ) : (
             <div className="flex flex-col items-center justify-center gap-2">
               <div className="w-7 h-7 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />

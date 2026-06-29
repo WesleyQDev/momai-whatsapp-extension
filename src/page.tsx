@@ -16,6 +16,7 @@ interface Message {
   groupName?: string | null
   senderJid?: string
   profilePicUrl?: string | null
+  audio?: string
 }
 
 interface ConversationTurn {
@@ -28,6 +29,7 @@ interface ConversationHistoryLine {
   text: string
   timestamp: number
   from?: string
+  audio?: string
 }
 
 interface ConversationSummary {
@@ -78,13 +80,15 @@ function turnsToHistoryLines(turns: ConversationTurn[]): ConversationHistoryLine
       direction: 'incoming',
       text: turn.incoming.text,
       timestamp: turn.incoming.timestamp,
-      from: turn.incoming.from
+      from: turn.incoming.from,
+      audio: turn.incoming.audio
     })
     for (const reply of turn.replies) {
       lines.push({
         direction: 'outgoing',
         text: reply.text,
-        timestamp: reply.timestamp
+        timestamp: reply.timestamp,
+        audio: reply.audio
       })
     }
   }
@@ -661,8 +665,11 @@ export default function WhatsAppView() {
     }
 
     const overlayData = {
+      skillId: 'whatsapp',
+      panel: 'dist/panel.js',
+      panelType: 'whatsapp-panel',
       structuredResponse: {
-        type: 'whatsapp_notification',
+        type: 'whatsapp-panel',
         data: {
           contact: convo.contactLabel,
           contactJid,
