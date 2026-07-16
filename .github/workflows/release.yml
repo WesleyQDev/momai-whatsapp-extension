@@ -35,19 +35,17 @@ jobs:
         with:
           version: 9
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: momai/apps/momai/scripts/skills/packaged/whatsapp/pnpm-lock.yaml
-
       - name: Place extension into MomAI tree
         shell: pwsh
         run: |
           $dest = "momai\apps\momai\scripts\skills\packaged\whatsapp"
           New-Item -ItemType Directory -Path $dest -Force | Out-Null
           Get-ChildItem -Path extension -Exclude @('.git') | Copy-Item -Destination $dest -Recurse -Force
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install dependencies
         shell: pwsh
