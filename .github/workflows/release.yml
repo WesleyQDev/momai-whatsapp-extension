@@ -1,0 +1,84 @@
+name: Release WhatsApp Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout extension
+        uses: actions/checkout@v4
+
+      # The extension UI is built with esbuild aliases that point into the MomAI
+      # renderer source (momai:registry, momai:api, momai:image-viewer, etc.).
+      # In CI we need the MomAI repo as a sibling directory so build.mjs can
+      # resolve those aliases.
+      - name: Checkout MomAI source
+        uses: actions/checkout@v4
+        with:
+          repository: WesleyQDev/MomAI
+          path: momai
+          token: ${{ secrets.MOMAI_PAT }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install production dependencies
+        shell: pwsh
+        run: |
+          if (Test-Path package-lock.json) {
+            npm ci --production
+          } else {
+            npm install --production
+          }
+
+      - name: Build UI
+        shell: pwsh
+        run: npm run build
+
+      - name: Create release zip
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $version = $pkg.version
+          $zipName = "momai-whatsapp-extension-v$version.zip"
+          $items = @(
+            'manifest.json',
+            'SKILL.md',
+            'package.json',
+            'runtime.js',
+            'background-worker.js',
+            'baileys-cred-migration.js',
+            'fs-permissions.js',
+            'secure-storage-bridge.js',
+            'icon.svg',
+            'dist',
+            'locales',
+            'node_modules'
+          )
+          Compress-Archive -Path $items -DestinationPath $zipName -Force
+          "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload workflow artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: whatsapp-extension-${{ github.run_id }}
+          path: ${{ env.ZIP_NAME }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
