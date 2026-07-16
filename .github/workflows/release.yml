@@ -30,17 +30,13 @@ jobs:
           path: momai
           token: ${{ secrets.MOMAI_PAT }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Place extension into MomAI tree
         shell: pwsh
         run: |
           $dest = "momai\apps\momai\scripts\skills\packaged\whatsapp"
           New-Item -ItemType Directory -Path $dest -Force | Out-Null
           Get-ChildItem -Path extension -Exclude @('.git') | Copy-Item -Destination $dest -Recurse -Force
+          Get-ChildItem -Path $dest | Select-Object Name
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -49,18 +45,20 @@ jobs:
 
       - name: Install dependencies
         shell: pwsh
-        working-directory: momai\apps\momai\scripts\skills\packaged\whatsapp
-        run: pnpm install
+        run: |
+          cd momai/apps/momai/scripts/skills/packaged/whatsapp
+          npm install
 
       - name: Build UI
         shell: pwsh
-        working-directory: momai\apps\momai\scripts\skills\packaged\whatsapp
-        run: pnpm build
+        run: |
+          cd momai/apps/momai/scripts/skills/packaged/whatsapp
+          npm run build
 
       - name: Create release zip
         shell: pwsh
-        working-directory: momai\apps\momai\scripts\skills\packaged\whatsapp
         run: |
+          cd momai/apps/momai/scripts/skills/packaged/whatsapp
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
           $version = $pkg.version
           $zipName = "momai-whatsapp-extension-v$version.zip"
