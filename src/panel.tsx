@@ -300,6 +300,10 @@ export default function WhatsAppNotificationCard({ data }: { data: any }) {
 
   if (!data) return null
 
+  if (data?.qr || data?.status === 'disconnected') {
+    return <WhatsAppReconnectCard data={data} />
+  }
+
   const voiceLabel = VOICE_LABELS[voiceStatus]
 
   return (
