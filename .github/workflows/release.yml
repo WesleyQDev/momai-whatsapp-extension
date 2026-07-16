@@ -41,7 +41,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+
+      - name: Debug tree structure
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse momai/apps/momai/scripts/skills/packaged/whatsapp | Select-Object -First 30
+          Test-Path momai/apps/momai/src/renderer/src/components/chat/SkillResponseRegistry.ts
+          Test-Path momai/apps/momai/src/renderer/src/services/api.ts
+          Test-Path momai/apps/momai/src/renderer/src/components/ImageViewer.tsx
 
       - name: Install dependencies
         shell: pwsh
@@ -53,7 +61,7 @@ jobs:
         shell: pwsh
         run: |
           cd momai/apps/momai/scripts/skills/packaged/whatsapp
-          npm run build
+          node build.mjs
 
       - name: Create release zip
         shell: pwsh
