@@ -11,7 +11,7 @@
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "version": "0.3.38",
+  "version": "0.3.39",
   "ui": {
     "page": "dist/page.js",
     "pageType": "whatsapp-page",

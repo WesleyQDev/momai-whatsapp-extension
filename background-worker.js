@@ -354,10 +354,15 @@ async function getBaileysVersion() {
   if (cachedBaileysVersion && Date.now() - cachedBaileysVersionAt < 86400000) {
     return cachedBaileysVersion
   }
-  const { version } = await fetchLatestBaileysVersion()
-  cachedBaileysVersion = version
-  cachedBaileysVersionAt = Date.now()
-  return version
+  try {
+    const { version } = await fetchLatestBaileysVersion()
+    cachedBaileysVersion = version
+    cachedBaileysVersionAt = Date.now()
+    return version
+  } catch (err) {
+    momai.log(`[whatsapp] Failed to fetch latest Baileys version online: ${err.message}. Using default fallback.`)
+    return [2, 3000, 1015977087]
+  }
 }
 
 function _qrStillValid() {
@@ -1224,7 +1229,7 @@ async function connect() {
       syncFullHistory: true,
       generateHighQualityLinkPreview: false,
       msgRetryCounterCache,
-      browser: ['Windows', 'Chrome', '122.0.0'],
+      browser: baileys.Browsers?.ubuntu('Chrome') || ['Ubuntu', 'Chrome', '20.0.04'],
       connectTimeoutMs: 60000,
       keepAliveIntervalMs: 30000,
       defaultQueryTimeoutMs: 60000,
@@ -1358,6 +1363,10 @@ async function connect() {
       } else if (connection === 'close') {
         connected = false
         isConnecting = false
+        const errStack = lastDisconnect?.error?.stack || lastDisconnect?.error?.message || JSON.stringify(lastDisconnect?.error || {})
+        const statusCode = lastDisconnect?.error?.output?.statusCode
+        momai.log(`[ext:whatsapp:close] Connection closed. Status: ${statusCode}. Error: ${errStack}`)
+        
         // Move creds back to encrypted-at-rest before the next reconnect.
         reEncryptCredsAfterBaileys(authDir).catch((err) =>
           momai.log(`post-close re-encrypt failed: ${err.message}`)
@@ -1368,7 +1377,6 @@ async function connect() {
           momai.sendEvent('connection_status', { status: 'disconnected' })
           return
         }
-        const statusCode = lastDisconnect?.error?.output?.statusCode
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut
         if (shouldReconnect) {
           momai.sendEvent('connection_status', { status: 'reconnecting' })
