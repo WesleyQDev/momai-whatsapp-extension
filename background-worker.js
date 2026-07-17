@@ -2222,18 +2222,23 @@ process.on('message', async (msg) => {
             }
             lastQr = null
             lastQrAt = 0
+            if (sock) {
+              try {
+                sock.end(undefined)
+              } catch {}
+              sock = null
+            }
+            preventAutoReconnect = false
+            isConnecting = false
+            connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
           } else {
-            momai.log('request_qr: triggering connect (no wipe; loggedOut handler manages cleanup)')
+            if (sock || isConnecting) {
+              momai.log('request_qr: already connecting or socket exists, keeping current connection attempt')
+            } else {
+              momai.log('request_qr: triggering connect (no wipe; loggedOut handler manages cleanup)')
+              connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
+            }
           }
-          if (sock) {
-            try {
-              sock.end(undefined)
-            } catch {}
-            sock = null
-          }
-          preventAutoReconnect = false
-          isConnecting = false
-          connect().catch((err) => momai.log(`request_qr connect failed: ${err.message}`))
           result = { ok: true, pending: true, hasCredentials: false }
           break
         }
