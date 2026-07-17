@@ -10,6 +10,7 @@ let makeWASocket,
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  Browsers,
   pino
 try {
   const baileys = require('@whiskeysockets/baileys')
@@ -20,6 +21,7 @@ try {
     baileys.fetchLatestBaileysVersion || baileys.default?.fetchLatestBaileysVersion
   makeCacheableSignalKeyStore =
     baileys.makeCacheableSignalKeyStore || baileys.default?.makeCacheableSignalKeyStore
+  Browsers = baileys.Browsers || baileys.default?.Browsers
 
   try {
     pino = require('pino')
@@ -1229,7 +1231,7 @@ async function connect() {
       syncFullHistory: true,
       generateHighQualityLinkPreview: false,
       msgRetryCounterCache,
-      browser: baileys.Browsers?.ubuntu('Chrome') || ['Ubuntu', 'Chrome', '20.0.04'],
+      browser: Browsers?.ubuntu('Chrome') || ['Ubuntu', 'Chrome', '20.0.04'],
       connectTimeoutMs: 60000,
       keepAliveIntervalMs: 30000,
       defaultQueryTimeoutMs: 60000,
