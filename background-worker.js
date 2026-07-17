@@ -78,7 +78,12 @@ async function reEncryptCredsAfterBaileys(baseAuth) {
   if (!safeStorageAvailable) return false
   const result = await _reEncryptCredsAfterBaileys(baseAuth)
   if (!result) {
-    safeStorageAvailable = false
+    const fsSync = require('fs')
+    const path = require('node:path')
+    const plainCreds = path.join(baseAuth, 'creds.json')
+    if (fsSync.existsSync(plainCreds)) {
+      safeStorageAvailable = false
+    }
   }
   return result
 }
@@ -290,12 +295,22 @@ function handleLogEvent(obj, msgStr) {
   const detail = obj?.err?.message || obj?.error || ''
   const messageText = msgStr || obj?.msg || ''
 
-  if (
+  // Detect decryption failures from explicit error messages
+  const isKnownDecryptError =
     messageText.includes('failed to decrypt') ||
-    detail.includes('Bad MAC') ||
-    detail.includes('No matching sessions')
-  ) {
-    const jid = obj?.key?.remoteJid
+    (typeof detail === 'string' &&
+      (detail.includes('Bad MAC') || detail.includes('No matching sessions')))
+
+  // Detect 'error in handling message' with encrypted content (pkmsg/skmsg)
+  // — Baileys logs these when Signal protocol pre-key messages can't be
+  // decrypted, typically right after a fresh QR pairing.
+  const isHandleError =
+    messageText === 'error in handling message' &&
+    obj?.node?.attrs?.from
+
+  if (isKnownDecryptError || isHandleError) {
+    // Extract JID: 'key.remoteJid' for decrypt errors, 'node.attrs.from' for handle errors
+    const jid = obj?.key?.remoteJid || obj?.node?.attrs?.from
     if (jid) {
       momai.log(`[whatsapp] Detected decryption failure for ${jid}. Triggering session repair.`)
       repairSession(jid).catch((e) => {
@@ -1194,8 +1209,11 @@ async function connect() {
       logger = makeMockLogger()
     }
 
-    // Use the raw keys directly from disk (disabling cache to prevent Bad MAC and No Sessions out-of-sync desyncs)
-    const authConfig = state
+    // Use the cacheable signal key store to prevent blocking disk I/O timeouts, especially on Windows
+    const authConfig = {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore ? makeCacheableSignalKeyStore(state.keys, logger) : state.keys
+    }
 
     sock = makeWASocket({
       version,
@@ -1335,7 +1353,7 @@ async function connect() {
           } catch (err) {
             momai.log(`Error finalizing contact sync: ${err.message}`)
           }
-        }, 10000)
+        }, 30000)
       } else if (connection === 'close') {
         connected = false
         isConnecting = false
