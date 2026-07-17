@@ -1221,6 +1221,7 @@ async function connect() {
       logger,
       printQRInTerminal: false,
       emitOwnEvents: false,
+      syncFullHistory: true,
       generateHighQualityLinkPreview: false,
       msgRetryCounterCache,
       browser: ['Windows', 'Chrome', '122.0.0'],
@@ -2245,11 +2246,67 @@ process.on('message', async (msg) => {
           }
 
           if (sock && connected) {
+            const contactCount = Object.values(waContacts).filter(
+              (c) => c.phone && !c.id.endsWith('@g.us')
+            ).length
+            const groupCount = Object.values(waContacts).filter(
+              (c) => c.id.endsWith('@g.us')
+            ).length
+
+            // If contacts are empty, force a reconnect to trigger fresh history sync
+            if (contactCount === 0 && groupCount === 0) {
+              momai.log('[sync] No contacts or groups found. Forcing reconnect to trigger history sync...')
+              try {
+                sock.end(undefined)
+              } catch (_) {}
+              connected = false
+              isConnecting = false
+              _clearReconnectTimer()
+              // Short delay before reconnecting so the server registers the disconnect
+              await new Promise((r) => setTimeout(r, 2000))
+              momai.log('[sync] Reconnecting...')
+              connect()
+              result = { ok: true, syncedContacts: 0, reconnecting: true }
+              break
+            }
+
+            // Fetch all groups the user participates in (directly from WhatsApp API)
+            try {
+              momai.log('[sync] Fetching groups via groupFetchAllParticipating...')
+              const groups = await Promise.race([
+                sock.groupFetchAllParticipating(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('groups fetch timeout')), 15000))
+              ])
+              if (groups && typeof groups === 'object') {
+                let groupsAdded = 0
+                for (const [jid, meta] of Object.entries(groups)) {
+                  if (!waContacts[jid]) {
+                    waContacts[jid] = {
+                      id: jid,
+                      name: meta.subject || null,
+                      notify: null,
+                      verifiedName: null,
+                      phone: null
+                    }
+                    groupsAdded++
+                  } else if (meta.subject && !waContacts[jid].name) {
+                    waContacts[jid].name = meta.subject
+                  }
+                }
+                if (groupsAdded > 0) {
+                  momai.log(`[sync] Added ${groupsAdded} groups from WhatsApp API`)
+                  await momai.storage.set(_getWaContactsKey(), waContacts).catch(() => {})
+                }
+              }
+            } catch (err) {
+              momai.log(`[sync] Group fetch failed: ${err.message}`)
+            }
+
+            // Fetch profile pictures for top contacts
             const now = Date.now()
             const validContacts = Object.values(waContacts).filter(
               (c) => c.phone && !c.id.endsWith('@g.us')
             )
-
             const promises = validContacts.slice(0, 15).map(async (c) => {
               try {
                 const url = await Promise.race([
