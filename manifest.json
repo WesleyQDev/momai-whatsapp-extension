@@ -11,7 +11,7 @@
   "background": true,
   "backgroundScript": "background-worker.js",
   "permissions": ["network:persistent", "storage:persistent"],
-  "version": "0.3.40",
+  "version": "0.3.41",
   "ui": {
     "page": "dist/page.js",
     "pageType": "whatsapp-page",
@@ -49,8 +49,120 @@
     "gradient": "from-emerald-500 to-green-600",
     "accent": "emerald"
   },
+  "overlay": {
+    "initialStatusTool": "get_stats",
+    "structuredResponseType": "whatsapp-reconnect",
+    "size": { "width": 440, "height": 420 },
+    "statusEvents": {
+      "connection_status": {
+        "statusField": "status",
+        "disconnectedValues": ["disconnected"],
+        "connectedValues": ["connected"]
+      },
+      "qr_code": {
+        "qrField": "qr",
+        "status": "disconnected"
+      }
+    }
+  },
   "toolPriority": {
     "label": "WHATSAPP",
     "rule": "monitor, reply, or send WhatsApp messages via the whatsapp tools."
-  }
+  },
+  "tools": [
+    {
+      "name": "send_message",
+      "description": "Envia uma mensagem para um contato ou grupo do WhatsApp",
+      "parameters": {
+        "type": "object",
+        "required": ["contact", "message"],
+        "properties": {
+          "contact": { "type": "string", "description": "Nome ou número do contato" },
+          "message": { "type": "string", "description": "Texto da mensagem" }
+        }
+      }
+    },
+    {
+      "name": "list_contacts",
+      "description": "Lista os contatos monitorados no WhatsApp",
+      "parameters": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "add_contact",
+      "description": "Adiciona um contato ou grupo para monitoramento",
+      "parameters": {
+        "type": "object",
+        "required": ["contact"],
+        "properties": {
+          "contact": { "type": "string", "description": "Número do contato ou ID do grupo" }
+        }
+      }
+    },
+    {
+      "name": "remove_contact",
+      "description": "Remove um contato ou grupo do monitoramento",
+      "parameters": {
+        "type": "object",
+        "required": ["contact"],
+        "properties": {
+          "contact": { "type": "string", "description": "Número ou ID do contato" }
+        }
+      }
+    },
+    {
+      "name": "set_contact_name",
+      "description": "Define um nome personalizado para um contato (melhora o contexto do LLM)",
+      "parameters": {
+        "type": "object",
+        "required": ["contact", "name"],
+        "properties": {
+          "contact": { "type": "string", "description": "Número do contato" },
+          "name": { "type": "string", "description": "Nome personalizado" }
+        }
+      }
+    },
+    {
+      "name": "get_stats",
+      "description": "Obtem estatisticas do WhatsApp",
+      "parameters": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "get_history",
+      "description": "Obtem historico de mensagens recentes",
+      "parameters": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "get_avatars",
+      "description": "Busca fotos de perfil para uma lista de JIDs (contatos ou grupos)",
+      "parameters": {
+        "type": "object",
+        "required": ["jids"],
+        "properties": {
+          "jids": { "type": "array", "items": { "type": "string" }, "description": "Lista de JIDs WhatsApp (@s.whatsapp.net ou @g.us)" }
+        }
+      }
+    },
+    {
+      "name": "get_wa_contacts",
+      "description": "Lista os contatos do WhatsApp importados automaticamente do telefone. Retorna nome e numero.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "search": { "type": "string", "description": "Busca por nome ou numero (opcional)" }
+        }
+      }
+    },
+    {
+      "name": "get_wa_groups",
+      "description": "Lista os grupos do WhatsApp sincronizados. Suporta busca e paginacao.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "search": { "type": "string", "description": "Busca por nome do grupo (opcional)" },
+          "page": { "type": "number", "description": "Pagina (opcional)" },
+          "perPage": { "type": "number", "description": "Itens por pagina (opcional)" }
+        }
+      }
+    }
+  ]
 }
